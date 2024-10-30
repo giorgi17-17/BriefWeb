@@ -1,27 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { auth, provider } from '../../config/firebase';
+import { signInWithPopup } from '@firebase/auth';
 
 const Login = () => {
   const [error, setError] = useState(null);
-  const { signInWithGoogle, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if user is already logged in
-  if (user) {
-    navigate('/');
-    return null;
-  }
+  // Use useEffect for navigation
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const saveUserToMongoDB = async (userData) => {
+    try {
+      console.log('Attempting to save user data:', userData);
+
+      const response = await axios.post('http://localhost:5000/api/users/google-signin', {
+        uid: userData.uid,
+        email: userData.email,
+        displayName: userData.displayName,
+        photoURL: userData.photoURL
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Server response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error saving user to MongoDB:', error.response?.data || error.message);
+      throw error;
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
-      navigate('/');
+      const data = await signInWithPopup(auth, provider);
+      console.log('Firebase sign-in result:', data);
+
+      if (data.user) {
+        const userData = {
+          uid: data.user.uid,
+          email: data.user.email,
+          displayName: data.user.displayName || data.user.email.split('@')[0],
+          photoURL: data.user.photoURL || ''
+        };
+        
+        console.log('Preparing to save user data:', userData);
+        await saveUserToMongoDB(userData);
+        console.log('User data saved successfully');
+      }
     } catch (error) {
-      setError(error.message);
-      console.error('Sign in error:', error);
+      const errorMessage = error.response?.data?.message || error.message;
+      setError(errorMessage);
+      console.error('Detailed sign-in error:', error);
     }
   };
+
+  // Don't render anything if user is already logged in
+  if (user) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -71,4 +115,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

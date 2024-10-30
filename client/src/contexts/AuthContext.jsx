@@ -29,20 +29,12 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      throw error;
-    }
-  };
+  }
 
   const logout = async () => {
-    try {
       await signOut(auth);
-    } catch (error) {
-      throw error;
-    }
-  };
+  }
 
   const value = {
     user,
