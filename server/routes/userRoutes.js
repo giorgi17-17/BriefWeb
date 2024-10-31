@@ -1,9 +1,15 @@
 import express from 'express';
-import { createOrUpdateUser, testRoute } from '../controllers/userController.js';
+import { 
+  getUserByFirebaseUID, 
+  addSubject,
+  createOrUpdateGoogleUser 
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
-router.post('/users/google-signin', createOrUpdateUser);
-router.get('/test', testRoute);
+// User routes
+router.post('/users/google-signin', createOrUpdateGoogleUser);
+router.get('/users/:firebaseUID', getUserByFirebaseUID);
+router.post('/users/:firebaseUID/subjects', addSubject);
 
 export default router; 

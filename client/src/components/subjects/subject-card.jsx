@@ -1,19 +1,21 @@
 import PropTypes from 'prop-types'
 
-export function SubjectCard({ subject }) {
+export const SubjectCard = ({ subject }) => {
   return (
-    <div className="rounded-lg border p-4 hover:shadow-md transition-shadow">
-      <h3 className="text-lg font-semibold">{subject.name}</h3>
-      <div className="mt-4 flex space-x-4 text-sm text-gray-500">
-        <span>0 Flashcards</span>
-        <span>0 Briefs</span>
+    <div className="border rounded-lg p-6 hover:shadow-lg transition-shadow">
+      <h3 className="text-xl font-semibold mb-2">{subject.name}</h3>
+      <p className="text-gray-600 mb-4">{subject.description}</p>
+      <div className="text-sm text-gray-500">
+        {subject.lectureCount} Lectures
       </div>
     </div>
-  )
-}
+  );
+};
 
 SubjectCard.propTypes = {
   subject: PropTypes.shape({
-    name: PropTypes.string.isRequired
+    name: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    lectureCount: PropTypes.number.isRequired
   }).isRequired
 } 

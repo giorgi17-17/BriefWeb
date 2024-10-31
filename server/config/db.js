@@ -1,25 +1,29 @@
 import mongoose from "mongoose";
 import { MongoClient, ServerApiVersion } from "mongodb";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const uri = `mongodb+srv://${process.env.MONGO_USER_NAME}:${process.env.MONGO_USER_PASSWORD}@brief.5qwlb.mongodb.net/Brief?retryWrites=true&w=majority&appName=brief`;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
 
 const connectDB = async () => {
   try {
-    const uri = `mongodb+srv://${process.env.MONGO_USER_NAME}:${process.env.MONGO_USER_PASSWORD}@brief.5qwlb.mongodb.net/Brief?retryWrites=true&w=majority&appName=brief`;
-
-    console.log('Attempting to connect to MongoDB...');
-
-    // Connect using Mongoose
+    // Connect with MongoClient first to test connection
+    await client.connect();
+    await client.db("Brief").command({ ping: 1 });
+    console.log("Pinged your deployment. Successfully connected to Brief database!");
+    
+    // Then connect with Mongoose for the application
     await mongoose.connect(uri, {
-      serverApi: {
-        version: '1',
-        strict: true,
-        deprecationErrors: true,
-      }
-    });
-
-    console.log('Connected to MongoDB Atlas successfully!');
-
-    // Test connection with MongoClient
-    const client = new MongoClient(uri, {
+      dbName: 'Brief',
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -27,14 +31,13 @@ const connectDB = async () => {
       }
     });
 
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log("MongoDB connection test successful!");
-    await client.close();
-
+    console.log('Connected to Brief database Successfully!');
   } catch (error) {
-    console.error('Detailed MongoDB connection error:', error);
+    console.error('MongoDB connection error:', error);
     process.exit(1);
+  } finally {
+    // Close the MongoClient connection after testing
+    await client.close();
   }
 };
 

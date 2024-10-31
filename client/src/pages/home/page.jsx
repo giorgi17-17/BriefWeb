@@ -1,33 +1,94 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { getUserByFirebaseUID } from "../../utils/api";
+import axios from 'axios';
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
+  const [newSubjectDescription, setNewSubjectDescription] = useState("");
+  const [userData, setUserData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // Hardcoded initial subjects
-  const [subjects] = useState([
-    { id: 1, name: "Math", lectureCount: 0 },
-    { id: 2, name: "Marketing", lectureCount: 0 },
-    { id: 3, name: "Coding", lectureCount: 0 },
-  ]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.uid) {
+        navigate('/login');
+        return;
+      }
 
-  const handleSubjectClick = (subjectName) => {
+      try {
+        setError(null);
+        const userData = await getUserByFirebaseUID(user.uid);
+        setUserData(userData);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setError("Failed to load user data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user, navigate]);
+
+  const handleAddSubject = async () => {
+    if (!newSubjectName.trim() || !newSubjectDescription.trim()) {
+      setError('Please fill in both title and description');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const response = await axios.post(
+        `http://localhost:5000/api/users/${user.uid}/subjects`,
+        {
+          title: newSubjectName.trim(),
+          description: newSubjectDescription.trim()
+        }
+      );
+
+      console.log('Subject created:', response.data);
+      
+      // Update user data with new subject
+      setUserData(response.data.user);
+      
+      // Reset form and close modal
+      setNewSubjectName("");
+      setNewSubjectDescription("");
+      setIsModalOpen(false);
+
+    } catch (error) {
+      console.error('Error adding subject:', error);
+      setError(error.response?.data?.message || 'Failed to add subject');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubjectClick = (subjectId, subjectName) => {
     const urlName = encodeURIComponent(
       subjectName.toLowerCase().replace(/ /g, "-")
     );
-    navigate(`/subjects/${urlName}`);
+    navigate(`/subjects/${urlName}`, { state: { subjectId } });
   };
 
-  const handleAddSubject = () => {
-    if (newSubjectName.trim()) {
-      // Add your subject creation logic here
-      setIsModalOpen(false);
-      setNewSubjectName("");
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen px-4 py-8">
@@ -41,55 +102,99 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Subjects Grid */}
-      <section className="max-w-4xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {subjects.map((subject) => (
-            <div
-              key={subject.id}
-              onClick={() => handleSubjectClick(subject.name)}
-              className="cursor-pointer"
-            >
-              <SubjectCard subject={subject} />
-            </div>
-          ))}
+      {/* Error Display */}
+      {error && (
+        <div className="max-w-4xl mx-auto mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+          {error}
         </div>
+      )}
+
+      {/* Subjects Section */}
+      <section className="max-w-4xl mx-auto">
+        {userData?.subjects?.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600 mb-4">No subjects yet. Create your first subject!</p>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Create Subject
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {userData?.subjects?.map((subject) => (
+              <div
+                key={subject._id}
+                onClick={() => handleSubjectClick(subject._id, subject.title)}
+                className="cursor-pointer"
+              >
+                <SubjectCard 
+                  subject={{
+                    id: subject._id,
+                    name: subject.title,
+                    description: subject.description,
+                    lectureCount: 0
+                  }} 
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* Add Subject Button */}
-      <div className="text-center mt-8">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          Add New Subject
-        </button>
-      </div>
+      {/* Add Subject Button (only show if subjects exist) */}
+      {userData?.subjects?.length > 0 && (
+        <div className="text-center mt-8">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Add New Subject
+          </button>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
             <h2 className="text-xl font-bold mb-4">Add New Subject</h2>
+            
             <input
               type="text"
               value={newSubjectName}
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="Enter subject name..."
               className="w-full px-4 py-2 border rounded-md mb-4"
+              disabled={isSubmitting}
             />
+
+            <textarea
+              value={newSubjectDescription}
+              onChange={(e) => setNewSubjectDescription(e.target.value)}
+              placeholder="Enter subject description..."
+              className="w-full px-4 py-2 border rounded-md mb-4 h-32 resize-none"
+              disabled={isSubmitting}
+            />
+
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setError(null);
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddSubject}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                disabled={isSubmitting}
               >
-                Add Subject
+                {isSubmitting ? 'Adding...' : 'Add Subject'}
               </button>
             </div>
           </div>

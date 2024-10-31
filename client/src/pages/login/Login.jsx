@@ -10,7 +10,6 @@ const Login = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Use useEffect for navigation
   useEffect(() => {
     if (user) {
       navigate('/');
@@ -19,48 +18,42 @@ const Login = () => {
 
   const saveUserToMongoDB = async (userData) => {
     try {
-      console.log('Attempting to save user data:', userData);
-
+      console.log('Saving user data to MongoDB:', userData);
+      
       const response = await axios.post('http://localhost:5000/api/users/google-signin', {
         uid: userData.uid,
         email: userData.email,
         displayName: userData.displayName,
         photoURL: userData.photoURL
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
       });
       
-      console.log('Server response:', response.data);
+      console.log('User saved to MongoDB:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error saving user to MongoDB:', error.response?.data || error.message);
+      console.error('Error saving user to MongoDB:', error);
       throw error;
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
-      const data = await signInWithPopup(auth, provider);
-      console.log('Firebase sign-in result:', data);
+      const result = await signInWithPopup(auth, provider);
+      console.log('Google sign-in result:', result);
 
-      if (data.user) {
-        const userData = {
-          uid: data.user.uid,
-          email: data.user.email,
-          displayName: data.user.displayName || data.user.email.split('@')[0],
-          photoURL: data.user.photoURL || ''
-        };
+      if (result.user) {
+        await saveUserToMongoDB({
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName || result.user.email.split('@')[0],
+          photoURL: result.user.photoURL || ''
+        });
         
-        console.log('Preparing to save user data:', userData);
-        await saveUserToMongoDB(userData);
-        console.log('User data saved successfully');
+        // Navigate after successful save
+        navigate('/');
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message;
-      setError(errorMessage);
-      console.error('Detailed sign-in error:', error);
+      console.error('Sign in error:', error);
+      setError(error.message);
     }
   };
 
@@ -96,19 +89,6 @@ const Login = () => {
               <span>Sign in with Google</span>
             </div>
           </button>
-        </div>
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">
-                Protected by Firebase Auth
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

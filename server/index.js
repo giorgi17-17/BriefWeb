@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes.js";
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 dotenv.config();
 
@@ -13,14 +13,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Log all requests
+// Log all requests for debugging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
+  console.log(`${req.method} ${req.url}`, req.body);
   next();
 });
 
 // Connect to Database
-connectDB();
+connectDB().catch(console.dir);
 
 // Routes
 app.use('/api', userRoutes);
@@ -36,11 +36,16 @@ app.use((err, req, res, next) => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  await mongoose.connection.close();
-  process.exit(0);
+  try {
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
 });
 
-// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
