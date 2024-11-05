@@ -2,14 +2,12 @@ import { useState, useEffect } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { getUserByFirebaseUID } from "../../utils/api";
-import axios from 'axios';
+import { supabase } from '../../utils/supabaseClient';
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
-  const [newSubjectDescription, setNewSubjectDescription] = useState("");
-  const [userData, setUserData] = useState(null);
+  const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,31 +15,39 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Fetch subjects from users table
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.uid) {
+    const fetchSubjects = async () => {
+      if (!user) {
         navigate('/login');
         return;
       }
 
       try {
         setError(null);
-        const userData = await getUserByFirebaseUID(user.uid);
-        setUserData(userData);
+        const { data, error: supabaseError } = await supabase
+          .from('users')
+          .select('subjects')
+          .eq('user_id', user.id)
+          .single();
+
+        if (supabaseError) throw supabaseError;
+
+        setSubjects(data?.subjects || []);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-        setError("Failed to load user data");
+        console.error("Error fetching subjects:", error);
+        setError("Failed to load subjects");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchSubjects();
   }, [user, navigate]);
 
   const handleAddSubject = async () => {
-    if (!newSubjectName.trim() || !newSubjectDescription.trim()) {
-      setError('Please fill in both title and description');
+    if (!newSubjectName.trim()) {
+      setError('Please enter a subject name');
       return;
     }
 
@@ -49,27 +55,37 @@ export default function HomePage() {
       setIsSubmitting(true);
       setError(null);
 
-      const response = await axios.post(
-        `http://localhost:5000/api/users/${user.uid}/subjects`,
-        {
-          title: newSubjectName.trim(),
-          description: newSubjectDescription.trim()
-        }
-      );
+      // Create new subject object
+      const newSubject = {
+        id: crypto.randomUUID(), // Generate unique ID
+        title: newSubjectName.trim(),
+        created_at: new Date().toISOString(),
+        lecture_count: 0
+      };
 
-      console.log('Subject created:', response.data);
-      
-      // Update user data with new subject
-      setUserData(response.data.user);
+      // Get current subjects and add new one
+      const updatedSubjects = [newSubject, ...subjects];
+
+      // Update the users table with the new subjects array
+      const { error: supabaseError } = await supabase
+        .from('users')
+        .update({ 
+          subjects: updatedSubjects 
+        })
+        .eq('user_id', user.id);
+
+      if (supabaseError) throw supabaseError;
+
+      // Update local state
+      setSubjects(updatedSubjects);
       
       // Reset form and close modal
       setNewSubjectName("");
-      setNewSubjectDescription("");
       setIsModalOpen(false);
 
     } catch (error) {
       console.error('Error adding subject:', error);
-      setError(error.response?.data?.message || 'Failed to add subject');
+      setError(error.message || 'Failed to add subject');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,7 +127,7 @@ export default function HomePage() {
 
       {/* Subjects Section */}
       <section className="max-w-4xl mx-auto">
-        {userData?.subjects?.length === 0 ? (
+        {subjects.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No subjects yet. Create your first subject!</p>
             <button
@@ -123,18 +139,17 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {userData?.subjects?.map((subject) => (
+            {subjects.map((subject) => (
               <div
-                key={subject._id}
-                onClick={() => handleSubjectClick(subject._id, subject.title)}
+                key={subject.id}
+                onClick={() => handleSubjectClick(subject.id, subject.title)}
                 className="cursor-pointer"
               >
                 <SubjectCard 
                   subject={{
-                    id: subject._id,
+                    id: subject.id,
                     name: subject.title,
-                    description: subject.description,
-                    lectureCount: 0
+                    lectureCount: subject.lecture_count || 0
                   }} 
                 />
               </div>
@@ -144,7 +159,7 @@ export default function HomePage() {
       </section>
 
       {/* Add Subject Button (only show if subjects exist) */}
-      {userData?.subjects?.length > 0 && (
+      {subjects.length > 0 && (
         <div className="text-center mt-8">
           <button
             onClick={() => setIsModalOpen(true)}
@@ -167,14 +182,6 @@ export default function HomePage() {
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="Enter subject name..."
               className="w-full px-4 py-2 border rounded-md mb-4"
-              disabled={isSubmitting}
-            />
-
-            <textarea
-              value={newSubjectDescription}
-              onChange={(e) => setNewSubjectDescription(e.target.value)}
-              placeholder="Enter subject description..."
-              className="w-full px-4 py-2 border rounded-md mb-4 h-32 resize-none"
               disabled={isSubmitting}
             />
 

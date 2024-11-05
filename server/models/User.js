@@ -15,9 +15,6 @@ const userSchema = new mongoose.Schema({
     required: true, 
     unique: true 
   },
-  photoURL: { 
-    type: String 
-  },
   subjects: [{
     title: String,
     description: String,
@@ -26,6 +23,9 @@ const userSchema = new mongoose.Schema({
       default: Date.now 
     }
   }],
+  photoURL: { 
+    type: String 
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 

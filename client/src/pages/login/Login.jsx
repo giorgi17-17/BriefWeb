@@ -1,71 +1,60 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { auth, provider } from '../../config/firebase';
-import { signInWithPopup } from '@firebase/auth';
+import { useAuth } from "../../contexts/AuthContext";
 
 const Login = () => {
   const [error, setError] = useState(null);
-  const { user } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
   const navigate = useNavigate();
+  const { signUp, signInWithEmail, signInWithGoogle } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
-  const saveUserToMongoDB = async (userData) => {
     try {
-      console.log('Saving user data to MongoDB:', userData);
-      
-      const response = await axios.post('http://localhost:5000/api/users/google-signin', {
-        uid: userData.uid,
-        email: userData.email,
-        displayName: userData.displayName,
-        photoURL: userData.photoURL
-      });
-      
-      console.log('User saved to MongoDB:', response.data);
-      return response.data;
+      if (isSignUp) {
+        await signUp(email, password);
+        // User will need to verify their email
+        setError("Please check your email to verify your account");
+        navigate('/');
+
+      } else {
+        await signInWithEmail(email, password);
+        navigate('/');
+      }
     } catch (error) {
-      console.error('Error saving user to MongoDB:', error);
-      throw error;
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      console.log('Google sign-in result:', result);
-
-      if (result.user) {
-        await saveUserToMongoDB({
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName || result.user.email.split('@')[0],
-          photoURL: result.user.photoURL || ''
-        });
-        
-        // Navigate after successful save
-        navigate('/');
-      }
+      setError(null);
+      setIsLoading(true);
+      await signInWithGoogle();
     } catch (error) {
       console.error('Sign in error:', error);
       setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  // Don't render anything if user is already logged in
-  if (user) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            {isSignUp ? "Create your account" : "Sign in to your account"}
           </h2>
         </div>
 
@@ -75,19 +64,71 @@ const Login = () => {
           </div>
         )}
 
-        <div className="mt-8 space-y-6">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {isLoading ? "Loading..." : (isSignUp ? "Sign Up" : "Sign In")}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-4">
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-indigo-600 hover:text-indigo-500"
+          >
+            {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+          </button>
+        </div>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
+            </div>
+          </div>
+
           <button
             onClick={handleGoogleSignIn}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 border-gray-300"
+            disabled={isLoading}
+            className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            <div className="flex items-center justify-center">
-              <img
-                className="h-5 w-5 mr-2"
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt="Google logo"
-              />
-              <span>Sign in with Google</span>
-            </div>
+            <img
+              className="h-5 w-5 mr-2"
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google logo"
+            />
+            <span>Continue with Google</span>
           </button>
         </div>
       </div>
