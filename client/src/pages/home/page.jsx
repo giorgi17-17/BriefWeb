@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from '../../utils/supabaseClient';
+import { supabase } from "../../utils/supabaseClient";
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -10,8 +10,10 @@ export default function HomePage() {
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -19,16 +21,16 @@ export default function HomePage() {
   useEffect(() => {
     const fetchSubjects = async () => {
       if (!user) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
 
       try {
         setError(null);
         const { data, error: supabaseError } = await supabase
-          .from('users')
-          .select('subjects')
-          .eq('user_id', user.id)
+          .from("users")
+          .select("subjects")
+          .eq("user_id", user.id)
           .single();
 
         if (supabaseError) throw supabaseError;
@@ -47,7 +49,7 @@ export default function HomePage() {
 
   const handleAddSubject = async () => {
     if (!newSubjectName.trim()) {
-      setError('Please enter a subject name');
+      setError("Please enter a subject name");
       return;
     }
 
@@ -60,7 +62,7 @@ export default function HomePage() {
         id: crypto.randomUUID(), // Generate unique ID
         title: newSubjectName.trim(),
         created_at: new Date().toISOString(),
-        lecture_count: 0
+        lecture_count: 0,
       };
 
       // Get current subjects and add new one
@@ -68,24 +70,23 @@ export default function HomePage() {
 
       // Update the users table with the new subjects array
       const { error: supabaseError } = await supabase
-        .from('users')
-        .update({ 
-          subjects: updatedSubjects 
+        .from("users")
+        .update({
+          subjects: updatedSubjects,
         })
-        .eq('user_id', user.id);
+        .eq("user_id", user.id);
 
       if (supabaseError) throw supabaseError;
 
       // Update local state
       setSubjects(updatedSubjects);
-      
+
       // Reset form and close modal
       setNewSubjectName("");
       setIsModalOpen(false);
-
     } catch (error) {
-      console.error('Error adding subject:', error);
-      setError(error.message || 'Failed to add subject');
+      console.error("Error adding subject:", error);
+      setError(error.message || "Failed to add subject");
     } finally {
       setIsSubmitting(false);
     }
@@ -106,6 +107,14 @@ export default function HomePage() {
     );
   }
 
+  const submitImage = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("file", file);
+    console.log(title, file);
+  };
+
   return (
     <div className="min-h-screen px-4 py-8">
       {/* Hero Section */}
@@ -125,11 +134,27 @@ export default function HomePage() {
         </div>
       )}
 
+      <div>
+        <div>upload</div>
+        <form onSubmit={submitImage}>
+          <input type="text" onChange={(e) => setTitle(e.target.value)} />
+          <br />
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => setFile(e.target.files)}
+          />
+          <button type="submit">sub</button>
+        </form>
+      </div>
+
       {/* Subjects Section */}
       <section className="max-w-4xl mx-auto">
         {subjects.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">No subjects yet. Create your first subject!</p>
+            <p className="text-gray-600 mb-4">
+              No subjects yet. Create your first subject!
+            </p>
             <button
               onClick={() => setIsModalOpen(true)}
               className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
@@ -145,12 +170,12 @@ export default function HomePage() {
                 onClick={() => handleSubjectClick(subject.id, subject.title)}
                 className="cursor-pointer"
               >
-                <SubjectCard 
+                <SubjectCard
                   subject={{
                     id: subject.id,
                     name: subject.title,
-                    lectureCount: subject.lecture_count || 0
-                  }} 
+                    lectureCount: subject.lecture_count || 0,
+                  }}
                 />
               </div>
             ))}
@@ -175,7 +200,7 @@ export default function HomePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
             <h2 className="text-xl font-bold mb-4">Add New Subject</h2>
-            
+
             <input
               type="text"
               value={newSubjectName}
@@ -201,7 +226,7 @@ export default function HomePage() {
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Adding...' : 'Add Subject'}
+                {isSubmitting ? "Adding..." : "Add Subject"}
               </button>
             </div>
           </div>
