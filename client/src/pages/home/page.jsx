@@ -10,8 +10,6 @@ export default function HomePage() {
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [title, setTitle] = useState("");
-  const [file, setFile] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
@@ -107,14 +105,10 @@ export default function HomePage() {
     );
   }
 
-  const submitImage = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("file", file);
-    console.log(title, file);
-  };
+ 
 
+
+  
   return (
     <div className="min-h-screen px-4 py-8">
       {/* Hero Section */}
@@ -133,20 +127,6 @@ export default function HomePage() {
           {error}
         </div>
       )}
-
-      <div>
-        <div>upload</div>
-        <form onSubmit={submitImage}>
-          <input type="text" onChange={(e) => setTitle(e.target.value)} />
-          <br />
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setFile(e.target.files)}
-          />
-          <button type="submit">sub</button>
-        </form>
-      </div>
 
       {/* Subjects Section */}
       <section className="max-w-4xl mx-auto">

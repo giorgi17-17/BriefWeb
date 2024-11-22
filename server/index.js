@@ -3,8 +3,14 @@ import PDFParser from "pdf2json";
 import dotenv from "dotenv";
 import fs from "fs";
 import OpenAI from "openai";
-dotenv.config();
+import express from "express";
 
+dotenv.config();
+const app = express();
+const port = 5000;
+
+// Middleware to parse JSON
+app.use(express.json());
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -21,16 +27,15 @@ function deleteLocalFile(filePath) {
 }
 
 async function testPDFExtraction(userId, lectureId, fileId) {
-  const localFilePath = 'uploads/debug-downloaded.pdf';
+  const localFilePath = "uploads/debug-downloaded.pdf";
 
   try {
-    // First, list files to verify path
     const { data: files, error: listError } = await supabaseClient.storage
       .from("lecture-files")
       .list(`${userId}/${lectureId}`, {
         limit: 100,
         offset: 0,
-        sortBy: { column: 'name', order: 'asc' }
+        sortBy: { column: "name", order: "asc" },
       });
 
     if (listError) {
@@ -40,14 +45,12 @@ async function testPDFExtraction(userId, lectureId, fileId) {
 
     console.log("Files in the directory:", files);
 
-    // Check if the specific file exists in the list
-    const fileExists = files.some(file => file.name === fileId);
+    const fileExists = files.some((file) => file.name === fileId);
     if (!fileExists) {
       console.error(`File ${fileId} not found in the directory`);
       return;
     }
 
-    // Try to get public URL
     const { data: urlData, error: urlError } = supabaseClient.storage
       .from("lecture-files")
       .getPublicUrl(`${userId}/${lectureId}/${fileId}`);
@@ -59,7 +62,6 @@ async function testPDFExtraction(userId, lectureId, fileId) {
 
     console.log("Public URL:", urlData.publicUrl);
 
-    // Download file
     const { data: fileContent, error: fileDownloadError } =
       await supabaseClient.storage
         .from("lecture-files")
@@ -70,23 +72,16 @@ async function testPDFExtraction(userId, lectureId, fileId) {
       return;
     }
 
-    // Convert to buffer and save locally for debugging
     const pdfBuffer = Buffer.from(await fileContent.arrayBuffer());
     fs.writeFileSync(localFilePath, pdfBuffer);
     console.log("File downloaded and saved locally for debugging");
 
-    // Parse PDF
     const extractedText = await parsePDF(pdfBuffer);
-    console.log(extractedText)
 
-    // Delete the local file after extraction
     deleteLocalFile(localFilePath);
 
-    // Log extracted text
-    // console.log("Extracted Text:\n", extractedText);
     return extractedText;
   } catch (error) {
-    // Ensure file is deleted even if an error occurs
     deleteLocalFile(localFilePath);
     console.error("Comprehensive error in PDF extraction:", error);
   }
@@ -102,16 +97,15 @@ function parsePDF(buffer) {
     });
 
     pdfParser.on("pdfParser_dataReady", (pdfData) => {
-      let extractedText = '';
+      let extractedText = "";
 
       if (pdfData.Pages) {
         pdfData.Pages.forEach((page) => {
           if (page.Texts) {
             page.Texts.forEach((text) => {
               try {
-                // Safely decode and extract text
                 const decodedText = decodeURIComponent(text.R[0].T);
-                extractedText += decodedText + ' ';
+                extractedText += decodedText + " ";
               } catch (decodeError) {
                 console.warn("Decoding error:", decodeError);
               }
@@ -123,14 +117,12 @@ function parsePDF(buffer) {
       resolve(extractedText.trim());
     });
 
-    // Parse the buffer
     pdfParser.parseBuffer(buffer);
   });
 }
 
-
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 async function generateFlashcards(extractedText) {
@@ -140,7 +132,8 @@ async function generateFlashcards(extractedText) {
       messages: [
         {
           role: "system",
-          content: "You are an expert educational content creator specializing in concise, informative flashcards."
+          content:
+            "You are an expert educational content creator specializing in concise, informative flashcards.",
         },
         {
           role: "user",
@@ -150,17 +143,15 @@ async function generateFlashcards(extractedText) {
           - Potential question on the back of the card
 
           Text to analyze:
-          ${extractedText}`
-        }
+          ${extractedText}`,
+        },
       ],
-      temperature: 0.7
+      temperature: 0.7,
     });
 
-    // Extract and log the flashcard content
     const flashcardContent = response.choices[0].message.content;
     console.log("Generated Flashcards:\n", flashcardContent);
 
-    // Log token usage
     if (response.usage) {
       console.log("Token Usage:");
       console.log("Prompt Tokens:", response.usage.prompt_tokens);
@@ -175,30 +166,51 @@ async function generateFlashcards(extractedText) {
   }
 }
 
-
-
-async function main() {
+export async function main(userId, lectureId, fileId) {
   const extractedText = await testPDFExtraction(userId, lectureId, fileId);
   if (extractedText) {
-    await generateFlashcards(extractedText);
+    return await generateFlashcards(extractedText);
   } else {
     console.error("Failed to extract text from PDF.");
   }
 }
 
-// Call the main function
+// Express Server
 
 
+// Define endpoint
 
 
+app.get("/api/test", (req, res) => {
+  console.log("first");
+  res.send("Test endpoint working!");
+});
 
+app.post("/api/process-pdf", async (req, res) => {
+  const { userId, lectureId, fileId } = req.body;
+  console.log('hittt')
+  console.log(userId,lectureId,fileId)
 
+  if (!userId || !lectureId || !fileId) {
+    return res.status(400).json({
+      error: "Missing required parameters: userId, lectureId, or fileId.",
+    });
+  }
 
+  try {
+    const flashcards = await main(userId, lectureId, fileId);
+    if (flashcards) {
+      res.status(200).json({ message: "Flashcards generated successfully", flashcards });
+    } else {
+      res.status(500).json({ error: "Failed to process the file or generate flashcards." });
+    }
+  } catch (error) {
+    console.error("Error in /process-pdf route:", error);
+    res.status(500).json({ error: "An internal server error occurred." });
+  }
+});
 
-// Test function - replace with your actual user, lecture, and file IDs
-const userId = "c99a8851-f584-4f76-b90f-b7057faf9002";
-const lectureId = "e1eb357a-5642-46a9-b2b4-aba1723ec47d";
-const fileId = "17a8baeb-fc3a-4191-bc5e-6764b86b050c.pdf";
-
-// Uncomment and run to test
-main();
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running at http://localhost:${port}`);
+});

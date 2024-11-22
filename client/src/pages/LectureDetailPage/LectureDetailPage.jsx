@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../utils/supabaseClient";
-import FlashCards from "../../components/subjects/FlashCards.jsx";
-import axios from "axios"
+// import FlashCards from "../../components/subjects/FlashCards.jsx";
+// import axios from "axios"
+import { handleProcessPdf } from "../../utils/api";
 // import { generateFlashcards } from '../../utils/api.js';
 // import { extractTextFromFile } from '../../utils/api';
 
@@ -262,64 +263,16 @@ const LectureDetailPage = () => {
   };
 
   const handleGenerateFlashcards = () => {
-    console.log(
-      "Generating flashcards from content length:",
-      fileContent.length
-    );
+   
+    const filePath = files[0].path.split('/').pop()
     setIsGenerating(true);
+    handleProcessPdf(user.id,lectureId,filePath)
 
   };
 
 
-
-
-
-
-
-
-  const handleFileUploadTest = async () => {
-    // if (!selectedFile) {
-    //   alert("Please select a file first.");
-    //   return;
-    // }
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
-    try {
-      setIsUploading(true);
-      // const response = await axios.post("http://localhost:5000/upload", formData, {
-      //   headers: {
-      //     "Content-Type": "multipart/form-data",
-      //   },
-      // });
-      // setData(response.data);
-
-      console.log('formdata', formData)
-
-      axios.post("http://localhost:5000/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }).then((response) => {
-        console.log('File upload response:', response.data);
-      }).catch((err) => {
-        setError(err.message);
-        console.error('Error during file upload:', err);
-      });
-      
-
-
-
-      alert("File uploaded successfully!");
-    } catch (err) {
-      setError(err.message);
-      console.error("Error uploading file:", err);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
+// const kk = files[0].path.split('/').pop()
+// console.log(kk)
 
 
 
@@ -331,21 +284,24 @@ const LectureDetailPage = () => {
 
   
 
-  // const [data, setData] = useState(null);
-    // Function to fetch data from the backend
-    // const fetchData = async () => {
-    //   console.log('first')
-    //   try {
-    //     const response = await axios.post('http://localhost:5000/upload'); // Replace with your backend URL
-    //     setData(response.data);
-    //   } catch (err) {
-    //     setError(err.message);
-    //   }
-    // };
+  
 
 
-  // console.log(data)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
 
   return (
     <div className="space-y-6">
@@ -504,6 +460,29 @@ const LectureDetailPage = () => {
 
                   {selectedFile && fileContent && (
                     <div className="space-y-4">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       <button
                         onClick={handleGenerateFlashcards}
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -514,7 +493,7 @@ const LectureDetailPage = () => {
                           : "Generate Flashcards"}
                       </button>
 
-                      {isGenerating && <FlashCards content={fileContent} />}
+                      {/* {isGenerating && <FlashCards content={fileContent} />} */}
                     </div>
                   )}
                 </div>
@@ -532,12 +511,7 @@ const LectureDetailPage = () => {
               >
                 Add Brief
               </button>
-              <button
-                onClick={handleFileUploadTest}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                test
-              </button>
+             
               {briefs.map((brief) => (
                 <div key={brief.id} className="border rounded-lg p-4 space-y-2">
                   <input

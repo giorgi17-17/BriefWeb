@@ -9,4 +9,9 @@ export default defineConfig({
       '@': path.resolve(path.dirname(import.meta.url), './src'),
     },
   },
+  server: {
+    proxy: {
+      "/api": "http://localhost:5000", // Proxy API requests to backend
+    },
+  },
 }); 
