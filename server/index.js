@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import OpenAI from "openai";
 import express from "express";
-
+import uniqid from "uniqid";
 dotenv.config();
 const app = express();
 const port = 5000;
@@ -125,10 +125,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+
+
 async function generateFlashcards(extractedText) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -137,15 +139,34 @@ async function generateFlashcards(extractedText) {
         },
         {
           role: "user",
-          content: `Create 20 flashcard topics from the following text. Each flashcard should have:
-          - A clear, concise title
-          - 3-4 key learning points
-          - Potential question on the back of the card
+          content: `Generate a comprehensive 10 flashcard topics from the following text formatted as an array of JSON objects.
+          which containes question and answer for each card
+
+          Text to analyze: ${extractedText}
+
+          Each flashcard should be provided in valid JSON format. The JSON structure for each flashcard must be:
+
+          
+
+         Flashcard structure:
+         [ 
+          {
+            "question": "Potential question on the back of the card"
+            "answer": "detailed and explained asnwer of the question",
+          },
+        ]
+          ...and other flashcards
+
+
+        YOU NEED TO create an array of  flashcards. Ensure the JSON is valid and parsable. 
+        dont write any symbols or text before and after array brackets
 
           Text to analyze:
-          ${extractedText}`,
+          ${extractedText}
+          `,
         },
       ],
+
       temperature: 0.7,
     });
 
@@ -154,6 +175,7 @@ async function generateFlashcards(extractedText) {
 
     if (response.usage) {
       console.log("Token Usage:");
+      
       console.log("Prompt Tokens:", response.usage.prompt_tokens);
       console.log("Completion Tokens:", response.usage.completion_tokens);
       console.log("Total Tokens:", response.usage.total_tokens);
@@ -177,9 +199,7 @@ export async function main(userId, lectureId, fileId) {
 
 // Express Server
 
-
 // Define endpoint
-
 
 app.get("/api/test", (req, res) => {
   console.log("first");
@@ -188,8 +208,8 @@ app.get("/api/test", (req, res) => {
 
 app.post("/api/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  console.log('hittt')
-  console.log(userId,lectureId,fileId)
+  console.log("hittt");
+  console.log(userId, lectureId, fileId);
 
   if (!userId || !lectureId || !fileId) {
     return res.status(400).json({
@@ -200,9 +220,11 @@ app.post("/api/process-pdf", async (req, res) => {
   try {
     const flashcards = await main(userId, lectureId, fileId);
     if (flashcards) {
-      res.status(200).json({ message: "Flashcards generated successfully", flashcards });
+      res.status(200).json({ flashcards });
     } else {
-      res.status(500).json({ error: "Failed to process the file or generate flashcards." });
+      res
+        .status(500)
+        .json({ error: "Failed to process the file or generate flashcards." });
     }
   } catch (error) {
     console.error("Error in /process-pdf route:", error);

@@ -5,6 +5,8 @@ import { supabase } from "../../utils/supabaseClient";
 // import FlashCards from "../../components/subjects/FlashCards.jsx";
 // import axios from "axios"
 import { handleProcessPdf } from "../../utils/api";
+import { getFileIcon, handleFilePreview } from "../../helpers/helpers";
+import FlashcardComponent from "./LectureComponents";
 // import { generateFlashcards } from '../../utils/api.js';
 // import { extractTextFromFile } from '../../utils/api';
 
@@ -21,6 +23,7 @@ const LectureDetailPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [processedData, setProcessedData] = useState(null);
 
   // Fetch lecture data
   useEffect(() => {
@@ -228,33 +231,6 @@ const LectureDetailPage = () => {
     setBriefs([...briefs, newBrief]);
   };
 
-  const getFileIcon = (fileType) => {
-    switch (fileType) {
-      case "application/pdf":
-        return "📄"; // PDF icon
-      case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        return "📝"; // DOCX icon
-      case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-        return "📊"; // PPTX icon
-      default:
-        return "📁"; // Default file icon
-    }
-  };
-
-  const handleFilePreview = (file) => {
-    // For PDFs, we can display them directly in a new tab
-    if (file.type === "application/pdf") {
-      window.open(file.url, "_blank");
-      return;
-    }
-
-    // For DOCX and PPTX, we'll use Google Docs Viewer
-    const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(
-      file.url
-    )}&embedded=true`;
-    window.open(googleDocsUrl, "_blank");
-  };
-
   const handleFileSelect = async (file) => {
     console.log("File selected:", file);
     setSelectedFile(file);
@@ -262,46 +238,20 @@ const LectureDetailPage = () => {
     setFileContent(file);
   };
 
-  const handleGenerateFlashcards = () => {
-   
-    const filePath = files[0].path.split('/').pop()
-    setIsGenerating(true);
-    handleProcessPdf(user.id,lectureId,filePath)
-
+  const handleGenerateFlashcards = async () => {
+    try {
+      setIsGenerating(true);
+      const filePath = files[0]?.path.split("/").pop(); // Extract file path or handle selection
+      const data = await handleProcessPdf(user.id, lectureId, filePath); // Fetch processed data
+      setProcessedData(data); // Update state with JSON data
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-
-// const kk = files[0].path.split('/').pop()
-// console.log(kk)
-
-
-
-
-
-
-
-
-
-  
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
+  // const kk = files[0].path.split('/').pop()
 
   return (
     <div className="space-y-6">
@@ -326,7 +276,6 @@ const LectureDetailPage = () => {
       <div className="bg-white rounded-lg shadow-md">
         <div className="border-b">
           <nav className="flex">
-          
             <button
               className={`px-6 py-3 ${
                 activeTab === "flashcards"
@@ -460,28 +409,11 @@ const LectureDetailPage = () => {
 
                   {selectedFile && fileContent && (
                     <div className="space-y-4">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                      {processedData  && (
+                        <FlashcardComponent
+                          flashcards={processedData}
+                        />
+                      )}
 
                       <button
                         onClick={handleGenerateFlashcards}
@@ -511,7 +443,7 @@ const LectureDetailPage = () => {
               >
                 Add Brief
               </button>
-             
+
               {briefs.map((brief) => (
                 <div key={brief.id} className="border rounded-lg p-4 space-y-2">
                   <input
