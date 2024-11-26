@@ -1,4 +1,4 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 
 const FlashcardComponent = ({ flashcards }) => {
@@ -25,7 +25,7 @@ const FlashcardComponent = ({ flashcards }) => {
   if (!flashcards || flashcards.length === 0) {
     return <div className="text-center text-gray-500">No flashcards available</div>;
   }
-console.log(flashcards)
+  console.log(flashcards)
   // Current active card
   const currentCard = flashcards[activeCardIndex];
 

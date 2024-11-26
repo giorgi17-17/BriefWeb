@@ -17,6 +17,7 @@ const LectureDetailPage = () => {
   // const [flashcards, setFlashcards] = useState([]);
   const [briefs, setBriefs] = useState([]);
   const [files, setFiles] = useState([]);
+  const [subjectId, setSubjectId] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
@@ -24,7 +25,7 @@ const LectureDetailPage = () => {
   const [fileContent, setFileContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [processedData, setProcessedData] = useState(null);
-
+  console.log(lectureId);
   // Fetch lecture data
   useEffect(() => {
     const fetchLectureData = async () => {
@@ -46,10 +47,13 @@ const LectureDetailPage = () => {
           (s) => s.title.toLowerCase() === displayName.toLowerCase()
         );
 
+        // console.log(subject)
+
         const lecture = subject?.lectures?.find((l) => l.id === lectureId);
 
         if (lecture) {
           // setFlashcards(lecture.flashcards || []);
+          setSubjectId(subject.id);
           setBriefs(lecture.briefs || []);
           setFiles(lecture.files || []);
         }
@@ -119,9 +123,7 @@ const LectureDetailPage = () => {
       if (fetchError) throw fetchError;
 
       const updatedSubjects = userData.subjects.map((subject) => {
-        if (
-          subject.title.toLowerCase() === decodeURIComponent(name).toLowerCase()
-        ) {
+        if (subject.title.toLowerCase()) {
           return {
             ...subject,
             lectures: subject.lectures.map((lecture) => {
@@ -179,9 +181,7 @@ const LectureDetailPage = () => {
       if (fetchError) throw fetchError;
 
       const updatedSubjects = userData.subjects.map((subject) => {
-        if (
-          subject.title.toLowerCase() === decodeURIComponent(name).toLowerCase()
-        ) {
+        if (subject.title.toLowerCase()) {
           return {
             ...subject,
             lectures: subject.lectures.map((lecture) => {
@@ -252,7 +252,6 @@ const LectureDetailPage = () => {
   };
 
   // const kk = files[0].path.split('/').pop()
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -409,9 +408,11 @@ const LectureDetailPage = () => {
 
                   {selectedFile && fileContent && (
                     <div className="space-y-4">
-                      {processedData  && (
+                      {processedData && (
                         <FlashcardComponent
                           flashcards={processedData}
+                          subjectId={subjectId}
+                          lectureId={lectureId}
                         />
                       )}
 

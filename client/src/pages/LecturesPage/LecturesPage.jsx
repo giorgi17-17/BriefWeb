@@ -70,7 +70,8 @@ const LecturesPage = () => {
         title: `Lecture ${(subject.lectures?.length || 0) + 1}`,
         date: new Date().toISOString(),
         flashcards: [],
-        briefs: []
+        briefs: [],
+        files: []
       };
 
       // Find and update the current subject

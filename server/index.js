@@ -129,8 +129,9 @@ const openai = new OpenAI({
 
 async function generateFlashcards(extractedText) {
   try {
+    console.log('generating')
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -139,7 +140,7 @@ async function generateFlashcards(extractedText) {
         },
         {
           role: "user",
-          content: `Generate a comprehensive 10 flashcard topics from the following text formatted as an array of JSON objects.
+          content: `Generate a comprehensive 3 flashcard topics from the following text formatted as an array of JSON objects.
           which containes question and answer for each card
 
           Text to analyze: ${extractedText}
@@ -151,7 +152,8 @@ async function generateFlashcards(extractedText) {
          Flashcard structure:
          [ 
           {
-            "question": "Potential question on the back of the card"
+            
+            "question": "Potential question on the back of the card",
             "answer": "detailed and explained asnwer of the question",
           },
         ]
@@ -160,18 +162,32 @@ async function generateFlashcards(extractedText) {
 
         YOU NEED TO create an array of  flashcards. Ensure the JSON is valid and parsable. 
         dont write any symbols or text before and after array brackets
+          
+          try to make cards content usefull in real life, answers should be explained in simple terms 
+
 
           Text to analyze:
           ${extractedText}
           `,
-        },
+        }, 
       ],
 
-      temperature: 0.7,
+      // temperature: 1.7,
+      // frequency_penalty: 2
     });
 
     const flashcardContent = response.choices[0].message.content;
-    console.log("Generated Flashcards:\n", flashcardContent);
+
+    const parsedFlashcards = JSON.parse(flashcardContent)
+    const flashcardsWithId = parsedFlashcards.map((card) => ({
+      id: uniqid(), // Generate unique ID for each card
+      ...card, // Include the original question and answer
+    }));
+    console.log(flashcardsWithId)
+
+    // console.log("Generated Flashcards:\n", flashcardContent);
+
+    // console.log("Generated Flashcards:\n", flashcardContent);
 
     if (response.usage) {
       console.log("Token Usage:");
@@ -181,7 +197,7 @@ async function generateFlashcards(extractedText) {
       console.log("Total Tokens:", response.usage.total_tokens);
     }
 
-    return flashcardContent;
+    return flashcardsWithId;
   } catch (error) {
     console.error("Error generating flashcards:", error);
     throw error;
