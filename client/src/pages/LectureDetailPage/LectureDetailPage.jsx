@@ -14,7 +14,7 @@ const LectureDetailPage = () => {
   const { name, lectureId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("flashcards");
-  // const [flashcards, setFlashcards] = useState([]);
+  const [flashcards, setFlashcards] = useState([]);
   const [briefs, setBriefs] = useState([]);
   const [files, setFiles] = useState([]);
   const [subjectId, setSubjectId] = useState("");
@@ -52,7 +52,7 @@ const LectureDetailPage = () => {
         const lecture = subject?.lectures?.find((l) => l.id === lectureId);
 
         if (lecture) {
-          // setFlashcards(lecture.flashcards || []);
+          setFlashcards(lecture.flashcards || []);
           setSubjectId(subject.id);
           setBriefs(lecture.briefs || []);
           setFiles(lecture.files || []);
@@ -65,6 +65,7 @@ const LectureDetailPage = () => {
 
     fetchLectureData();
   }, [user, name, lectureId]);
+  console.log(flashcards);
 
   const handleFileUpload = async (event) => {
     try {
@@ -405,16 +406,35 @@ const LectureDetailPage = () => {
                       ))}
                     </select>
                   </div>
+                  <div>
+                  {flashcards ? (
+                        <FlashcardComponent
+                          flashcards={flashcards}
+                          subjectId={subjectId}
+                          lectureId={lectureId}
+                          onFlashcardsUploaded={(uploadedCards) => {
+                            // Optional callback after successful upload
+                            console.log("Uploaded cards:", uploadedCards);
+                          }}
+                        />
+                      ) : (
+                        <div>
+                          <FlashcardComponent
+                            flashcards={processedData}
+                            subjectId={subjectId}
+                            lectureId={lectureId}
+                            onFlashcardsUploaded={(uploadedCards) => {
+                              // Optional callback after successful upload
+                              console.log("Uploaded cards:", uploadedCards);
+                            }}
+                          />
+                        </div>
+                      )}
+                  </div>
 
                   {selectedFile && fileContent && (
                     <div className="space-y-4">
-                      {processedData && (
-                        <FlashcardComponent
-                          flashcards={processedData}
-                          subjectId={subjectId}
-                          lectureId={lectureId}
-                        />
-                      )}
+                  
 
                       <button
                         onClick={handleGenerateFlashcards}
@@ -426,7 +446,7 @@ const LectureDetailPage = () => {
                           : "Generate Flashcards"}
                       </button>
 
-                      {/* {isGenerating && <FlashCards content={fileContent} />} */}
+                      
                     </div>
                   )}
                 </div>
