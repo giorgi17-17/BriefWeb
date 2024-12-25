@@ -140,7 +140,7 @@ async function generateFlashcards(extractedText) {
         },
         {
           role: "user",
-          content: `Generate a comprehensive 3 flashcard topics from the following text formatted as an array of JSON objects.
+          content: `Generate a comprehensive 30 flashcard topics from the following text formatted as an array of JSON objects.
           which containes question and answer for each card
 
           Text to analyze: ${extractedText}
