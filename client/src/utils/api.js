@@ -1,4 +1,5 @@
 import axios from "axios";
+import { BACKEND_URL } from "../helpers/helpers";
 
 
 export const handleProcessPdf = async (userId, lectureId, fileId) => {
@@ -9,7 +10,7 @@ export const handleProcessPdf = async (userId, lectureId, fileId) => {
     }
 
     // Make API call to process PDF
-    const response = await axios.post("/api/process-pdf", {
+    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, {
       userId,
       lectureId,
       fileId
