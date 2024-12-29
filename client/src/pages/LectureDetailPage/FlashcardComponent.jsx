@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../../utils/supabaseClient";
-import { useAuth } from "../../contexts/AuthContext";
 
 const FlashcardComponent = ({
   flashcards,
-  subjectId,
   lectureId,
   onFlashcardsUploaded,
   onFlashcardsModified,
@@ -18,12 +16,11 @@ const FlashcardComponent = ({
   const [editingSetId, setEditingSetId] = useState(null);
   const [editingSetName, setEditingSetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
-  const { user } = useAuth();
 
   // Update local state when flashcards prop changes
   useEffect(() => {
     if (flashcards && Array.isArray(flashcards)) {
-      setFlashcardSets(flashcards);
+      setFlashcardSets(flashcards.filter(set => set.isUploaded !== false));
     }
   }, [flashcards]);
 
@@ -31,49 +28,59 @@ const FlashcardComponent = ({
   useEffect(() => {
     const uploadNewSet = async () => {
       const newSet = flashcards?.[flashcards.length - 1];
-      if (!newSet?.isUploaded && newSet?.cards) {
+      if (!newSet?.isUploaded && newSet?.cards?.length > 0) {
         try {
-          const { data, error: fetchError } = await supabase
-            .from("users")
-            .select("subjects")
-            .eq("user_id", user.id)
+          // Create new flashcard set
+          const { data: flashcardSet, error: setError } = await supabase
+            .from('flashcard_sets')
+            .insert({
+              lecture_id: lectureId,
+              name: newSet.name || `Set ${flashcards.length}`
+            })
+            .select()
+            .single();
+
+          if (setError) throw setError;
+
+          // Insert all flashcards for the set
+          const { error: cardsError } = await supabase
+            .from('flashcards')
+            .insert(
+              newSet.cards.map(card => ({
+                flashcard_set_id: flashcardSet.id,
+                question: card.question,
+                answer: card.answer
+              }))
+            );
+
+          if (cardsError) throw cardsError;
+
+          // Get the complete set with cards
+          const { data: completeSet, error: fetchError } = await supabase
+            .from('flashcard_sets')
+            .select(`
+              *,
+              flashcards(*)
+            `)
+            .eq('id', flashcardSet.id)
             .single();
 
           if (fetchError) throw fetchError;
 
-          const subject = data.subjects.find(s => s.id === subjectId);
-          const lecture = subject?.lectures.find(l => l.id === lectureId);
-          
-          if (!lecture?.flashcards?.some(set => set.id === newSet.id)) {
-            const updatedSubjects = data.subjects.map(subject => {
-              if (subject.id === subjectId) {
-                return {
-                  ...subject,
-                  lectures: subject.lectures.map(lecture => {
-                    if (lecture.id === lectureId) {
-                      const existingFlashcards = lecture.flashcards || [];
-                      return {
-                        ...lecture,
-                        flashcards: [...existingFlashcards, { ...newSet, isUploaded: true }]
-                      };
-                    }
-                    return lecture;
-                  }),
-                };
-              }
-              return subject;
-            });
+          const processedSet = {
+            id: completeSet.id,
+            name: completeSet.name,
+            createdAt: completeSet.created_at,
+            cards: completeSet.flashcards.map(card => ({
+              id: card.id,
+              question: card.question,
+              answer: card.answer
+            })),
+            isUploaded: true
+          };
 
-            const { error: updateError } = await supabase
-              .from("users")
-              .update({ subjects: updatedSubjects })
-              .eq("user_id", user.id);
-
-            if (updateError) throw updateError;
-
-            if (onFlashcardsUploaded) {
-              onFlashcardsUploaded({ ...newSet, isUploaded: true });
-            }
+          if (onFlashcardsUploaded) {
+            onFlashcardsUploaded(processedSet);
           }
         } catch (error) {
           console.error("Error uploading flashcards:", error);
@@ -82,10 +89,12 @@ const FlashcardComponent = ({
       }
     };
 
-    if (user?.id && subjectId && lectureId && flashcards?.length > 0) {
+    // Only run if there are flashcards and the last one isn't uploaded
+    const lastSet = flashcards?.[flashcards.length - 1];
+    if (lectureId && lastSet && !lastSet.isUploaded && lastSet.cards?.length > 0) {
       uploadNewSet();
     }
-  }, [flashcards, user?.id, subjectId, lectureId]);
+  }, [flashcards, lectureId]);
 
   const handleSetChange = index => {
     setActiveSetIndex(index);
@@ -105,38 +114,13 @@ const FlashcardComponent = ({
     if (!deleteConfirmation) return;
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("users")
-        .select("subjects")
-        .eq("user_id", user.id)
-        .single();
+      // Delete flashcard set (this will cascade delete the flashcards)
+      const { error: deleteError } = await supabase
+        .from('flashcard_sets')
+        .delete()
+        .eq('id', deleteConfirmation.id);
 
-      if (fetchError) throw fetchError;
-
-      const updatedSubjects = data.subjects.map(subject => {
-        if (subject.id === subjectId) {
-          return {
-            ...subject,
-            lectures: subject.lectures.map(lecture => {
-              if (lecture.id === lectureId) {
-                return {
-                  ...lecture,
-                  flashcards: (lecture.flashcards || []).filter(set => set.id !== deleteConfirmation.id)
-                };
-              }
-              return lecture;
-            }),
-          };
-        }
-        return subject;
-      });
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ subjects: updatedSubjects })
-        .eq("user_id", user.id);
-
-      if (updateError) throw updateError;
+      if (deleteError) throw deleteError;
 
       const updatedFlashcards = flashcardSets.filter(set => set.id !== deleteConfirmation.id);
       setFlashcardSets(updatedFlashcards);
@@ -144,8 +128,9 @@ const FlashcardComponent = ({
         setActiveSetIndex(Math.max(0, updatedFlashcards.length - 1));
       }
       
-      if (onFlashcardsModified) {
-        onFlashcardsModified(updatedFlashcards);
+      // Only call onFlashcardsModified if we have a valid set to show
+      if (updatedFlashcards.length > 0) {
+        onFlashcardsModified?.(updatedFlashcards);
       }
 
       setDeleteConfirmation(null);
@@ -160,38 +145,10 @@ const FlashcardComponent = ({
     if (!editingSetName.trim()) return;
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("users")
-        .select("subjects")
-        .eq("user_id", user.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const updatedSubjects = data.subjects.map(subject => {
-        if (subject.id === subjectId) {
-          return {
-            ...subject,
-            lectures: subject.lectures.map(lecture => {
-              if (lecture.id === lectureId) {
-                return {
-                  ...lecture,
-                  flashcards: (lecture.flashcards || []).map(set => 
-                    set.id === setId ? { ...set, name: editingSetName } : set
-                  )
-                };
-              }
-              return lecture;
-            }),
-          };
-        }
-        return subject;
-      });
-
       const { error: updateError } = await supabase
-        .from("users")
-        .update({ subjects: updatedSubjects })
-        .eq("user_id", user.id);
+        .from('flashcard_sets')
+        .update({ name: editingSetName })
+        .eq('id', setId);
 
       if (updateError) throw updateError;
 
@@ -199,12 +156,13 @@ const FlashcardComponent = ({
         set.id === setId ? { ...set, name: editingSetName } : set
       );
       setFlashcardSets(updatedFlashcards);
-      setEditingSetId(null);
-      setEditingSetName("");
       
       if (onFlashcardsModified) {
         onFlashcardsModified(updatedFlashcards);
       }
+
+      setEditingSetId(null);
+      setEditingSetName("");
     } catch (error) {
       console.error("Error updating set name:", error);
       setUploadError(error.message || "Failed to update set name");
@@ -353,6 +311,7 @@ const FlashcardComponent = ({
         >
           <h3 className="text-xl font-semibold text-gray-800">{currentCard.question}</h3>
         </div>
+
         <div
           className={`absolute w-full h-full bg-blue-100 rounded-xl shadow-lg flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out border-2 border-blue-600 ${
             isFlipped ? "opacity-100" : "opacity-0 invisible rotate-y-180"
@@ -400,7 +359,6 @@ FlashcardComponent.propTypes = {
       ),
     })
   ),
-  subjectId: PropTypes.string.isRequired,
   lectureId: PropTypes.string.isRequired,
   onFlashcardsUploaded: PropTypes.func,
   onFlashcardsModified: PropTypes.func,

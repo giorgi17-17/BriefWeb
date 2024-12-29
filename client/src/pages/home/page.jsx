@@ -15,33 +15,32 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Fetch subjects from users table
+  // Fetch subjects from subjects table
+  const fetchSubjects = async () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setError(null);
+      const { data, error: supabaseError } = await supabase
+        .from("subjects")
+        .select(`id, title, created_at`)
+        .eq("user_id", user.id);
+
+      if (supabaseError) throw supabaseError;
+
+      setSubjects(data);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      setError("Failed to load subjects");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSubjects = async () => {
-      if (!user) {
-        navigate("/login");
-        return;
-      }
-
-      try {
-        setError(null);
-        const { data, error: supabaseError } = await supabase
-          .from("users")
-          .select("subjects")
-          .eq("user_id", user.id)
-          .single();
-
-        if (supabaseError) throw supabaseError;
-
-        setSubjects(data?.subjects || []);
-      } catch (error) {
-        console.error("Error fetching subjects:", error);
-        setError("Failed to load subjects");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSubjects();
   }, [user, navigate]);
 
@@ -55,29 +54,19 @@ export default function HomePage() {
       setIsSubmitting(true);
       setError(null);
 
-      // Create new subject object
-      const newSubject = {
-        id: crypto.randomUUID(), // Generate unique ID
-        title: newSubjectName.trim(),
-        created_at: new Date().toISOString(),
-        lecture_count: 0,
-      };
-
-      // Get current subjects and add new one
-      const updatedSubjects = [newSubject, ...subjects];
-
-      // Update the users table with the new subjects array
-      const { error: supabaseError } = await supabase
-        .from("users")
-        .update({
-          subjects: updatedSubjects,
+      // Insert new subject into subjects table
+      const { data, error: supabaseError } = await supabase
+        .from("subjects")
+        .insert({
+          user_id: user.id,
+          title: newSubjectName.trim(),
         })
-        .eq("user_id", user.id);
-
+        .select();
+        console.log(data)
       if (supabaseError) throw supabaseError;
 
-      // Update local state
-      setSubjects(updatedSubjects);
+      // Refetch subjects after adding a new one
+      fetchSubjects();
 
       // Reset form and close modal
       setNewSubjectName("");
@@ -104,9 +93,6 @@ export default function HomePage() {
       </div>
     );
   }
-
- 
-
 
   
   return (

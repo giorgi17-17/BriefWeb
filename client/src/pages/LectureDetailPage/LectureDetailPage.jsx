@@ -4,52 +4,60 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../utils/supabaseClient";
 import { handleProcessPdf } from "../../utils/api";
 import FlashcardComponent from "./FlashcardComponent";
-import { handleFileUpload as uploadFile, handleDeleteFile as deleteFile } from "../../utils/fileHandlers";
 import FilesLayout from "../../components/FilesLayout";
 
 const LectureDetailPage = () => {
-  const { name, lectureId } = useParams();
+  const {  lectureId } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("flashcards");
+  const [activeTab, setActiveTab]  = useState("flashcards");
   const [flashcards, setFlashcards] = useState([]);
   const [briefs, setBriefs] = useState([]);
   const [files, setFiles] = useState([]);
-  const [subjectId, setSubjectId] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [processedData, setProcessedData] = useState(null);
+  const [subjectId, setSubjectId] = useState(null);
 
   // Fetch initial data
   useEffect(() => {
     const fetchLectureData = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from("users")
-          .select("subjects")
-          .eq("user_id", user.id)
+        // Fetch lecture with related files, flashcard sets, and subject_id
+        const { data: lectureData, error: lectureError } = await supabase
+          .from("lectures")
+          .select(`
+            *,
+            files(*),
+            flashcard_sets(
+              *,
+              flashcards(*)
+            )
+          `)
+          .eq("id", lectureId)
           .single();
 
-        if (fetchError) throw fetchError;
+        if (lectureError) throw lectureError;
 
-        const displayName = decodeURIComponent(name)
-          .split("-")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ");
-
-        const subject = data?.subjects?.find(
-          (s) => s.title.toLowerCase() === displayName.toLowerCase()
-        );
-
-        const lecture = subject?.lectures?.find((l) => l.id === lectureId);
-
-        if (lecture) {
-          setFlashcards(lecture.flashcards || []);
-          setSubjectId(subject.id);
-          setBriefs(lecture.briefs || []);
-          setFiles(lecture.files || []);
+        if (lectureData) {
+          setFiles(lectureData.files || []);
+          // Store subject_id for navigation
+          setSubjectId(lectureData.subject_id);
+          // Transform flashcard sets data
+          const allFlashcards = lectureData.flashcard_sets.map(set => ({
+            id: set.id,
+            name: set.name,
+            createdAt: set.created_at,
+            cards: set.flashcards.map(card => ({
+              id: card.id,
+              question: card.question,
+              answer: card.answer
+            })),
+            isUploaded: true
+          }));
+          setFlashcards(allFlashcards);
         }
       } catch (error) {
         console.error("Error fetching lecture data:", error);
@@ -60,7 +68,7 @@ const LectureDetailPage = () => {
     if (user?.id && lectureId) {
       fetchLectureData();
     }
-  }, [user?.id, name, lectureId]);
+  }, [user?.id, lectureId]);
 
   const handleFileSelect = async (file) => {
     setSelectedFile(file);
@@ -81,7 +89,8 @@ const LectureDetailPage = () => {
           id: crypto.randomUUID(),
           name: selectedFile.name,
           createdAt: new Date().toISOString(),
-          cards: data
+          cards: data,
+          isUploaded: false
         });
       }
     } catch (err) {
@@ -94,43 +103,100 @@ const LectureDetailPage = () => {
   // Get all flashcard sets
   const getAllFlashcards = () => {
     const allSets = [...flashcards];
-    if (processedData) {
+    if (processedData && !processedData.isUploaded) {
       allSets.push(processedData);
     }
     return allSets;
   };
 
+  const handleFlashcardsModified = (updatedFlashcards) => {
+    // Only update if we have valid flashcards
+    if (Array.isArray(updatedFlashcards) && updatedFlashcards.length > 0) {
+      setFlashcards(updatedFlashcards.map(set => ({
+        ...set,
+        isUploaded: true
+      })));
+    } else {
+      // If no flashcards left, reset to empty array
+      setFlashcards([]);
+    }
+  };
+
   const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
     setIsUploading(true);
     setError(null);
-    await uploadFile({
-      file: event.target.files[0],
-      user,
-      lectureId,
-      onSuccess: (newFile) => {
-        setFiles((prevFiles) => [...prevFiles, newFile]);
-        setIsUploading(false);
-      },
-      onError: (errorMessage) => {
-        setError(errorMessage);
-        setIsUploading(false);
-      }
-    });
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/${lectureId}/${Math.random()}.${fileExt}`;
+
+      // Upload file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('lecture-files')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('files')
+        .getPublicUrl(filePath);
+
+      // Insert file record
+      const { data: fileRecord, error: dbError } = await supabase
+        .from('files')
+        .insert({
+          lecture_id: lectureId,
+          url: publicUrl,
+          name: file.name,
+          path: filePath,
+          size: file.size,
+          type: file.type
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      setFiles(prev => [...prev, fileRecord]);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setError(error.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDeleteFile = async (fileId) => {
     setError(null);
     
-    await deleteFile({
-      fileId,
-      files,
-      user,
-      lectureId,
-      onSuccess: (deletedFileId) => {
-        setFiles((prevFiles) => prevFiles.filter((f) => f.id !== deletedFileId));
-      },
-      onError: setError
-    });
+    try {
+      const fileToDelete = files.find(f => f.id === fileId);
+      if (!fileToDelete) throw new Error('File not found');
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('files')
+        .remove([fileToDelete.path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', fileId);
+
+      if (dbError) throw dbError;
+
+      setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      setError(error.message);
+    }
   };
 
   const addBrief = () => {
@@ -142,8 +208,9 @@ const LectureDetailPage = () => {
     setBriefs([...briefs, newBrief]);
   };
 
-  const handleFlashcardsModified = (updatedFlashcards) => {
-    setFlashcards(updatedFlashcards);
+  const handleBackClick = () => {
+    // Navigate back to lectures page with subject_id
+    navigate('/lectures', { state: { subjectId } });
   };
 
   return (
@@ -151,7 +218,7 @@ const LectureDetailPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={() => navigate(`/subjects/${name}`)}
+            onClick={handleBackClick}
             className="text-blue-500 hover:text-blue-600 mb-4"
           >
             ← Back to Lectures
@@ -252,7 +319,6 @@ const LectureDetailPage = () => {
                   <div>
                     <FlashcardComponent
                       flashcards={getAllFlashcards()}
-                      subjectId={subjectId}
                       lectureId={lectureId}
                       fileName={selectedFile?.name} 
                       onFlashcardsUploaded={(updatedSet) => {

@@ -42,6 +42,14 @@ function App() {
               }
             />
             <Route
+              path="/lectures"
+              element={
+                <ProtectedRoute>
+                  <LecturesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/subjects/:name"
               element={
                 <ProtectedRoute>

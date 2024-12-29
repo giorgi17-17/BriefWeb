@@ -1,7 +1,12 @@
 import { getFileIcon, handleFilePreview } from "../helpers/helpers";
 import PropTypes from 'prop-types';
 
-const FilesLayout = ({ files, isUploading, handleFileUpload, handleDeleteFile }) => {
+const FilesLayout = ({ 
+  files = [], 
+  isUploading = false, 
+  handleFileUpload = () => {}, 
+  handleDeleteFile = () => {} 
+}) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center space-x-4">
@@ -90,11 +95,6 @@ FilesLayout.propTypes = {
   isUploading: PropTypes.bool.isRequired,
   handleFileUpload: PropTypes.func.isRequired,
   handleDeleteFile: PropTypes.func.isRequired,
-};
-
-FilesLayout.defaultProps = {
-  files: [],
-  isUploading: false,
 };
 
 export default FilesLayout;
