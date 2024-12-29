@@ -5,8 +5,11 @@ import fs from "fs";
 import OpenAI from "openai";
 import express from "express";
 import uniqid from "uniqid";
+import cors from "cors";
 dotenv.config();
+
 const app = express();
+app.use(cors());
 const port = 5000;
 
 // Middleware to parse JSON
