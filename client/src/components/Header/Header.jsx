@@ -15,7 +15,7 @@ function Header() {
   };
 
   return (
-    <header className="bg-white shadow-md mb-8">
+    <header className="bg-white">
       <div className="container mx-auto px-4 py-4">
         <nav className="flex items-center justify-between">
           <Link to="/" className="text-xl font-bold text-gray-800">
