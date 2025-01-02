@@ -6,7 +6,11 @@ import { supabase } from "../../utils/supabaseClient";
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
+  const [editingSubject, setEditingSubject] = useState(null);
+  const [deletingSubject, setDeletingSubject] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,14 +59,11 @@ export default function HomePage() {
       setError(null);
 
       // Insert new subject into subjects table
-      const { data, error: supabaseError } = await supabase
-        .from("subjects")
-        .insert({
-          user_id: user.id,
-          title: newSubjectName.trim(),
-        })
-        .select();
-        console.log(data)
+      const { error: supabaseError } = await supabase.from("subjects").insert({
+        user_id: user.id,
+        title: newSubjectName.trim(),
+      });
+
       if (supabaseError) throw supabaseError;
 
       // Refetch subjects after adding a new one
@@ -74,6 +75,100 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error adding subject:", error);
       setError(error.message || "Failed to add subject");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubject = async () => {
+    if (!editingSubject || !editingSubject.title.trim()) {
+      setError("Subject name cannot be empty");
+      return;
+    }
+  
+    if (!editingSubject.id) {
+      setError("Invalid subject to edit");
+      return;
+    }
+  
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      console.log(editingSubject.title)
+  
+      const { data, error: supabaseError } = await supabase
+        .from("subjects")
+        .update({ title: editingSubject.title.trim() })
+        .eq("id", editingSubject.id)
+        .eq("user_id", user.id);
+  
+      if (supabaseError) throw supabaseError;
+      if (!data || data.length === 0) {
+        console.log("data "+ data)
+        console.log(supabaseError)
+        // throw new Error("No subject updated. Check your permissions.");
+      }
+  
+      await fetchSubjects();
+      setEditingSubject(null);
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Error editing subject:", error);
+      setError(error.message || "Failed to update subject");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleDeleteSubject = async () => {
+    if (!deletingSubject) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      // Extensive logging
+      console.log('Current User:', user);
+      console.log('Deleting Subject:', deletingSubject);
+
+      // Validate user and subject
+      if (!user) {
+        throw new Error("No authenticated user found");
+      }
+
+      // Perform delete with detailed logging
+      const { data, error: supabaseError } = await supabase
+        .from("subjects")
+        .delete()
+        .eq("id", deletingSubject.id)
+        .eq("user_id", user.id)
+
+      // Log the result of the delete operation
+      console.log('Delete Operation Result:', { 
+        data, 
+        supabaseError,
+        subjectId: deletingSubject.id,
+        userId: user.id
+      });
+
+      // Throw error if operation failed
+      if (supabaseError) throw supabaseError;
+
+      // Check if any rows were actually deleted
+      
+
+      // Refetch subjects after deleting
+      await fetchSubjects();
+
+      // Reset and close modal
+      setDeletingSubject(null);
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error("Detailed Error deleting subject:", {
+        message: error.message,
+        fullError: error
+      });
+      setError(error.message || "Failed to delete subject");
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +189,6 @@ export default function HomePage() {
     );
   }
 
-  
   return (
     <div className="min-h-screen px-4 py-8">
       {/* Hero Section */}
@@ -115,7 +209,7 @@ export default function HomePage() {
       )}
 
       {/* Subjects Section */}
-      <section className="max-w-4xl mx-auto">
+      <section className="max-w-xl mx-auto">
         {subjects.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">
@@ -142,6 +236,19 @@ export default function HomePage() {
                     name: subject.title,
                     lectureCount: subject.lecture_count || 0,
                   }}
+                  onEdit={(e) => {
+                    e.stopPropagation();
+                    setEditingSubject({ id: subject.id, title: subject.title });
+                    setIsEditModalOpen(true);
+                  }}
+                  onDelete={(e) => {
+                    e.stopPropagation();
+                    setDeletingSubject({
+                      id: subject.id,
+                      title: subject.title,
+                    });
+                    setIsDeleteModalOpen(true);
+                  }}
                 />
               </div>
             ))}
@@ -161,7 +268,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Add Subject Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
@@ -193,6 +300,81 @@ export default function HomePage() {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Adding..." : "Add Subject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Subject Modal */}
+      {isEditModalOpen && editingSubject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
+            <h2 className="text-xl font-bold mb-4">Edit Subject</h2>
+
+            <input
+              type="text"
+              value={editingSubject.title}
+              onChange={(e) =>
+                setEditingSubject({ ...editingSubject, title: e.target.value })
+              }
+              placeholder="Enter subject name..."
+              className="w-full px-4 py-2 border rounded-md mb-4"
+              disabled={isSubmitting}
+            />
+
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingSubject(null);
+                  setError(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSubject}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && deletingSubject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
+            <h2 className="text-xl font-bold mb-4">Delete Subject</h2>
+            <p className="mb-4">
+              Are you sure you want to delete &quot;{deletingSubject.title}
+              &quot;? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeletingSubject(null);
+                  setError(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSubject}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-red-300"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Deleting..." : "Delete Subject"}
               </button>
             </div>
           </div>
