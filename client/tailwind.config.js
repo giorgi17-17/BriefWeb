@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+import forms from '@tailwindcss/forms'
+
 export default {
   content: [
     "./index.html",
@@ -6,18 +8,47 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        lightGrey: {
-          DEFAULT: '#8D8D8D', // Your desired hex code
-          hover: '#696969',   // A darker shade for hover
+      animation: {
+        blob: 'blob 7s infinite',
+      },
+      keyframes: {
+        blob: {
+          '0%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
+          '33%': {
+            transform: 'translate(30px, -50px) scale(1.1)',
+          },
+          '66%': {
+            transform: 'translate(-20px, 20px) scale(0.9)',
+          },
+          '100%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
         },
-        grey: {
-          DEFAULT: '#BDBDBD', // Your desired hex code
-          hover: '#696969',   // A darker shade for hover
-        },
-      }
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      },
     },
-  },  
-  plugins: [],
+  },
+  plugins: [
+    forms
+  ],
+  safelist: [
+    'bg-gradient-to-r',
+    'bg-gradient-to-br',
+    'from-emerald-50',
+    'to-teal-50',
+    'via-cyan-50',
+    'from-emerald-500',
+    'to-teal-500',
+    'blur-3xl',
+    'backdrop-blur-sm',
+    'bg-clip-text',
+    'text-transparent'
+  ]
 }
-

@@ -240,33 +240,33 @@ const LectureDetailPage = () => {
       <div className="bg-white rounded-lg">
         <div className="pl-0 pt-6 pr-6 pb-6">
           <div className="flex items-start justify-between space-x-0  flex-wrap ">
-            <nav className="flex bg-gray-100 p-2 rounded-lg">
+            <nav className="flex bg-gray-100 p-2 rounded-lg text-4xl">
               <button
-                className={`px-4 py-1 text-sm ${
+                className={`px-4 py-1 text-base ${
                   activeTab === "flashcards"
                     ? "bg-white font-medium text-black shadow-sm"
                     : "bg-gray-100 text-gray-500"
-                } rounded-lg`}
+                } rounded`}
                 onClick={() => setActiveTab("flashcards")}
               >
                 Flashcards
               </button>
               <button
-                className={`px-4 py-1 text-sm ${
+                className={`px-4 py-1 text-base ${
                   activeTab === "briefs"
                     ? "bg-white font-medium text-black shadow-sm"
                     : "bg-gray-100 text-gray-500"
-                } rounded-lg`}
+                } rounded`}
                 onClick={() => setActiveTab("briefs")}
               >
                 Briefs
               </button>
               <button
-                className={`px-4 py-1 text-sm ${
+                className={`px-4 py-1 text-base ${
                   activeTab === "files"
                     ? "bg-white font-medium text-black shadow-sm"
                     : "bg-gray-100 text-gray-500"
-                } rounded-lg`}
+                } rounded`}
                 onClick={() => setActiveTab("files")}
               >
                 Files

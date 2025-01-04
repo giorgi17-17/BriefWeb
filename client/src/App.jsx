@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from './pages/home/page';
 import LoginPage from './pages/login/Login';
 import Header from './components/Header/Header';
+import Footer from './components/layout/Footer';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PropTypes from 'prop-types';
 import LecturesPage from './pages/LecturesPage/LecturesPage';
 import LectureDetailPage from './pages/LectureDetailPage/LectureDetailPage';
+import Dashboard from './pages/dashboard/Dashboard';
+import { Home } from './pages/home/Home';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -37,7 +39,15 @@ function App() {
               path="/"
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               }
             />
@@ -67,6 +77,7 @@ function App() {
             />
           </Routes>
         </div>
+        <Footer />
       </BrowserRouter>
     </AuthProvider>
   );

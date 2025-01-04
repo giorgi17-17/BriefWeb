@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 function Header() {
   const { user, logout } = useAuth();
@@ -8,24 +8,36 @@ function Header() {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
     }
   };
+
 
   return (
     <header className="bg-white">
       <div className="container mx-auto px-4 py-4">
         <nav className="flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-gray-800">
-            Brief
-          </Link>
+          {user ? (
+            <div>
+              <Link to="/dashboard" className="text-xl font-bold text-gray-800">
+                Brief
+              </Link>
+            </div>
+          ) : (
+            <div>
+              <Link to="/" className="text-xl font-bold text-gray-800">
+                Brief
+              </Link>
+            </div>
+          )}
           
+
           <div className="flex items-center gap-4">
             <div className="space-x-4">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Home
@@ -56,4 +68,4 @@ function Header() {
   );
 }
 
-export default Header; 
+export default Header;

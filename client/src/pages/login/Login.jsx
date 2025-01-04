@@ -10,7 +10,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { signUp, signInWithEmail, signInWithGoogle } = useAuth();
+  const { signUp, signInWithEmail } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,11 +22,11 @@ const Login = () => {
         await signUp(email, password);
         // User will need to verify their email
         setError("Please check your email to verify your account");
-        navigate('/');
+        navigate('/dashboard');
 
       } else {
         await signInWithEmail(email, password);
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error(error);
@@ -36,18 +36,18 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Sign in error:', error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // const handleGoogleSignIn = async () => {
+  //   try {
+  //     setError(null);
+  //     setIsLoading(true);
+  //     await signInWithGoogle();
+  //   } catch (error) {
+  //     console.error('Sign in error:', error);
+  //     setError(error.message);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -108,7 +108,7 @@ const Login = () => {
           </button>
         </div>
 
-        <div className="mt-6">
+        {/* <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300" />
@@ -130,7 +130,7 @@ const Login = () => {
             />
             <span>Continue with Google</span>
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );
