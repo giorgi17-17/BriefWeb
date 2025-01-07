@@ -16,7 +16,7 @@ const Footer = () => {
             <p className="text-gray-600 mb-6 max-w-md">
               Get the latest updates about new features and study tips delivered to your inbox.
             </p>
-            <div className="flex w-full max-w-md gap-2">
+            <div className="flex flex-wrap w-full max-w-md gap-2  justify-center">
               <input
                 type="email"
                 placeholder="Enter your email"

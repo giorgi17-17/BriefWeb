@@ -226,91 +226,87 @@ const FlashcardComponent = ({
       )}
 
       {flashcardSets.length > 0 && (
-        <div className="mb-6 w-full max-w-md">
+        <div className="mb-6 w-full max-w">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Flashcard Sets:
           </label>
-          <div className="grid grid-cols-1 gap-2">
+          <div className="space flex gap-5 w-full flex-wrap">
             {flashcardSets.map((set, index) => (
               <div
                 key={set.id}
-                className={`p-4 rounded-lg ${
+                onClick={() => !editingSetId && handleSetChange(index)}
+                className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
                   activeSetIndex === index
                     ? "bg-blue-50 border-2 border-blue-500"
-                    : "bg-gray-50 border border-gray-200"
+                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    {editingSetId === set.id ? (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={editingSetName}
-                          onChange={(e) => setEditingSetName(e.target.value)}
-                          className="flex-1 px-2 py-1 border rounded"
-                          placeholder="Enter set name"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleEditSetName(set.id)}
-                          className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingSetId(null);
-                            setEditingSetName("");
-                          }}
-                          className="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">{set.name}</h3>
-                          <p className="text-sm text-gray-500">
-                            {new Date(set.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              setEditingSetId(set.id);
-                              setEditingSetName(set.name);
-                            }}
-                            className="p-1 text-blue-500 hover:text-blue-600"
-                            title="Edit set name"
-                          >
-                            <FiEdit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => initiateDelete(set.id, set.name)}
-                            className="p-1 text-red-500 hover:text-red-600"
-                            title="Delete set"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                {editingSetId === set.id ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={editingSetName}
+                      onChange={(e) => setEditingSetName(e.target.value)}
+                      className="flex-1 px-2 py-1 border rounded"
+                      placeholder="Enter set name"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditSetName(set.id);
+                      }}
+                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingSetId(null);
+                        setEditingSetName("");
+                      }}
+                      className="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleSetChange(index)}
-                  className={`mt-2 w-full py-2 px-4 rounded ${
-                    activeSetIndex === index
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  {activeSetIndex === index
-                    ? "Currently Selected"
-                    : "Select Set"}
-                </button>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">
+                      {set.name}
+                      {/* {activeSetIndex === index && (
+                        <span className="ml-2 text-sm text-blue-500">
+                          Currently Selected
+                        </span>
+                      )} */}
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingSetId(set.id);
+                          setEditingSetName(set.name);
+                        }}
+                        className="p-1 text-blue-500 hover:text-blue-600"
+                        title="Edit set name"
+                      >
+                        <FiEdit2 size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          initiateDelete(set.id, set.name);
+                        }}
+                        className="p-1 text-red-500 hover:text-red-600"
+                        title="Delete set"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

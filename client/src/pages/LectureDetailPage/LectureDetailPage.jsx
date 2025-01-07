@@ -5,13 +5,14 @@ import { supabase } from "../../utils/supabaseClient";
 import { handleProcessPdf } from "../../utils/api";
 import FlashcardComponent from "./FlashcardComponent";
 import FilesLayout from "../../components/FilesLayout";
+import Brief from "../../components/subjects/Brief";
+import { FileSelector } from "../../components/FileSelector";
 
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("flashcards");
   const [flashcards, setFlashcards] = useState([]);
-  const [briefs, setBriefs] = useState([]);
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -203,15 +204,6 @@ const LectureDetailPage = () => {
     }
   };
 
-  const addBrief = () => {
-    const newBrief = {
-      id: Date.now(),
-      title: `Brief ${briefs.length + 1}`,
-      content: "",
-    };
-    setBriefs([...briefs, newBrief]);
-  };
-
   const handleBackClick = () => {
     // Navigate back to lectures page with subject_id
     navigate("/lectures", { state: { subjectId } });
@@ -238,7 +230,7 @@ const LectureDetailPage = () => {
       )}
 
       <div className="bg-white rounded-lg">
-        <div className="pl-0 pt-6 pr-6 pb-6">
+        <div className="pl-0 pt-6  pb-6">
           <div className="flex items-start justify-between space-x-0  flex-wrap ">
             <nav className="flex bg-gray-100 p-2 rounded-lg text-4xl">
               <button
@@ -273,36 +265,12 @@ const LectureDetailPage = () => {
               </button>
             </nav>
 
-            <div className="flex items-start space-x-0 gap-5  flex-wrap">
-              <div className="flex items-start space-x-10 ">
-                <select
-                  className="w-50 p-2  rounded-lg"
-                  onChange={(e) => {
-                    const file = files.find((f) => f.id === e.target.value);
-                    if (file) handleFileSelect(file);
-                  }}
-                  value={selectedFile?.id || ""}
-                >
-                  <option value="">Select a file</option>
-                  {files.map((file) => (
-                    <option key={file.id} value={file.id}>
-                      {file.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col justify-start">
-                <button
-                  onClick={handleGenerateFlashcards}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors self-start"
-                  disabled={isGenerating}
-                >
-                  {isGenerating
-                    ? "Generating Flashcards..."
-                    : "Generate Flashcards"}
-                </button>
-              </div>
+            <div className="flex items-start space-x-0 gap-5 flex-wrap">
+              <FileSelector
+                files={files}
+                selectedFile={selectedFile}
+                onFileSelect={handleFileSelect}
+              />
             </div>
           </div>
 
@@ -317,11 +285,11 @@ const LectureDetailPage = () => {
             <div className="space-y-4">
               {files.length > 0 ? (
                 <div className="space-y-4 ">
-                  {/* {selectedFile && (
-                    <div className="space-y-4">
+                  <div>
+                    <div className="flex flex-row justify-start items-center mt-5">
                       <button
                         onClick={handleGenerateFlashcards}
-                        className="w-20% bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors self-start"
                         disabled={isGenerating}
                       >
                         {isGenerating
@@ -329,9 +297,6 @@ const LectureDetailPage = () => {
                           : "Generate Flashcards"}
                       </button>
                     </div>
-                  )} */}
-
-                  <div>
                     <FlashcardComponent
                       flashcards={getAllFlashcards()}
                       lectureId={lectureId}
@@ -354,28 +319,11 @@ const LectureDetailPage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <button
-                onClick={addBrief}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Add Brief
-              </button>
-
-              {briefs.map((brief) => (
-                <div key={brief.id} className="border rounded-lg p-4 space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Brief Title"
-                    className="w-full p-2 border rounded"
-                    value={brief.title}
-                  />
-                  <textarea
-                    placeholder="Brief Content"
-                    className="w-full p-2 border rounded"
-                    rows="4"
-                  />
-                </div>
-              ))}
+              <Brief
+                selectedFile={selectedFile}
+                user={user}
+                lectureId={lectureId}
+              />
             </div>
           )}
         </div>

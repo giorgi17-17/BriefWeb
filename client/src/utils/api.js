@@ -2,7 +2,7 @@ import axios from "axios";
 import { BACKEND_URL } from "../helpers/helpers";
 
 
-export const handleProcessPdf = async (userId, lectureId, fileId) => {
+ const handleProcessPdf = async (userId, lectureId, fileId) => {
   try {
     // Validate input parameters
     if (!userId || !lectureId || !fileId) {
@@ -79,5 +79,44 @@ export const handleProcessPdf = async (userId, lectureId, fileId) => {
     throw error;
   }
 };
+const handleProcessBrief = async (userId, lectureId, fileId) => {
+  try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error("Missing required parameters");
+    }
 
-export default handleProcessPdf;
+    // Make API call to process PDF and generate brief
+    const response = await axios.post(`${BACKEND_URL}/api/process-brief`, {
+      userId,
+      lectureId,
+      fileId
+    });
+
+    // Check if response data exists
+    if (!response.data) {
+      throw new Error("No data found in the response");
+    }
+
+    // Extract brief from response
+    const brief = response.data.brief;
+    if (!brief || 
+        !Array.isArray(brief.key_concepts) || 
+        typeof brief.summary !== 'string' || 
+        !Array.isArray(brief.important_details)) {
+      throw new Error("Invalid brief data received from server");
+    }
+
+    return brief;
+
+  } catch (error) {
+    console.error("Error processing PDF for brief:", error);
+    throw error;
+  }
+};
+
+// export default handleProcessBrief;
+
+export {handleProcessBrief, handleProcessPdf}
+
+// export default handleProcessPdf;

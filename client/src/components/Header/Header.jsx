@@ -35,14 +35,7 @@ function Header() {
           
 
           <div className="flex items-center gap-4">
-            <div className="space-x-4">
-              <Link
-                to="/"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Home
-              </Link>
-            </div>
+          
             {user ? (
               <>
                 <span className="text-gray-600">{user.email}</span>
