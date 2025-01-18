@@ -4,9 +4,9 @@ import PropTypes from 'prop-types';
 
 export const FileSelector = ({ files, selectedFile, onFileSelect }) => {
   return (
-    <div className="flex items-start space-x-10">
+    <div className="flex items-start space-x-10 ">
       <select
-        className="w-50 p-2 rounded-lg"
+        className="w-50 p-2 rounded-lg min-w-[200px] max-w-[200px] "
         onChange={(e) => {
           const file = files.find((f) => f.id === e.target.value);
           if (file) onFileSelect(file);

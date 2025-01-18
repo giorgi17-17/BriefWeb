@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import Footer from "../../components/layout/Footer";
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -231,6 +232,7 @@ export const Home = () => {
           </button>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 const Footer = () => {
   return (
-    <footer className="bg-gradient-to-b from-white to-gray-50 relative">
+    <footer className="bg-gradient-to-b from-white to-gray-50 relative mt-[80px]">
       {/* Wave Pattern */}
       <div className="absolute top-0 left-0 right-0 overflow-hidden leading-0 transform rotate-180">
         <svg className="relative block w-full h-12" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">

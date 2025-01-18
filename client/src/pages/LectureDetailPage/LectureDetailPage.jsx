@@ -255,6 +255,16 @@ const LectureDetailPage = () => {
               </button>
               <button
                 className={`px-4 py-1 text-base ${
+                  activeTab === "shorts"
+                    ? "bg-white font-medium text-black shadow-sm"
+                    : "bg-gray-100 text-gray-500"
+                } rounded`}
+                onClick={() => setActiveTab("shorts")}
+              >
+                Shorts
+              </button>
+              <button
+                className={`px-4 py-1 text-base ${
                   activeTab === "files"
                     ? "bg-white font-medium text-black shadow-sm"
                     : "bg-gray-100 text-gray-500"
@@ -317,7 +327,7 @@ const LectureDetailPage = () => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === "briefs" ? (
             <div className="space-y-4">
               <Brief
                 selectedFile={selectedFile}
@@ -325,7 +335,9 @@ const LectureDetailPage = () => {
                 lectureId={lectureId}
               />
             </div>
-          )}
+          ): (<div>
+            <h1>Shorts</h1>
+          </div>)}
         </div>
       </div>
     </div>

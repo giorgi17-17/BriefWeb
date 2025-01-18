@@ -132,7 +132,7 @@ const LecturesPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/dashboard')}
               className="text-blue-500 hover:text-blue-600 mb-4"
             >
               ← Back to Subjects

@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/login/Login';
 import Header from './components/Header/Header';
-import Footer from './components/layout/Footer';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PropTypes from 'prop-types';
 import LecturesPage from './pages/LecturesPage/LecturesPage';
@@ -77,7 +76,6 @@ function App() {
             />
           </Routes>
         </div>
-        <Footer />
       </BrowserRouter>
     </AuthProvider>
   );
