@@ -50,7 +50,6 @@ async function extractTextFromPDF(userId, lectureId, fileId) {
     // Convert to buffer and parse
     const pdfBuffer = Buffer.from(await fileContent.arrayBuffer());
     return await parsePDF(pdfBuffer);
-    
   } catch (error) {
     console.error("Error in PDF extraction:", error);
     throw error;
@@ -97,61 +96,87 @@ const openai = new OpenAI({
 
 async function generateFlashcards(extractedText) {
   try {
-    console.log('Generating flashcards...');
+    console.log("Generating flashcards...");
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are an expert educational content creator specializing in concise, informative flashcards. Return ONLY raw JSON array without any markdown formatting, code blocks, or additional text.",
+          content:
+            "You are an advanced AI educational content specialist focused on creating high-quality, concise, and academically rigorous flashcards. Your goal is to extract the most important and meaningful information from the source material, ensuring each flashcard is precise, clear, and facilitates effective learning. Prioritize depth of understanding over rote memorization.",
         },
         {
           role: "user",
-          content: `Generate 30 flashcards from the following text. Return ONLY a JSON array without any markdown formatting or explanation.
-
-          Required format:
-          [
-            {
-              "question": "Question text",
-              "answer": "Answer text"
-            }
-          ]
-
-          Text to analyze: ${extractedText}`,
-        }
+          content: `Create 30 high-quality, educational flashcards from the provided text. Follow these precise guidelines:
+      
+      1. Extraction Criteria:
+      - Focus on core concepts, key definitions, critical principles
+      - Capture important relationships and underlying mechanisms
+      - Include conceptual, analytical, and application-based questions
+      
+      2. Flashcard Quality Requirements:
+      - Questions must be clear, unambiguous, and directly answerable
+      - Answers should be concise yet comprehensive
+      - Avoid overly complex or trick questions
+      - Ensure factual accuracy and academic rigor
+      
+      3. Formatting Specifications:
+      - Generate EXACTLY 30 flashcards
+      - Return ONLY a valid JSON array
+      - Each object must have "question" and "answer" keys
+      - No additional text, markdown, or explanatory content
+      
+      4. Recommended Question Types:
+      - Definitional
+      - Comparative
+      - Cause-and-effect
+      - Application scenarios
+      - Analytical reasoning
+        Required format:
+     [
+       {
+         "question": "Question text",
+         "answer": "Answer text"
+       }
+     ]
+      
+      Text to analyze: ${extractedText}`,
+        },
       ],
     });
 
     let briefContent = response.choices[0].message.content;
-    
+
     // Clean up the response if it contains markdown or extra text
     try {
       // Remove markdown code fences if present
-      briefContent = briefContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      
+      briefContent = briefContent
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "");
+
       // Trim whitespace
       briefContent = briefContent.trim();
-      
+
       // Ensure content starts with [ and ends with ]
-      if (!briefContent.startsWith('[') || !briefContent.endsWith(']')) {
-        throw new Error('Invalid JSON format');
+      if (!briefContent.startsWith("[") || !briefContent.endsWith("]")) {
+        throw new Error("Invalid JSON format");
       }
 
       const parsedFlashcards = JSON.parse(briefContent);
-      
+
       // Validate the structure
       if (!Array.isArray(parsedFlashcards)) {
-        throw new Error('Response is not an array');
+        throw new Error("Response is not an array");
       }
 
       const flashcardsWithId = parsedFlashcards.map((card) => {
         if (!card.question || !card.answer) {
-          throw new Error('Invalid flashcard format');
+          throw new Error("Invalid flashcard format");
         }
         return {
           id: uniqid(),
           question: card.question,
-          answer: card.answer
+          answer: card.answer,
         };
       });
 
@@ -159,15 +184,14 @@ async function generateFlashcards(extractedText) {
         console.log("Token Usage:", {
           promptTokens: response.usage.prompt_tokens,
           completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens
+          totalTokens: response.usage.total_tokens,
         });
       }
 
       return flashcardsWithId;
-
     } catch (parseError) {
-      console.error('Raw response:', briefContent);
-      console.error('Parse error:', parseError);
+      console.error("Raw response:", briefContent);
+      console.error("Parse error:", parseError);
       throw new Error(`Failed to parse GPT response: ${parseError.message}`);
     }
   } catch (error) {
@@ -177,13 +201,14 @@ async function generateFlashcards(extractedText) {
 }
 async function generateBrief(extractedText) {
   try {
-    console.log('Generating brief...');
+    console.log("Generating brief...");
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are an expert educational content creator specializing in concise, informative briefs. Return ONLY raw JSON without any markdown formatting, code blocks, or additional text.",
+          content:
+            "You are an expert educational content creator specializing in concise, informative briefs. Return ONLY raw JSON without any markdown formatting, code blocks, or additional text.",
         },
         {
           role: "user",
@@ -197,41 +222,47 @@ async function generateBrief(extractedText) {
           }
 
           Text to analyze: ${extractedText}`,
-        }
+        },
       ],
     });
 
     let briefContent = response.choices[0].message.content;
-    
+
     try {
       // Remove markdown code fences if present
-      briefContent = briefContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      
+      briefContent = briefContent
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "");
+
       // Trim whitespace
       briefContent = briefContent.trim();
-      
+
       const parsedBrief = JSON.parse(briefContent);
-      
+
       // Validate the structure
-      if (!parsedBrief.key_concepts || !Array.isArray(parsedBrief.key_concepts) ||
-          !parsedBrief.summary || typeof parsedBrief.summary !== 'string' ||
-          !parsedBrief.important_details || !Array.isArray(parsedBrief.important_details)) {
-        throw new Error('Invalid brief format');
+      if (
+        !parsedBrief.key_concepts ||
+        !Array.isArray(parsedBrief.key_concepts) ||
+        !parsedBrief.summary ||
+        typeof parsedBrief.summary !== "string" ||
+        !parsedBrief.important_details ||
+        !Array.isArray(parsedBrief.important_details)
+      ) {
+        throw new Error("Invalid brief format");
       }
 
       if (response.usage) {
         console.log("Token Usage:", {
           promptTokens: response.usage.prompt_tokens,
           completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens
+          totalTokens: response.usage.total_tokens,
         });
       }
 
       return parsedBrief;
-
     } catch (parseError) {
-      console.error('Raw response:', briefContent);
-      console.error('Parse error:', parseError);
+      console.error("Raw response:", briefContent);
+      console.error("Parse error:", parseError);
       throw new Error(`Failed to parse GPT response: ${parseError.message}`);
     }
   } catch (error) {
@@ -255,9 +286,9 @@ app.post("/api/process-pdf", async (req, res) => {
     res.status(200).json({ flashcards });
   } catch (error) {
     console.error("Error processing PDF:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to process the document",
-      details: error.message 
+      details: error.message,
     });
   }
 });
@@ -265,7 +296,7 @@ app.post("/api/process-pdf", async (req, res) => {
 export async function processDocument(userId, lectureId, fileId) {
   try {
     console.log("Processing document:", { userId, lectureId, fileId });
-    
+
     let extractedText;
     try {
       extractedText = await extractTextFromPDF(userId, lectureId, fileId);
@@ -290,7 +321,7 @@ export async function processDocument(userId, lectureId, fileId) {
 export async function processBrief(userId, lectureId, fileId) {
   try {
     console.log("Processing document:", { userId, lectureId, fileId });
-    
+
     let extractedText;
     try {
       extractedText = await extractTextFromPDF(userId, lectureId, fileId);
@@ -312,8 +343,6 @@ export async function processBrief(userId, lectureId, fileId) {
   }
 }
 
-
-
 app.post("/api/process-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
   console.log("Processing brief request for:", { userId, lectureId, fileId });
@@ -325,9 +354,8 @@ app.post("/api/process-brief", async (req, res) => {
   }
 
   try {
-
     const brief = await processBrief(userId, lectureId, fileId);
-    console.log(brief)
+    console.log(brief);
     res.status(200).json({ brief });
 
     // try {
@@ -353,9 +381,9 @@ app.post("/api/process-brief", async (req, res) => {
     // }
   } catch (error) {
     console.error("Error processing brief:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to process the document",
-      details: error.message 
+      details: error.message,
     });
   }
 });
@@ -401,7 +429,7 @@ async function testPDFPageExtraction(userId, lectureId, fileId) {
 function parsePagesByPDF(buffer) {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
-    
+
     pdfParser.on("pdfParser_dataError", (errData) => {
       console.error("PDF Parsing Error:", errData);
       reject(errData.parserError);
@@ -419,7 +447,10 @@ function parsePagesByPDF(buffer) {
                 const decodedText = decodeURIComponent(text.R[0].T);
                 pageText += decodedText + " ";
               } catch (decodeError) {
-                console.warn(`Decoding error on page ${pageIndex + 1}:`, decodeError);
+                console.warn(
+                  `Decoding error on page ${pageIndex + 1}:`,
+                  decodeError
+                );
               }
             });
           }
@@ -439,7 +470,11 @@ function parsePagesByPDF(buffer) {
 // Test endpoint
 app.post("/api/test-pdf-pages", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  console.log("Testing PDF page extraction for:", { userId, lectureId, fileId });
+  console.log("Testing PDF page extraction for:", {
+    userId,
+    lectureId,
+    fileId,
+  });
 
   if (!userId || !lectureId || !fileId) {
     return res.status(400).json({
@@ -452,9 +487,9 @@ app.post("/api/test-pdf-pages", async (req, res) => {
     res.status(200).json({ pages });
   } catch (error) {
     console.error("Error in test endpoint:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to process the document",
-      details: error.message 
+      details: error.message,
     });
   }
 });

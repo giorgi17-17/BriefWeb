@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../../utils/supabaseClient";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const FlashcardComponent = ({
   flashcards,
@@ -17,10 +18,13 @@ const FlashcardComponent = ({
   const [editingSetId, setEditingSetId] = useState(null);
   const [editingSetName, setEditingSetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+  // New state for dropdown open/close
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Update local state when flashcards prop changes
   useEffect(() => {
     if (flashcards && Array.isArray(flashcards)) {
+      // Only include sets that have been uploaded (or processed as uploaded)
       setFlashcardSets(flashcards.filter((set) => set.isUploaded !== false));
     }
   }, [flashcards]);
@@ -197,12 +201,14 @@ const FlashcardComponent = ({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full p-4">
+    <div className="flex flex-col items-center justify-center w-full mt-4">
       {/* Delete Confirmation Modal */}
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Delete Flashcard Set</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Delete Flashcard Set
+            </h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete {deleteConfirmation.name}? This
               action cannot be undone.
@@ -225,94 +231,112 @@ const FlashcardComponent = ({
         </div>
       )}
 
+      {/* Dropdown for Flashcard Sets */}
       {flashcardSets.length > 0 && (
-        <div className="mb-6 w-full max-w">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Flashcard Sets:
-          </label>
-          <div className="space flex gap-5 w-full flex-wrap">
-            {flashcardSets.map((set, index) => (
-              <div
-                key={set.id}
-                onClick={() => !editingSetId && handleSetChange(index)}
-                className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-                  activeSetIndex === index
-                    ? "bg-blue-50 border-2 border-blue-500"
-                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
-                }`}
-              >
-                {editingSetId === set.id ? (
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={editingSetName}
-                      onChange={(e) => setEditingSetName(e.target.value)}
-                      className="flex-1 px-2 py-1 border rounded"
-                      placeholder="Enter set name"
-                      autoFocus
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditSetName(set.id);
-                      }}
-                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingSetId(null);
-                        setEditingSetName("");
-                      }}
-                      className="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">
-                      {set.name}
-                      {/* {activeSetIndex === index && (
-                        <span className="ml-2 text-sm text-blue-500">
-                          Currently Selected
-                        </span>
-                      )} */}
-                    </h3>
+        <div className="mb-6 w-full">
+          <h3 className="text-lg font-semibold mb-2"> {flashcardSets.length} Flashcard Sets</h3>
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center justify-between w-full px-4 py-2 border rounded-lg text-sm text-gray-700 focus:outline-none"
+          >
+            <span>
+              {flashcardSets[activeSetIndex]?.name || "Select flashcard set"}
+            </span>
+            {dropdownOpen ? (
+              <ChevronUp className="w-5 h-5" />
+            ) : (
+              <ChevronDown className="w-5 h-5" />
+            )}
+          </button>
+          <div
+            className={`transition-all duration-300 overflow-hidden ${
+              dropdownOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <ul className="mt-2 space-y-2">
+              {flashcardSets.map((set, index) => (
+                <li
+                  key={set.id}
+                  onClick={() => {
+                    // Only change set if not editing
+                    if (!editingSetId) {
+                      handleSetChange(index);
+                      setDropdownOpen(false);
+                    }
+                  }}
+                  className={`cursor-pointer px-3 py-2 border rounded text-sm transition-colors ${
+                    activeSetIndex === index
+                      ? "bg-blue-50 border-blue-500"
+                      : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
+                  }`}
+                >
+                  {editingSetId === set.id ? (
                     <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={editingSetName}
+                        onChange={(e) => setEditingSetName(e.target.value)}
+                        className="flex-1 px-2 py-1 border rounded"
+                        placeholder="Enter set name"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setEditingSetId(set.id);
-                          setEditingSetName(set.name);
+                          handleEditSetName(set.id);
                         }}
-                        className="p-1 text-blue-500 hover:text-blue-600"
-                        title="Edit set name"
+                        className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                       >
-                        <FiEdit2 size={16} />
+                        Save
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          initiateDelete(set.id, set.name);
+                          setEditingSetId(null);
+                          setEditingSetName("");
                         }}
-                        className="p-1 text-red-500 hover:text-red-600"
-                        title="Delete set"
+                        className="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
                       >
-                        <FiTrash2 size={16} />
+                        Cancel
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium">{set.name}</h3>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSetId(set.id);
+                            setEditingSetName(set.name);
+                          }}
+                          className="p-1 text-blue-500 hover:text-blue-600"
+                          title="Edit set name"
+                        >
+                          <FiEdit2 size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            initiateDelete(set.id, set.name);
+                          }}
+                          className="p-1 text-red-500 hover:text-red-600"
+                          title="Delete set"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
 
+      {/* Flashcard Display */}
       <div
         className={`relative w-full max-w-md h-96 cursor-pointer transition-all duration-500 ease-in-out ${
           isFlipped ? "transform rotate-y-180" : ""

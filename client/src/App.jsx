@@ -1,12 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LoginPage from './pages/login/Login';
-import Header from './components/Header/Header';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import PropTypes from 'prop-types';
-import LecturesPage from './pages/LecturesPage/LecturesPage';
-import LectureDetailPage from './pages/LectureDetailPage/LectureDetailPage';
-import Dashboard from './pages/dashboard/Dashboard';
-import { Home } from './pages/home/Home';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./pages/login/Login";
+import Header from "./components/Header/Header";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import PropTypes from "prop-types";
+import LecturesPage from "./pages/LecturesPage/LecturesPage";
+import LectureDetailPage from "./pages/LectureDetailPage/LectureDetailPage";
+import Dashboard from "./pages/dashboard/Dashboard";
+import { Home } from "./pages/home/Home";
+import Profile from "./pages/profile/Profile";
+import { Error } from "./pages/error/Error";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -34,19 +36,20 @@ function App() {
         <div className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<Home />} />
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />
@@ -74,6 +77,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            
+            <Route path="*" element={<Error />} />
           </Routes>
         </div>
       </BrowserRouter>

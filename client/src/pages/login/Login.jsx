@@ -13,6 +13,7 @@ const Login = () => {
   const { signUp, signInWithEmail } = useAuth();
 
   const handleSubmit = async (e) => {
+    console.log('first')
     e.preventDefault();
     setError(null);
     setIsLoading(true);

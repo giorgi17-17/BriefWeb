@@ -10,41 +10,7 @@ export const SubjectCard = ({ subject, onEdit, onDelete }) => {
 
   return (
     <div className="relative group flex items-center justify-center">
-      {/* Gradient border overlay */}
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-50 transition-opacity duration-300 rounded-lg"
-        style={{
-          background: `radial-gradient(circle, rgba(0, 0, 139, 0.4), rgba(139, 0, 0, 0.4), rgba(153, 153, 20, 0.4))`,
-          backgroundSize: "200% 200%",
-          animation: "rotateGradient 5s linear infinite",
-          filter: "blur(10px)",
-        }}
-      />
-
-      <style>
-        {`
-          @keyframes rotateGradient {
-            0% {
-              background-position: 50% 0%;
-            }
-            25% {
-              background-position: 100% 50%;
-            }
-            50% {
-              background-position: 50% 100%;
-            }
-            75% {
-              background-position: 0% 50%;
-            }
-            100% {
-              background-position: 50% 0%;
-            }
-          }
-        `}
-      </style>
-
-      {/* Main card content */}
-      <div className="border rounded-lg p-6 w-64 relative bg-white z-10 transition-transform duration-300">
+      <div className="border rounded-lg p-6 w-64 relative bg-white z-10 transition-all duration-400 transform hover:shadow-lg">
         <div className="absolute top-2 right-2 flex gap-2">
           <button
             onClick={onEdit}
@@ -68,7 +34,9 @@ export const SubjectCard = ({ subject, onEdit, onDelete }) => {
         >
           {subject.name}
         </h3>
-        <div className="text-sm text-gray-500">{subject.lectureCount} Lectures</div>
+        <div className="text-sm text-gray-500">
+          {subject.lectureCount} Lectures
+        </div>
       </div>
     </div>
   );
