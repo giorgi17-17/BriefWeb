@@ -1,218 +1,290 @@
 import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import { handleProcessBrief } from "../../utils/api";
 import { supabase } from "../../utils/supabaseClient";
-import PropTypes from "prop-types";
 
 const Brief = ({ selectedFile, user, lectureId }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [brief, setBrief] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [briefs, setBriefs] = useState([]);
-  const [selectedBrief, setSelectedBrief] = useState(null);
-  const filePath = selectedFile?.path.split("/").pop();
-
-  // console.log(selectedFile?.path.split("/").pop())
+  const [noBriefExists, setNoBriefExists] = useState(false);
+  console.log(brief)
   useEffect(() => {
-    const fetchBriefs = async () => {
-      try {
-        const { data, error: briefsError } = await supabase
-          .from("briefs")
-          .select("*")
-          .eq("lecture_id", lectureId)
-          .order("created_at", { ascending: false });
-
-        if (briefsError) throw briefsError;
-        setBriefs(data || []);
-        if (data?.length > 0) {
-          setSelectedBrief(data[0]); // Select the most recent brief
-        }
-      } catch (err) {
-        console.error("Error fetching briefs:", err);
-        setError(err.message);
-      }
-    };
-
     if (lectureId) {
-      fetchBriefs();
+      fetchBrief();
     }
   }, [lectureId]);
 
-  const handleGenerateBrief = async () => {
+  const fetchBrief = async () => {
     try {
-      setIsGenerating(true);
-      setError(null);
-
-      if (!selectedFile) throw new Error("No file selected");
-
-      // Get the file ID from the selected file
-      const fileId = selectedFile.id;
-      if (!fileId) throw new Error("Invalid file selected");
-      console.log("fileeeeeeeeeee" + fileId);
-      // Generate brief data from server
-      const briefData = await handleProcessBrief(user.id, lectureId, filePath);
-
-      if (!briefData) {
-        throw new Error("No brief data received from server");
-      }
-
-      // Create brief in Supabase
-      const { data: newBrief, error: insertError } = await supabase
+      const { data, error } = await supabase
         .from("briefs")
-        .insert({
-          lecture_id: lectureId,
-          file_id: fileId,
-          name: selectedFile.name,
-          key_concepts: briefData.key_concepts,
-          summary: briefData.summary,
-          important_details: briefData.important_details,
-        })
-        .select()
+        .select("*")
+        .eq("lecture_id", lectureId)
         .single();
 
-      if (insertError) throw insertError;
+      if (error) {
+        // Check if the error is due to no rows returned
+        if (error.code === "PGRST116") {
+          setNoBriefExists(true);
+          setError(null);
+          return;
+        }
+        throw error;
+      }
 
-      // Update local state
-      setBriefs((prevBriefs) => [newBrief, ...prevBriefs]);
-      setSelectedBrief(newBrief);
+      setBrief(data);
+      setCurrentPage(data.current_page || 1);
     } catch (err) {
-      setError(err.message);
-      console.error("Error generating brief:", err);
-    } finally {
-      setIsGenerating(false);
+      console.error("Error fetching brief:", err);
+      setError("Failed to load brief");
     }
   };
 
-  const handleBriefSelect = (brief) => {
-    setSelectedBrief(brief);
+  const generateBrief = async () => {
+    if (!selectedFile?.id) {
+      setError("No file selected");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const filePath = selectedFile.path.split("/").pop();
+
+      const briefData = await handleProcessBrief(user.id, lectureId, filePath);
+
+      // Check if a brief already exists
+      const { data: existingBrief, error: fetchError } = await supabase
+        .from("briefs")
+        .select("*")
+        .eq("lecture_id", lectureId)
+        .single();
+
+      let result;
+      if (fetchError && fetchError.code !== "PGRST116") {
+        throw fetchError;
+      }
+
+      if (existingBrief) {
+        // Update the existing brief
+        const { data: updatedBrief, error: updateError } = await supabase
+          .from("briefs")
+          .update({
+            total_pages: briefData.totalPages,
+            summaries: briefData.pageSummaries,
+            current_page: 1,
+            metadata: {
+              documentTitle: briefData.overview.documentTitle,
+              mainThemes: briefData.overview.mainThemes,
+              key_concepts: briefData.key_concepts,
+              important_details: briefData.important_details,
+            },
+          })
+          .eq("lecture_id", lectureId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        result = updatedBrief;
+      } else {
+        // Insert a new brief
+        const { data: insertedBrief, error: insertError } = await supabase
+          .from("briefs")
+          .insert({
+            lecture_id: lectureId,
+            user_id: user.id,
+            total_pages: briefData.totalPages,
+            summaries: briefData.pageSummaries,
+            current_page: 1,
+            metadata: {
+              documentTitle: briefData.overview.documentTitle,
+              mainThemes: briefData.overview.mainThemes,
+              key_concepts: briefData.key_concepts,
+              important_details: briefData.important_details,
+            },
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        result = insertedBrief;
+      }
+
+      setBrief(result);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Error generating brief:", err);
+      setError("Failed to generate brief");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= brief.total_pages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2 text-red-700">
+        <AlertCircle className="h-4 w-4" />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* File Info Section */}
-      {briefs.length > 1 && (
-        <div className="mt-8 mb-8 pt-4">
-          <h3 className="text-lg font-semibold mb-3">Your Briefs</h3>
-          <div className="space flex gap-5">
-            {briefs.map((brief) => (
-              <button
-                key={brief.id}
-                onClick={() => handleBriefSelect(brief)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  selectedBrief?.id === brief.id
-                    ? "bg-blue-50 border-2 border-blue-500"
-                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <span>{brief.name}</span>
-                  <span className="text-sm text-gray-500">
-                    {new Date(brief.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </button>
-            ))}
+    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
+      {/* Footer */}
+      {brief && (
+        <div className="p-4 border-t border-gray-200 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <button
+              className={`p-2 rounded-md ${
+                currentPage === 1
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {brief.total_pages}
+            </span>
+            <button
+              className={`p-2 rounded-md ${
+                currentPage === brief.total_pages
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === brief.total_pages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
+
+          <select
+            className="border border-gray-200 rounded-md px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={currentPage}
+            onChange={(e) => handlePageChange(Number(e.target.value))}
+          >
+            {Array.from({ length: brief.total_pages }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                Page {i + 1}
+              </option>
+            ))}
+          </select>
         </div>
       )}
-
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {/* Controls */}
-      <div className="mb-8 flex items-center gap-4">
-        <button
-          onClick={handleGenerateBrief}
-          disabled={isGenerating}
-          className={`px-6 py-3 rounded-lg font-medium text-white 
-            ${
-              isGenerating
-                ? "bg-[#EAEAEA] cursor-not-allowed"
-                : "bg-[#4CAF93] hover:bg-[#3a8b74] transition-colors"
-            }`}
-        >
-          {isGenerating ? "Generating..." : "Generate Brief"}
-        </button>
-        <div className="text-sm text-gray-500">
-          AI will analyze your notes and create a comprehensive brief
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Document Summary
+          </h2>
+          <button
+            onClick={generateBrief}
+            disabled={isLoading || !selectedFile}
+            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
+              ${
+                isLoading || !selectedFile
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
+            {brief ? "Regenerate" : "Generate"} Summary
+          </button>
         </div>
       </div>
 
-      {/* Generated Brief Section */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-[#2C3E50] border-b border-[#EAEAEA] pb-2">
-          Generated Brief
-        </h2>
+      {/* Content */}
+      <div className="p-4">
+        {brief ? (
+          <div className="space-y-4">
+            <div className="prose max-w-none">
+              {brief.summaries[currentPage - 1]}
+            </div>
 
-        {selectedBrief ? (
-          <div className="space-y-6 text-[#2C3E50]">
-            <section>
-              <h3 className="text-xl font-semibold mb-3 text-[#4CAF93]">
-                Key Concepts
-              </h3>
-              <ul className="list-disc list-inside space-y-2 text-gray-700">
-                {selectedBrief.key_concepts.map((concept, index) => (
-                  <li key={index}>{concept}</li>
-                ))}
-              </ul>
-            </section>
-
-            <section>
-              <h3 className="text-xl font-semibold mb-3 text-[#4CAF93]">
-                Summary
-              </h3>
-              <p className="text-gray-700 leading-relaxed">
-                {selectedBrief.summary}
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-xl font-semibold mb-3 text-[#4CAF93]">
-                Important Details
-              </h3>
-              <div className="bg-[#F9FAFB] p-4 rounded-lg border border-[#EAEAEA]">
-                <ul className="space-y-3 text-gray-700">
-                  {selectedBrief.important_details.map((detail, index) => (
-                    <li key={index} className="flex items-start">
-                      <span
-                        className={`text-[${
-                          index % 3 === 0
-                            ? "#FFD166"
-                            : index % 3 === 1
-                            ? "#3A86FF"
-                            : "#FF5D73"
-                        }] mr-2`}
-                      >
-                        •
-                      </span>
-                      <span>{detail}</span>
-                    </li>
-                  ))}
-                </ul>
+            {brief.metadata && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="font-medium mb-2 text-gray-900">Key Concepts</h4>
+                <div className="flex flex-wrap gap-2">
+                  {brief.metadata?.key_concepts?.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="font-medium mb-2 text-gray-900">
+                        Key Concepts
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {brief.metadata.key_concepts.map((concept, i) => (
+                          <span
+                            key={i}
+                            className="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700"
+                          >
+                            {concept}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </section>
+            )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-4">
-            Generate a brief to see the content here
+          <div className="text-center py-8 text-gray-500">
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                Generating summary...
+              </div>
+            ) : noBriefExists ? (
+              <div className="flex flex-col items-center space-y-2">
+                <p>No summary has been generated yet</p>
+                {selectedFile && (
+                  <p className="text-sm text-gray-400">
+                    Click Generate Summary to create one
+                  </p>
+                )}
+              </div>
+            ) : (
+              "Select a file and click Generate to create a summary"
+            )}
           </div>
         )}
-
-        {/* Brief Selection */}
       </div>
+
+      
     </div>
   );
 };
 
 Brief.propTypes = {
   selectedFile: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    id: PropTypes.string.isRequired,
+    path: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
-    path: PropTypes.string,
+    size: PropTypes.number,
+    type: PropTypes.string,
   }),
   user: PropTypes.shape({
     id: PropTypes.string.isRequired,
+    email: PropTypes.string,
   }).isRequired,
   lectureId: PropTypes.string.isRequired,
 };

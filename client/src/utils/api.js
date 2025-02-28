@@ -1,42 +1,38 @@
 import axios from "axios";
 import { BACKEND_URL } from "../helpers/helpers";
 
-
- const handleProcessPdf = async (userId, lectureId, fileId) => {
+const handleProcessPdf = async (userId, lectureId, fileId) => {
   try {
-    // Validate input parameters
+    // Validate input parameters.
     if (!userId || !lectureId || !fileId) {
       throw new Error("Missing required parameters");
     }
 
-    // Make API call to process PDF
+    // Make API call to process PDF.
     const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, {
       userId,
       lectureId,
-      fileId
+      fileId,
     });
 
-    // Log the entire response for debugging
-    // console.log("Full API Response:", response.data);
-
-    // Check if response data exists
+    // Check if response data exists.
     if (!response.data) {
       throw new Error("No data found in the response");
     }
 
-    // Extract flashcards, handling different possible response structures
+    // Extract flashcards, handling different possible response structures.
     let flashcards;
 
-    // Case 1: Direct flashcards array in response
+    // Case 1: Direct flashcards array in response.
     if (Array.isArray(response.data.flashcards)) {
       flashcards = response.data.flashcards;
-    } 
-    // Case 2: Flashcards as a string that needs parsing
-    else if (typeof response.data.flashcards === 'string') {
+    }
+    // Case 2: Flashcards as a string that needs parsing.
+    else if (typeof response.data.flashcards === "string") {
       try {
         const parsedData = JSON.parse(response.data.flashcards);
-        
-        // Check if parsed data is an array or has a flashcards property
+
+        // Check if parsed data is an array or has a flashcards property.
         if (Array.isArray(parsedData)) {
           flashcards = parsedData;
         } else if (Array.isArray(parsedData.flashcards)) {
@@ -49,74 +45,110 @@ import { BACKEND_URL } from "../helpers/helpers";
         throw new Error("Invalid JSON format for flashcards");
       }
     }
-    // Case 3: Flashcards directly in response data
+    // Case 3: Flashcards directly in response data.
     else if (Array.isArray(response.data)) {
       flashcards = response.data;
-    }
-    else {
+    } else {
       throw new Error("Unable to extract flashcards from response");
     }
 
-    // Validate flashcard structure
+    // Validate flashcard structure.
     const isValidFlashcard = (card) =>
-      card && 
-      typeof card === 'object' &&
-      typeof card.question === 'string' && 
-      typeof card.answer === 'string';
+      card &&
+      typeof card === "object" &&
+      typeof card.question === "string" &&
+      typeof card.answer === "string";
 
-    // Filter out any invalid flashcards
+    // Filter out any invalid flashcards.
     const validFlashcards = flashcards.filter(isValidFlashcard);
 
     if (validFlashcards.length === 0) {
       throw new Error("No valid flashcards found");
     }
 
-    // Return the valid flashcards
+    // Return the valid flashcards.
     return validFlashcards;
-
   } catch (error) {
     console.error("Error processing PDF:", error);
     throw error;
   }
 };
+
+// Improved client-side handler with enhanced validation and error handling.
+
 const handleProcessBrief = async (userId, lectureId, fileId) => {
   try {
-    // Validate input parameters
-    if (!userId || !lectureId || !fileId) {
-      throw new Error("Missing required parameters");
+    // Enhanced input validation
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid user ID');
+    }
+    if (!lectureId || typeof lectureId !== 'string') {
+      throw new Error('Invalid lecture ID');
+    }
+    if (!fileId || typeof fileId !== 'string') {
+      throw new Error('Invalid file ID');
     }
 
-    // Make API call to process PDF and generate brief
-    const response = await axios.post(`${BACKEND_URL}/api/process-brief`, {
+    const response = await axios.post(`${BACKEND_URL}/api/detailed-brief`, {
       userId,
       lectureId,
-      fileId
+      fileId,
     });
 
-    // Check if response data exists
-    if (!response.data) {
-      throw new Error("No data found in the response");
+    // Validate response structure
+    if (!response.data || response.status !== 200) {
+      throw new Error('Invalid server response');
     }
 
-    // Extract brief from response
-    const brief = response.data.brief;
-    if (!brief || 
-        !Array.isArray(brief.key_concepts) || 
-        typeof brief.summary !== 'string' || 
-        !Array.isArray(brief.important_details)) {
-      throw new Error("Invalid brief data received from server");
+    // Extract and validate brief data
+    const briefData = response.data.brief;
+    if (!briefData) {
+      throw new Error('No brief data received');
     }
 
-    return brief;
-
+    // Structure the response in a consistent format
+    return {
+      totalPages: Number(briefData.totalPages) || 1,
+      pageSummaries: Array.isArray(briefData.pageSummaries) 
+        ? briefData.pageSummaries 
+        : [briefData.summary || 'No summary available'],
+      overview: {
+        documentTitle: briefData.overview?.documentTitle || 'Untitled Document',
+        mainThemes: Array.isArray(briefData.overview?.mainThemes) 
+          ? briefData.overview.mainThemes 
+          : [],
+        fileInfo: {
+          fileName: briefData.overview?.fileName || fileId,
+          pageCount: Number(briefData.totalPages) || 1,
+        }
+      },
+      key_concepts: Array.isArray(briefData.key_concepts) 
+        ? briefData.key_concepts 
+        : [],
+      important_details: Array.isArray(briefData.important_details) 
+        ? briefData.important_details 
+        : [],
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        generatedBy: userId,
+        lectureId: lectureId,
+      }
+    };
   } catch (error) {
-    console.error("Error processing PDF for brief:", error);
-    throw error;
+    // Enhanced error handling
+    const errorMessage = error.response?.data?.message || error.message;
+    console.error('Brief Processing Error:', {
+      message: errorMessage,
+      status: error.response?.status,
+      userId,
+      lectureId,
+      fileId,
+    });
+
+    // Throw a standardized error object
+    throw new Error(`Failed to process brief: ${errorMessage}`);
   }
 };
 
-// export default handleProcessBrief;
 
-export {handleProcessBrief, handleProcessPdf}
-
-// export default handleProcessPdf;
+export { handleProcessBrief, handleProcessPdf };
