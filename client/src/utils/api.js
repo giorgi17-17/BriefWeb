@@ -9,7 +9,7 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
     }
 
     // Make API call to process PDF.
-    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, { 
+    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, {
       userId,
       lectureId,
       fileId,
@@ -163,7 +163,7 @@ async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
     const lectureIdStr = String(lectureId);
     const fileIdStr = String(fileId);
 
-    const response = await fetch("/api/process-quiz", {
+    const response = await fetch(`${BACKEND_URL}/api/process-quiz`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
