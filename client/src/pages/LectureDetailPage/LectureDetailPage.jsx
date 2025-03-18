@@ -195,13 +195,13 @@ const LectureDetailPage = () => {
   };
 
   return (
-    <div className="min-h-screen py-4 theme-bg-primary">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen py-4 bg-[#121212]">
+      <div className="max-w-5xl mx-auto px-4">
         {/* Header */}
         <header className="flex items-center justify-between mb-4">
           <button
             onClick={handleBackClick}
-            className="flex items-center theme-text-secondary hover:theme-text-primary transition-colors"
+            className="flex items-center text-gray-400 hover:text-white transition-colors"
           >
             <ChevronLeft className="w-5 h-5 mr-1" />
             <span className="font-medium">Back to Subjects</span>
@@ -209,31 +209,41 @@ const LectureDetailPage = () => {
         </header>
 
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-3 py-2 rounded mb-4">
+          <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
             {error}
           </div>
         )}
 
         {/* Main Content Card */}
-        <div className="theme-card rounded">
+        <div className="bg-gray-800/40 rounded-lg border border-gray-700 shadow-xl overflow-hidden">
           {/* Tabs & File Selector */}
-          <div className="flex flex-col lg:flex-row items-center justify-between theme-border border-b px-4 py-3">
-            <nav className="flex gap-2 flex-wrap theme-bg-tertiary p-1 rounded-lg">
-              {["Flashcards", "Briefs", "Quiz", "files"].map((tab) => (
+          <div className="flex flex-col lg:flex-row items-center justify-between border-b border-gray-700 px-4 py-3">
+            <nav className="flex gap-2 flex-wrap bg-gray-700/50 p-1 rounded-lg">
+              {["Flashcards", "Briefs", "Quiz"].map((tab) => (
                 <button
                   key={tab}
-                  className={`px-3 py-1 text-[15px] font-medium rounded transition-colors ${
+                  className={`px-3 py-1.5 text-[15px] font-medium rounded transition-colors ${
                     activeTab === tab
-                      ? "theme-bg-primary theme-text-primary shadow-sm"
-                      : "theme-text-secondary hover:theme-bg-secondary"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-300 hover:bg-gray-600/80"
                   }`}
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab}
                 </button>
               ))}
             </nav>
-            <div className="mt-2 lg:mt-0">
+            <div className="mt-2 lg:mt-0 flex items-center gap-3">
+              <button
+                className={`px-3 py-2 text-[15px] font-medium rounded transition-colors border ${
+                  activeTab === "files"
+                    ? "bg-blue-600 text-white shadow-sm border-blue-500"
+                    : "text-gray-300 hover:bg-gray-600/80 border-gray-700"
+                }`}
+                onClick={() => setActiveTab("files")}
+              >
+                Files
+              </button>
               <FileSelector
                 files={files}
                 onFileSelect={handleFileSelect}
@@ -243,7 +253,7 @@ const LectureDetailPage = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="px-4 py-3">
+          <div className="p-4">
             {activeTab === "files" ? (
               <FilesLayout
                 files={files}
@@ -258,7 +268,11 @@ const LectureDetailPage = () => {
                     <div className="flex justify-start items-center gap-4">
                       <button
                         onClick={handleGenerateFlashcards}
-                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded transition-colors"
+                        className={`flex items-center px-4 py-2 rounded-md text-sm font-medium ${
+                          isGenerating
+                            ? "bg-blue-600/50 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                        } text-white transition-colors`}
                         disabled={isGenerating}
                       >
                         {isGenerating
@@ -280,30 +294,24 @@ const LectureDetailPage = () => {
                     />
                   </>
                 ) : (
-                  <div className="text-center theme-text-tertiary py-4">
+                  <div className="text-center text-gray-400 py-8">
                     Upload files first to generate flashcards.
                   </div>
                 )}
               </div>
             ) : activeTab === "Briefs" ? (
-              <div className="">
-                <Brief
-                  selectedFile={selectedFile}
-                  user={user}
-                  lectureId={lectureId}
-                />
-              </div>
+              <Brief
+                selectedFile={selectedFile}
+                user={user}
+                lectureId={lectureId}
+              />
             ) : activeTab === "Quiz" ? (
-              <div className=" text-center">
-                <Quiz
-                  selectedFile={selectedFile}
-                  user={user}
-                  lectureId={lectureId}
-                />
-              </div>
-            ) : (
-              <div></div>
-            )}
+              <Quiz
+                selectedFile={selectedFile}
+                user={user}
+                lectureId={lectureId}
+              />
+            ) : null}
           </div>
         </div>
       </div>

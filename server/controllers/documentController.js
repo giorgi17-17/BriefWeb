@@ -222,16 +222,6 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
     const filePath = `${userId}/${lectureId}/${fileId}`;
     console.log(`Processing quiz for file: ${filePath}`);
 
-    // Download the file from storage
-    const { data, error } = await supabaseClient.storage
-      .from("lecture-files")
-      .download(filePath);
-
-    if (error) {
-      console.error("Error downloading file:", error);
-      throw new Error(`Failed to download file: ${error.message}`);
-    }
-
     // Extract text from document
     const documentText = await extractTextFromFile(userId, lectureId, fileId);
     if (!documentText || documentText.length === 0) {
@@ -239,20 +229,37 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
     }
 
     // Generate the quiz from extracted text
-    const quiz = await generateQuiz(documentText, quizOptions);
+    const result = await generateQuiz(documentText, quizOptions);
 
-    // Create a descriptive quiz name based on the options selected
-    let quizTypes = [];
-    if (quizOptions.includeMultipleChoice) quizTypes.push("Multiple Choice");
-    if (quizOptions.includeOpenEnded) quizTypes.push("Short Answer");
-    if (quizOptions.includeCaseStudies) quizTypes.push("Case Study");
+    // Validate the result
+    if (
+      !result ||
+      !result.success ||
+      !Array.isArray(result.questions) ||
+      result.questions.length === 0
+    ) {
+      console.warn("Invalid quiz result:", result);
+      throw new Error("Could not generate a quiz from the document content");
+    }
+
+    // Create quiz set name based on question types
+    const quizTypes = [];
+    const hasMultipleChoice = result.questions.some(
+      (q) => q.type === "multiple_choice"
+    );
+    const hasOpenEnded = result.questions.some((q) => q.type === "open_ended");
+    const hasCaseStudy = result.questions.some((q) => q.type === "case_study");
+
+    if (hasMultipleChoice) quizTypes.push("Multiple Choice");
+    if (hasOpenEnded) quizTypes.push("Open Ended");
+    if (hasCaseStudy) quizTypes.push("Case Study");
 
     const quizName =
       quizTypes.length > 0
         ? `${quizTypes.join("/")} Quiz`
         : "Comprehensive Quiz";
 
-    // Check if quiz set already exists for this lecture
+    // Check if quiz set already exists
     const { data: existingQuizSet, error: quizSetError } = await supabaseClient
       .from("quiz_sets")
       .select("id")
@@ -268,18 +275,19 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
 
     if (existingQuizSet) {
       quizSetId = existingQuizSet.id;
-      // Delete existing questions for this quiz set
+      // Delete existing questions
       const { error: deleteError } = await supabaseClient
         .from("quiz_questions")
         .delete()
         .eq("quiz_set_id", quizSetId);
+
       if (deleteError) {
         throw new Error(
           `Error deleting existing questions: ${deleteError.message}`
         );
       }
 
-      // Update the quiz set metadata
+      // Update quiz set
       const { error: updateError } = await supabaseClient
         .from("quiz_sets")
         .update({
@@ -287,11 +295,12 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
           last_updated: new Date().toISOString(),
         })
         .eq("id", quizSetId);
+
       if (updateError) {
         throw new Error(`Error updating quiz set: ${updateError.message}`);
       }
     } else {
-      // Create a new quiz set
+      // Create new quiz set
       const { data: newQuizSet, error: insertError } = await supabaseClient
         .from("quiz_sets")
         .insert({
@@ -302,40 +311,37 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
         })
         .select()
         .single();
+
       if (insertError) {
         throw new Error(`Error creating quiz set: ${insertError.message}`);
       }
       quizSetId = newQuizSet.id;
     }
 
-    // Process questions from the quiz object
-    // The quiz object from aiService has three arrays: multipleChoice, openEnded, caseStudies
-    let allQuestions = [];
+    // Insert questions
+    for (const question of result.questions) {
+      // Insert the question
+      const { data: questionData, error: questionError } = await supabaseClient
+        .from("quiz_questions")
+        .insert({
+          quiz_set_id: quizSetId,
+          question_text:
+            question.type === "case_study"
+              ? `${question.scenario}\n\n${question.question}`
+              : question.question,
+          question_type: question.type,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-    // Process multiple choice questions
-    if (quiz.multipleChoice && quiz.multipleChoice.length > 0) {
-      for (const mcQuestion of quiz.multipleChoice) {
-        // Insert the question
-        const { data: questionData, error: questionError } =
-          await supabaseClient
-            .from("quiz_questions")
-            .insert({
-              quiz_set_id: quizSetId,
-              question_text: mcQuestion.question,
-              question_type: "multiple_choice",
-              explanation: mcQuestion.explanation || "",
-            })
-            .select()
-            .single();
+      if (questionError) {
+        throw new Error(`Error inserting question: ${questionError.message}`);
+      }
 
-        if (questionError) {
-          throw new Error(
-            `Error inserting multiple choice question: ${questionError.message}`
-          );
-        }
-
-        // Insert options for this question
-        for (const option of mcQuestion.options) {
+      // Insert options/answers
+      if (question.type === "multiple_choice") {
+        for (const option of question.options) {
           const { error: optionError } = await supabaseClient
             .from("quiz_options")
             .insert({
@@ -348,124 +354,31 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
             throw new Error(`Error inserting option: ${optionError.message}`);
           }
         }
-
-        // Add to our list of processed questions
-        allQuestions.push({
-          id: questionData.id,
-          type: "multiple_choice",
-          question: mcQuestion.question,
-          options: mcQuestion.options.map((opt) => ({
-            text: opt.text,
-            correct: opt.correct,
-          })),
-          explanation: mcQuestion.explanation || "",
-        });
-      }
-    }
-
-    // Process open-ended questions
-    if (quiz.openEnded && quiz.openEnded.length > 0) {
-      for (const oeQuestion of quiz.openEnded) {
-        // Insert the question
-        const { data: questionData, error: questionError } =
-          await supabaseClient
-            .from("quiz_questions")
-            .insert({
-              quiz_set_id: quizSetId,
-              question_text: oeQuestion.question,
-              question_type: "open_ended",
-            })
-            .select()
-            .single();
-
-        if (questionError) {
-          throw new Error(
-            `Error inserting open-ended question: ${questionError.message}`
-          );
-        }
-
-        // Insert sample answer as an option
-        const { error: optionError } = await supabaseClient
+      } else {
+        // For open-ended and case study questions, store the sample answer as a correct option
+        const { error: answerError } = await supabaseClient
           .from("quiz_options")
           .insert({
             question_id: questionData.id,
-            option_text: oeQuestion.sampleAnswer,
+            option_text: question.sampleAnswer,
             is_correct: true,
           });
 
-        if (optionError) {
+        if (answerError) {
           throw new Error(
-            `Error inserting sample answer: ${optionError.message}`
+            `Error inserting sample answer: ${answerError.message}`
           );
         }
-
-        // Add to our list of processed questions
-        allQuestions.push({
-          id: questionData.id,
-          type: "open_ended",
-          question: oeQuestion.question,
-          sampleAnswer: oeQuestion.sampleAnswer,
-        });
-      }
-    }
-
-    // Process case study questions
-    if (quiz.caseStudies && quiz.caseStudies.length > 0) {
-      for (const csQuestion of quiz.caseStudies) {
-        // Combine scenario and question
-        const combinedText = `${csQuestion.scenario}\n\n${csQuestion.question}`;
-
-        // Insert the question
-        const { data: questionData, error: questionError } =
-          await supabaseClient
-            .from("quiz_questions")
-            .insert({
-              quiz_set_id: quizSetId,
-              question_text: combinedText,
-              question_type: `case_study_${csQuestion.difficulty}`,
-            })
-            .select()
-            .single();
-
-        if (questionError) {
-          throw new Error(
-            `Error inserting case study question: ${questionError.message}`
-          );
-        }
-
-        // Insert sample answer as an option
-        const { error: optionError } = await supabaseClient
-          .from("quiz_options")
-          .insert({
-            question_id: questionData.id,
-            option_text: csQuestion.sampleAnswer,
-            is_correct: true,
-          });
-
-        if (optionError) {
-          throw new Error(
-            `Error inserting sample answer: ${optionError.message}`
-          );
-        }
-
-        // Add to our list of processed questions
-        allQuestions.push({
-          id: questionData.id,
-          type: `case_study_${csQuestion.difficulty}`,
-          scenario: csQuestion.scenario,
-          question: csQuestion.question,
-          sampleAnswer: csQuestion.sampleAnswer,
-        });
       }
     }
 
     return {
+      success: true,
       quiz_set_id: quizSetId,
-      name: quizName,
-      questions: allQuestions,
+      message: "Quiz generated and stored successfully",
     };
   } catch (error) {
-    console.error("Error processing quiz:", error);
+    console.error("Error in quiz generation:", error);
     throw error;
   }
 }

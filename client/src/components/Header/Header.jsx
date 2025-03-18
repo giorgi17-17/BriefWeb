@@ -94,7 +94,7 @@ function Header() {
               {user ? (
                 <Link to="/dashboard" className="flex items-center">
                   <span className="font-bold text-xl theme-text-primary">
-                    Brief
+                    Briefly
                   </span>
                 </Link>
               ) : (

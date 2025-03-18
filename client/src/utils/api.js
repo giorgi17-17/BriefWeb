@@ -163,39 +163,24 @@ async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
     const lectureIdStr = String(lectureId);
     const fileIdStr = String(fileId);
 
-    const response = await fetch(`${BACKEND_URL}/api/process-quiz`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: userIdStr,
-        lectureId: lectureIdStr,
-        fileId: fileIdStr,
-        quizOptions,
-      }),
+    const response = await axios.post(`${BACKEND_URL}/api/process-quiz`, {
+      userId: userIdStr,
+      lectureId: lectureIdStr,
+      fileId: fileIdStr,
+      quizOptions,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Failed to process quiz:", {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        params: { userId, lectureId, fileId, quizOptions },
-      });
-
-      throw new Error(
-        errorData.message ||
-          `Failed to process quiz: ${response.status} ${response.statusText}`
-      );
+    // Check if response data exists
+    if (!response.data) {
+      throw new Error("No data found in the response");
     }
 
-    const data = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error("Error in handleProcessQuiz:", error);
-    throw error;
+    // Enhanced error handling to match the pattern of other endpoints
+    const errorMessage = error.response?.data?.message || error.message;
+    throw new Error(`Failed to process quiz: ${errorMessage}`);
   }
 }
 
