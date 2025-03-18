@@ -133,10 +133,20 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Direct redirect to dashboard
-      const baseUrl = window.location.origin;
-      const redirectUrl = `${baseUrl}/dashboard`;
+      // Check if we're in production by looking at the hostname
+      const isProduction =
+        !window.location.hostname.includes("localhost") &&
+        !window.location.hostname.includes("127.0.0.1");
 
+      // Use production URL or fallback to origin
+      let baseUrl = window.location.origin;
+
+      // For production, hardcode the production URL to ensure mobile redirects work
+      if (isProduction) {
+        baseUrl = "https://briefly.ge"; // Replace with your actual production domain
+      }
+
+      const redirectUrl = `${baseUrl}/dashboard`;
       console.log("Google OAuth redirecting to:", redirectUrl);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
