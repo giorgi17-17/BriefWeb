@@ -323,7 +323,7 @@ export async function generateQuiz(pdfText, options = {}) {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4o-mini",
       temperature: 0.7,
       messages: [
         {
