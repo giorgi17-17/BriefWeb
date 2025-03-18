@@ -24,9 +24,19 @@ export function AuthProvider({ children }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
+
+        // If this is a new sign in with OAuth, check if we need to add the user to our database
+        if (event === "SIGNED_IN") {
+          const { user } = session;
+
+          // Check if this is a Google auth user
+          if (user.app_metadata.provider === "google") {
+            await addUserToDatabase(user);
+          }
+        }
       } else {
         setUser(null);
       }
@@ -34,6 +44,37 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Function to add a new user to the users table
+  const addUserToDatabase = async (user) => {
+    try {
+      // First check if user already exists in our users table
+      const { data: existingUser, error: fetchError } = await supabase
+        .from("users")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      // Only add the user if they don't already exist in our users table
+      if (!existingUser) {
+        const { error: insertError } = await supabase.from("users").insert([
+          {
+            user_id: user.id,
+            email: user.email,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+        if (insertError) throw insertError;
+        console.log("New user added to users table:", user.email);
+      }
+    } catch (error) {
+      console.error("Error adding user to database:", error);
+      throw error;
+    }
+  };
 
   const signUp = async (email, password) => {
     try {
@@ -47,30 +88,30 @@ export function AuthProvider({ children }) {
 
       if (error) {
         // Handle specific error cases
-        if (error.message.includes('not authorized')) {
-          throw new Error('This email domain is not authorized. Please use a different email address or contact support.');
+        if (error.message.includes("not authorized")) {
+          throw new Error(
+            "This email domain is not authorized. Please use a different email address or contact support."
+          );
         }
         throw error;
       }
 
       // Add user to the users table
       if (data.user) {
-        const { error: dbError } = await supabase
-          .from('users')
-          .insert([
-            {
-              user_id: data.user.id,
-              email: data.user.email,
-              created_at: new Date().toISOString(),
-            }
-          ]);
+        const { error: dbError } = await supabase.from("users").insert([
+          {
+            user_id: data.user.id,
+            email: data.user.email,
+            created_at: new Date().toISOString(),
+          },
+        ]);
 
         if (dbError) throw dbError;
       }
 
       return data;
     } catch (error) {
-      console.error('Error signing up:', error);
+      console.error("Error signing up:", error);
       throw error;
     }
   };
@@ -85,7 +126,7 @@ export function AuthProvider({ children }) {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error("Error signing in:", error);
       throw error;
     }
   };
@@ -93,20 +134,25 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+            access_type: "offline",
+            prompt: "consent",
           },
-        }
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
       });
-      
+
       if (error) throw error;
+
+      // We can't immediately add the user to the users table here because the OAuth flow
+      // will redirect the user away from our app. Instead, we handle this in the onAuthStateChange
+      // listener by checking if this is a new user.
+
       return data;
-      
     } catch (error) {
-      console.error('Error signing in with Google:', error);
+      console.error("Error signing in with Google:", error);
       throw error;
     }
   };

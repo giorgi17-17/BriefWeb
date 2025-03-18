@@ -212,8 +212,6 @@ export async function generateBrief(pageText) {
             ${pageText}`,
         },
       ],
-      
-      
     });
 
     // Get the raw summary from the AI response
@@ -294,3 +292,163 @@ export async function generateBrief(pageText) {
 //     throw new Error(`Document overview failed: ${error.message}`);
 //   }
 // }
+
+export async function generateQuiz(pdfText, options = {}) {
+  const quizOptions = {
+    includeMultipleChoice: true,
+    includeOpenEnded: true,
+    includeCaseStudies: true,
+    ...options,
+  };
+
+  // Determine number of questions based on selected types
+  let promptQuestions = [];
+
+  if (quizOptions.includeMultipleChoice) {
+    promptQuestions.push("10 multiple-choice questions with 4 options each");
+  }
+
+  if (quizOptions.includeOpenEnded) {
+    promptQuestions.push("3 open-ended questions with sample answers");
+  }
+
+  if (quizOptions.includeCaseStudies) {
+    promptQuestions.push(
+      "2 case study questions (1 moderate difficulty, 1 advanced difficulty) with sample answers"
+    );
+  }
+
+  // Create a string describing the questions to generate
+  const questionTypes = promptQuestions.join(", ");
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo",
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert educational assessment creator specializing in creating comprehensive assessments from educational materials. 
+          
+Your task is to create a balanced assessment containing ${questionTypes} based on the provided PDF text.
+
+IMPORTANT FORMATTING INSTRUCTIONS:
+1. DO NOT use markdown formatting in your responses - no asterisks (*), underscores (_), hashtags (#), or other markdown symbols.
+2. Use plain text for all content.
+3. Format case studies as clear paragraphs separated by double line breaks.
+4. For emphasis, use capitalization or simply state "Important:" before key points.
+5. Number all questions sequentially regardless of type.
+
+
+**Class Rules & Evaluation System**: If the text contains general class rules or an evaluation system, **do not include them**
+
+For multiple-choice questions:
+- Create challenging questions that test comprehension, application, and analysis.
+- Ensure one option is clearly correct, while others are plausible but incorrect.
+- Vary the position of the correct answer.
+- Cover key concepts from throughout the material.
+
+For open-ended questions:
+- Create questions that require critical thinking and synthesis of multiple concepts.
+- Provide comprehensive sample answers (150-200 words) that demonstrate depth of understanding.
+
+For case study questions:
+- Create one moderate difficulty case study focusing on application of concepts.
+- Create one advanced difficulty case study requiring analysis and evaluation of complex scenarios.
+- Each case study should present a realistic scenario related to the material.
+- Case studies should be detailed (250-300 words) with clear questions.
+- Provide thorough sample answers (250-350 words) that demonstrate expert analysis.
+
+Your response must be a valid JSON object with the following format:
+{
+  "multipleChoice": [
+    {
+      "question": "Question text",
+      "options": [
+        {"text": "Option 1", "correct": false},
+        {"text": "Option 2", "correct": true},
+        {"text": "Option 3", "correct": false},
+        {"text": "Option 4", "correct": false}
+      ],
+      "explanation": "Explanation of the correct answer"
+    }
+  ],
+  "openEnded": [
+    {
+      "question": "Question text",
+      "sampleAnswer": "Detailed sample answer"
+    }
+  ],
+  "caseStudies": [
+    {
+      "scenario": "Detailed case description",
+      "question": "Question related to the case",
+      "difficulty": "moderate",
+      "sampleAnswer": "Detailed expert analysis"
+    },
+    {
+      "scenario": "Detailed case description",
+      "question": "Question related to the case",
+      "difficulty": "advanced",
+      "sampleAnswer": "Detailed expert analysis"
+    }
+  ]
+}
+
+Only include the question types specified in the request. Ensure the JSON is valid with no trailing commas.`,
+        },
+        {
+          role: "user",
+          content: `Create a quiz based on the following content: \n\n${pdfText.substring(
+            0,
+            Math.min(pdfText.length, 15000)
+          )}`,
+        },
+      ],
+      max_tokens: 4000,
+    });
+
+    const response = completion.choices[0].message.content.trim();
+
+    // Add logging for token usage
+    console.log(
+      `Quiz generation tokens: ${
+        completion.usage?.total_tokens || "N/A"
+      } tokens used`
+    );
+
+    try {
+      // Extract JSON from the response if it contains additional text
+      const jsonMatch =
+        response.match(/```json\n([\s\S]*)\n```/) ||
+        response.match(/{[\s\S]*}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+
+      // Parse JSON and validate the structure
+      const quizData = JSON.parse(jsonStr.replace(/```json\n|```/g, ""));
+
+      // Only include the question types that were selected
+      const filteredQuiz = {};
+
+      if (quizOptions.includeMultipleChoice && quizData.multipleChoice) {
+        filteredQuiz.multipleChoice = quizData.multipleChoice;
+      }
+
+      if (quizOptions.includeOpenEnded && quizData.openEnded) {
+        filteredQuiz.openEnded = quizData.openEnded;
+      }
+
+      if (quizOptions.includeCaseStudies && quizData.caseStudies) {
+        filteredQuiz.caseStudies = quizData.caseStudies;
+      }
+
+      return filteredQuiz;
+    } catch (error) {
+      console.error("Error parsing quiz data:", error);
+      throw new Error("Failed to parse quiz data from AI response");
+    }
+  } catch (error) {
+    console.error("Error in quiz generation:", error);
+    throw error;
+  }
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 const Login = () => {
@@ -8,12 +8,12 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const navigate = useNavigate();
-  const { signUp, signInWithEmail } = useAuth();
+  const { signUp, signInWithEmail, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e) => {
-    console.log('first')
+    console.log("first");
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -23,11 +23,10 @@ const Login = () => {
         await signUp(email, password);
         // User will need to verify their email
         setError("Please check your email to verify your account");
-        navigate('/dashboard');
-
+        navigate("/dashboard");
       } else {
         await signInWithEmail(email, password);
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
     } catch (error) {
       console.error(error);
@@ -37,30 +36,33 @@ const Login = () => {
     }
   };
 
-  // const handleGoogleSignIn = async () => {
-  //   try {
-  //     setError(null);
-  //     setIsLoading(true);
-  //     await signInWithGoogle();
-  //   } catch (error) {
-  //     console.error('Sign in error:', error);
-  //     setError(error.message);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  const handleGoogleSignIn = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      await signInWithGoogle();
+      // Note: We don't navigate here because the OAuth flow will redirect the user
+    } catch (error) {
+      console.error("Sign in error:", error);
+      setError(error.message);
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center theme-bg-primary py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold theme-text-primary">
             {isSignUp ? "Create your account" : "Sign in to your account"}
           </h2>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <div
+            className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded relative"
+            role="alert"
+          >
             <span className="block sm:inline">{error}</span>
           </div>
         )}
@@ -73,7 +75,7 @@ const Login = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border theme-border placeholder-gray-500 dark:placeholder-gray-400 theme-text-primary theme-input rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
               />
             </div>
@@ -83,7 +85,7 @@ const Login = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border theme-border placeholder-gray-500 dark:placeholder-gray-400 theme-text-primary theme-input rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
               />
             </div>
@@ -93,9 +95,9 @@ const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-indigo-700 dark:hover:bg-indigo-800"
             >
-              {isLoading ? "Loading..." : (isSignUp ? "Sign Up" : "Sign In")}
+              {isLoading ? "Loading..." : isSignUp ? "Register" : "Sign In"}
             </button>
           </div>
         </form>
@@ -103,26 +105,30 @@ const Login = () => {
         <div className="mt-4">
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-indigo-600 hover:text-indigo-500"
+            className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
           >
-            {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+            {isSignUp
+              ? "Already have an account? Sign in"
+              : "Need an account? Register"}
           </button>
         </div>
 
-        {/* <div className="mt-6">
+        <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+              <div className="w-full border-t theme-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
+              <span className="px-2 theme-bg-primary theme-text-tertiary">
+                Or continue with
+              </span>
             </div>
           </div>
 
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="mt-4 w-full flex justify-center py-2 px-4 border theme-border rounded-md text-sm font-medium theme-text-primary theme-card hover:theme-bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <img
               className="h-5 w-5 mr-2"
@@ -131,7 +137,7 @@ const Login = () => {
             />
             <span>Continue with Google</span>
           </button>
-        </div> */}
+        </div>
       </div>
     </div>
   );

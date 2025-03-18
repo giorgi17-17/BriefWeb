@@ -85,30 +85,30 @@ export default function Dashboard() {
       setError("Subject name cannot be empty");
       return;
     }
-  
+
     if (!editingSubject.id) {
       setError("Invalid subject to edit");
       return;
     }
-  
+
     try {
       setIsSubmitting(true);
       setError(null);
-      console.log(editingSubject.title)
-  
+      console.log(editingSubject.title);
+
       const { data, error: supabaseError } = await supabase
         .from("subjects")
         .update({ title: editingSubject.title.trim() })
         .eq("id", editingSubject.id)
         .eq("user_id", user.id);
-  
+
       if (supabaseError) throw supabaseError;
       if (!data || data.length === 0) {
-        console.log("data "+ data)
-        console.log(supabaseError)
+        console.log("data " + data);
+        console.log(supabaseError);
         // throw new Error("No subject updated. Check your permissions.");
       }
-  
+
       await fetchSubjects();
       setEditingSubject(null);
       setIsEditModalOpen(false);
@@ -119,7 +119,7 @@ export default function Dashboard() {
       setIsSubmitting(false);
     }
   };
-  
+
   const handleDeleteSubject = async () => {
     if (!deletingSubject) return;
 
@@ -128,8 +128,8 @@ export default function Dashboard() {
       setError(null);
 
       // Extensive logging
-      console.log('Current User:', user);
-      console.log('Deleting Subject:', deletingSubject);
+      console.log("Current User:", user);
+      console.log("Deleting Subject:", deletingSubject);
 
       // Validate user and subject
       if (!user) {
@@ -141,21 +141,20 @@ export default function Dashboard() {
         .from("subjects")
         .delete()
         .eq("id", deletingSubject.id)
-        .eq("user_id", user.id)
+        .eq("user_id", user.id);
 
       // Log the result of the delete operation
-      console.log('Delete Operation Result:', { 
-        data, 
+      console.log("Delete Operation Result:", {
+        data,
         supabaseError,
         subjectId: deletingSubject.id,
-        userId: user.id
+        userId: user.id,
       });
 
       // Throw error if operation failed
       if (supabaseError) throw supabaseError;
 
       // Check if any rows were actually deleted
-      
 
       // Refetch subjects after deleting
       await fetchSubjects();
@@ -166,7 +165,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Detailed Error deleting subject:", {
         message: error.message,
-        fullError: error
+        fullError: error,
       });
       setError(error.message || "Failed to delete subject");
     } finally {
@@ -183,27 +182,27 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center theme-bg-primary">
+        <p className="text-xl theme-text-secondary">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-4 py-8">
+    <div className="min-h-screen px-4 py-8 theme-bg-primary">
       {/* Hero Section */}
       <section className="text-center mb-16">
-        <h1 className="text-4xl font-bold mb-4">
+        <h1 className="text-4xl font-bold mb-4 theme-text-primary">
           Don&apos;t Struggle, Make It Brief
         </h1>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl theme-text-tertiary">
           Create Flashcards and Briefs using AI
         </p>
       </section>
 
       {/* Error Display */}
       {error && (
-        <div className="max-w-4xl mx-auto mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+        <div className="max-w-4xl mx-auto mb-4 p-4 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg">
           {error}
         </div>
       )}
@@ -212,12 +211,12 @@ export default function Dashboard() {
       <section className="max-w-xl mx-auto">
         {subjects.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">
+            <p className="theme-text-tertiary mb-4">
               No subjects yet. Create your first subject!
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+              className="theme-button-primary px-6 py-3 rounded-lg transition-colors bg-blue-700 text-white"
             >
               Create Subject
             </button>
@@ -261,7 +260,7 @@ export default function Dashboard() {
         <div className="text-center mt-8">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            className="theme-button-primary px-6 py-3 rounded-lg transition-colors  bg-blue-700 text-white"
           >
             Add New Subject
           </button>
@@ -270,16 +269,18 @@ export default function Dashboard() {
 
       {/* Add Subject Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
-            <h2 className="text-xl font-bold mb-4">Add New Subject</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
+          <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
+            <h2 className="text-xl font-bold mb-4 theme-text-primary">
+              Add New Subject
+            </h2>
 
             <input
               type="text"
               value={newSubjectName}
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="Enter subject name..."
-              className="w-full px-4 py-2 border rounded-md mb-4"
+              className="w-full px-4 py-2 border theme-input rounded-md mb-4"
               disabled={isSubmitting}
             />
 
@@ -289,14 +290,14 @@ export default function Dashboard() {
                   setIsModalOpen(false);
                   setError(null);
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddSubject}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                className="theme-button-primary px-4 py-2 rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Adding..." : "Add Subject"}
@@ -308,9 +309,11 @@ export default function Dashboard() {
 
       {/* Edit Subject Modal */}
       {isEditModalOpen && editingSubject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
-            <h2 className="text-xl font-bold mb-4">Edit Subject</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
+          <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
+            <h2 className="text-xl font-bold mb-4 theme-text-primary">
+              Edit Subject
+            </h2>
 
             <input
               type="text"
@@ -319,7 +322,7 @@ export default function Dashboard() {
                 setEditingSubject({ ...editingSubject, title: e.target.value })
               }
               placeholder="Enter subject name..."
-              className="w-full px-4 py-2 border rounded-md mb-4"
+              className="w-full px-4 py-2 border rounded-md mb-4 theme-input"
               disabled={isSubmitting}
             />
 
@@ -330,14 +333,14 @@ export default function Dashboard() {
                   setEditingSubject(null);
                   setError(null);
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSubject}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                className="theme-button-primary px-4 py-2 rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save Changes"}
@@ -349,10 +352,12 @@ export default function Dashboard() {
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && deletingSubject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96 max-w-[90%]">
-            <h2 className="text-xl font-bold mb-4">Delete Subject</h2>
-            <p className="mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
+          <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
+            <h2 className="text-xl font-bold mb-4 theme-text-primary">
+              Delete Subject
+            </h2>
+            <p className="mb-4 theme-text-secondary">
               Are you sure you want to delete &quot;{deletingSubject.title}
               &quot;? This action cannot be undone.
             </p>
@@ -364,14 +369,14 @@ export default function Dashboard() {
                   setDeletingSubject(null);
                   setError(null);
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteSubject}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-red-300"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:bg-red-300"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Deleting..." : "Delete Subject"}

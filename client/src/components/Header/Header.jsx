@@ -1,62 +1,180 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { CircleUserRound } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import {CircleUserRound} from "lucide-react";
+import ThemeToggle from "../ui/ThemeToggle";
+import { usePostHog } from "posthog-js/react";
+
 function Header() {
   const { user } = useAuth();
-  // const navigate = useNavigate();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const posthog = usePostHog();
 
-  // const handleLogout = async () => {
-  //   try {
-  //     await logout();
-  //     navigate("/login");
-  //   } catch (error) {
-  //     console.error("Error signing out:", error);
-  //   }
-  // };
+  const handleTryProClick = (e) => {
+    e.preventDefault();
+
+    // Track the Try Pro button click event
+    try {
+      posthog.capture("try_pro_clicked", {
+        location: "header",
+        current_path: location.pathname,
+        user_id: user?.uid || "anonymous",
+      });
+      console.log("Tracking event: try_pro_clicked from header");
+    } catch (error) {
+      console.error("PostHog event error:", error);
+    }
+
+    // Navigate to payments page
+    navigate("/payments");
+  };
+
+  const handleGetStartedClick = (e) => {
+    e.preventDefault();
+
+    // Track the Get Started button click event
+    try {
+      posthog.capture("get_started_clicked", {
+        location: "header",
+        current_path: location.pathname,
+      });
+      console.log("Tracking event: get_started_clicked from header");
+    } catch (error) {
+      console.error("PostHog event error:", error);
+    }
+
+    // Navigate to login page
+    navigate("/login");
+  };
+
+  const handleLoginClick = (e) => {
+    e.preventDefault();
+
+    // Track the Login button click event
+    try {
+      posthog.capture("login_clicked", {
+        location: "header",
+        current_path: location.pathname,
+      });
+      console.log("Tracking event: login_clicked from header");
+    } catch (error) {
+      console.error("PostHog event error:", error);
+    }
+
+    // Navigate to login page
+    navigate("/login");
+  };
+
+  const handleProfileClick = (e) => {
+    e.preventDefault();
+
+    // Track the profile icon click event
+    try {
+      posthog.capture("profile_clicked", {
+        location: "header",
+        current_path: location.pathname,
+        user_id: user?.uid || "anonymous",
+      });
+      console.log("Tracking event: profile_clicked from header");
+    } catch (error) {
+      console.error("PostHog event error:", error);
+    }
+
+    // Navigate to profile page
+    navigate("/profile");
+  };
 
   return (
-    <header className="bg-white">
-      <div className="container mx-auto px-4 py-4">
-        <nav className="flex items-center justify-between">
-          {user ? (
-            <div>
-              <Link to="/dashboard" className="font-bold text-xl">
-                Brief
-              </Link>
-            </div>
-          ) : (
-            <div>
-              <Link to="/" className="font-bold text-xl">
-                Brief
-              </Link>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4">
-            {user ? (
-              <div>
-                <Link  to="/profile" className="flex items-center gap-2">
-                <CircleUserRound />
+    <header className="theme-bg-primary ">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <div className="flex-shrink-0 flex items-center">
+              {user ? (
+                <Link to="/dashboard" className="flex items-center">
+                  <span className="font-bold text-xl theme-text-primary">
+                    Brief
+                  </span>
                 </Link>
+              ) : (
+                <Link to="/" className="flex items-center">
+                  <span className="font-bold text-xl theme-text-primary">
+                    Brief
+                  </span>
+                </Link>
+              )}
+            </div>
 
-                {/* <span className="text-sm text-muted-foreground">
-                  {user.email}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-2 text-sm text-red-600 hover:text-red-800 border border-transparent hover:border-red-800 rounded"
+            {/* Navigation Links - only show on homepage when not logged in */}
+            {location.pathname === "/" && (
+              <div className="hidden md:ml-12 md:flex md:items-center md:space-x-8">
+                <a
+                  href="#how-it-works"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
                 >
-                  Logout
-                </button> */}
+                  How it Works
+                </a>
+                <a
+                  href="#why-us"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
+                >
+                  Why Brief
+                </a>
+                <a
+                  href="#pricing"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
+                >
+                  Pricing
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center">
+            {user ? (
+              <div className="flex items-center space-x-4">
+                {/* Theme Toggle */}
+
+                {/* Theme Color Picker */}
+
+                {/* try pro */}
+                <div>
+                  <button
+                    onClick={handleTryProClick}
+                    className="bg-blue-700 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  >
+                    Try Pro
+                  </button>
+                </div>
+                <button
+                  onClick={handleProfileClick}
+                  className="flex items-center theme-text-secondary"
+                >
+                  <CircleUserRound />
+                </button>
+                <ThemeToggle />
               </div>
             ) : (
-              <div>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              <div className="flex items-center space-x-4">
+                {/* Theme Toggle */}
+
+                {/* Theme Color Picker */}
+
+                <button
+                  onClick={handleLoginClick}
+                  className="text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
                 >
-                  Login
-                </Link>
+                  Log in
+                </button>
+                <button
+                  onClick={handleGetStartedClick}
+                  className="ml-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Get Started
+                </button>
+                <ThemeToggle />
               </div>
             )}
           </div>

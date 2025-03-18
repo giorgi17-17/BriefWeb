@@ -1,21 +1,132 @@
-
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Add these custom utilities */
+/* Base Tailwind utilities */
 @layer utilities {
   .bg-clip-text {
     -webkit-background-clip: text;
     background-clip: text;
   }
-  
+
   .animation-delay-2000 {
     animation-delay: 2s;
   }
-  
+
   .animation-delay-4000 {
     animation-delay: 4s;
   }
+}
+
+/* ==========================================
+   THEME SYSTEM - SINGLE SOURCE OF TRUTH
+   ========================================== */
+
+:root {
+  /* ===== COLOR PALETTE ===== */
+  /* Base colors - modify these to change the entire theme */
+  --color-primary: #3b82f6; /* Blue */
+  --color-secondary: #10b981; /* Green */
+  --color-accent: #8b5cf6; /* Purple */
+  --color-danger: #ef4444; /* Red */
+  --color-warning: #f59e0b; /* Amber */
+  --color-success: #10b981; /* Green */
+
+  /* ===== LIGHT THEME VALUES ===== */
+  --light-background: #ffffff;
+  --light-background-secondary: #f9fafb;
+  --light-background-tertiary: #f3f4f6;
+
+  --light-text-primary: #111827;
+  --light-text-secondary: #4b5563;
+  --light-text-tertiary: #9ca3af;
+
+  --light-border-primary: #e5e7eb;
+  --light-border-secondary: #d1d5db;
+
+  /* ===== DARK THEME VALUES ===== */
+  --dark-background: #030303; /* Updated dark background */
+  --dark-background-secondary: #1f2937;
+  --dark-background-tertiary: #374151;
+
+  --dark-text-primary: #f9fafb;
+  --dark-text-secondary: #e5e7eb;
+  --dark-text-tertiary: #9ca3af;
+
+  --dark-border-primary: #4b5563;
+  --dark-border-secondary: #6b7280;
+}
+
+/* Light theme (default) */
+:root,
+.light {
+  --background: var(--light-background);
+  --background-secondary: var(--light-background-secondary);
+  --background-tertiary: var(--light-background-tertiary);
+
+  --text-primary: var(--light-text-primary);
+  --text-secondary: var(--light-text-secondary);
+  --text-tertiary: var(--light-text-tertiary);
+
+  --border-primary: var(--light-border-primary);
+  --border-secondary: var(--light-border-secondary);
+}
+
+/* Dark theme */
+.dark {
+  --background: var(--dark-background);
+  --background-secondary: var(--dark-background-secondary);
+  --background-tertiary: var(--dark-background-tertiary);
+
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-tertiary: var(--dark-text-tertiary);
+
+  --border-primary: var(--dark-border-primary);
+  --border-secondary: var(--dark-border-secondary);
+}
+
+/* ===== THEME CLASSES ===== */
+/* These classes can be used directly in JSX */
+
+/* Backgrounds */
+.theme-bg-primary {
+  background-color: var(--background) !important;
+}
+
+.theme-bg-secondary {
+  background-color: var(--background-secondary) !important;
+}
+
+.theme-bg-tertiary {
+  background-color: var(--background-tertiary) !important;
+}
+
+/* Text */
+.theme-text-primary {
+  color: var(--text-primary) !important;
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+.theme-text-tertiary {
+  color: var(--text-tertiary) !important;
+}
+
+/* Borders */
+.theme-border-primary {
+  border-color: var(--border-primary) !important;
+}
+
+.theme-border {
+  border: 1px solid var(--border-primary) !important;
+}
+
+/* Cards */
+.theme-card {
+  background-color: var(--background) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
 }

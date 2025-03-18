@@ -18,81 +18,137 @@ const FlashcardComponent = ({
   const [editingSetId, setEditingSetId] = useState(null);
   const [editingSetName, setEditingSetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+  const [processingSetIds, setProcessingSetIds] = useState(new Set()); // Track sets being processed
   // New state for dropdown open/close
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Update local state when flashcards prop changes
   useEffect(() => {
     if (flashcards && Array.isArray(flashcards)) {
-      // Only include sets that have been uploaded (or processed as uploaded)
-      setFlashcardSets(flashcards.filter((set) => set.isUploaded !== false));
+      const uploadedSets = flashcards.filter((set) => set.isUploaded !== false);
+      setFlashcardSets(uploadedSets);
+
+      // Reset active index if needed
+      if (activeSetIndex >= uploadedSets.length && uploadedSets.length > 0) {
+        setActiveSetIndex(0);
+        setActiveCardIndex(0);
+        setIsFlipped(false);
+      }
+
+      console.log("Flashcard sets updated:", uploadedSets);
     }
-  }, [flashcards]);
+  }, [flashcards, activeSetIndex]);
 
   // Process and upload new flashcards when they arrive
   useEffect(() => {
     const uploadNewSet = async () => {
       const newSet = flashcards?.[flashcards.length - 1];
-      if (!newSet?.isUploaded && newSet?.cards?.length > 0) {
-        try {
-          // Create new flashcard set
-          const { data: flashcardSet, error: setError } = await supabase
-            .from("flashcard_sets")
-            .insert({
-              lecture_id: lectureId,
-              name: newSet.name || `Set ${flashcards.length}`,
-            })
-            .select()
-            .single();
 
-          if (setError) throw setError;
+      // Skip if no new set or if it's already uploaded or being processed
+      if (!newSet || newSet.isUploaded || !newSet.cards?.length) {
+        return;
+      }
 
-          // Insert all flashcards for the set
-          const { error: cardsError } = await supabase
-            .from("flashcards")
-            .insert(
-              newSet.cards.map((card) => ({
-                flashcard_set_id: flashcardSet.id,
-                question: card.question,
-                answer: card.answer,
-              }))
-            );
+      // Skip if we've already started processing this set (using tempId or another identifier)
+      const setIdentifier =
+        newSet.tempId || `temp-${flashcards.length}-${Date.now()}`;
+      if (processingSetIds.has(setIdentifier)) {
+        console.log("Skipping already processing set:", setIdentifier);
+        return;
+      }
 
-          if (cardsError) throw cardsError;
+      // Mark this set as being processed
+      setProcessingSetIds((prev) => {
+        const updated = new Set(prev);
+        updated.add(setIdentifier);
+        return updated;
+      });
 
-          // Get the complete set with cards
-          const { data: completeSet, error: fetchError } = await supabase
-            .from("flashcard_sets")
-            .select(
-              `
+      try {
+        console.log("Uploading new flashcard set:", newSet);
+
+        // Create new flashcard set
+        const { data: flashcardSet, error: setError } = await supabase
+          .from("flashcard_sets")
+          .insert({
+            lecture_id: lectureId,
+            name: newSet.name || `Set ${flashcards.length}`,
+          })
+          .select()
+          .single();
+
+        if (setError) throw setError;
+
+        // Insert all flashcards for the set
+        const { error: cardsError } = await supabase.from("flashcards").insert(
+          newSet.cards.map((card) => ({
+            flashcard_set_id: flashcardSet.id,
+            question: card.question,
+            answer: card.answer,
+          }))
+        );
+
+        if (cardsError) throw cardsError;
+
+        // Get the complete set with cards
+        const { data: completeSet, error: fetchError } = await supabase
+          .from("flashcard_sets")
+          .select(
+            `
               *,
               flashcards(*)
             `
-            )
-            .eq("id", flashcardSet.id)
-            .single();
+          )
+          .eq("id", flashcardSet.id)
+          .single();
 
-          if (fetchError) throw fetchError;
+        if (fetchError) throw fetchError;
 
-          const processedSet = {
-            id: completeSet.id,
-            name: completeSet.name,
-            createdAt: completeSet.created_at,
-            cards: completeSet.flashcards.map((card) => ({
-              id: card.id,
-              question: card.question,
-              answer: card.answer,
-            })),
-            isUploaded: true,
-          };
+        const processedSet = {
+          id: completeSet.id,
+          name: completeSet.name,
+          createdAt: completeSet.created_at,
+          cards: completeSet.flashcards.map((card) => ({
+            id: card.id,
+            question: card.question,
+            answer: card.answer,
+          })),
+          isUploaded: true,
+        };
 
-          if (onFlashcardsUploaded) {
-            onFlashcardsUploaded(processedSet);
+        console.log("Successfully uploaded flashcard set:", processedSet);
+
+        // Update local state immediately before callback
+        setFlashcardSets((prevSets) => {
+          // Make sure we don't add the same set twice
+          if (prevSets.some((set) => set.id === processedSet.id)) {
+            return prevSets;
           }
-        } catch (error) {
-          console.error("Error uploading flashcards:", error);
-          setUploadError(error.message || "Failed to upload flashcards");
+          const updatedSets = [...prevSets, processedSet];
+
+          // Set the active index to the newly added set (in a separate effect)
+          setTimeout(() => {
+            setActiveSetIndex(updatedSets.length - 1);
+            setActiveCardIndex(0);
+            setIsFlipped(false);
+          }, 0);
+
+          return updatedSets;
+        });
+
+        if (onFlashcardsUploaded) {
+          onFlashcardsUploaded(processedSet);
         }
+      } catch (error) {
+        console.error("Error uploading flashcards:", error);
+        setUploadError(error.message || "Failed to upload flashcards");
+      } finally {
+        // Remove this set from processing, regardless of success/failure
+        setProcessingSetIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(setIdentifier);
+          return updated;
+        });
       }
     };
 
@@ -106,7 +162,7 @@ const FlashcardComponent = ({
     ) {
       uploadNewSet();
     }
-  }, [flashcards, lectureId]);
+  }, [flashcards, lectureId, onFlashcardsUploaded]);
 
   const handleSetChange = (index) => {
     setActiveSetIndex(index);
@@ -185,7 +241,7 @@ const FlashcardComponent = ({
 
   if (!flashcardSets.length) {
     return (
-      <div className="text-center text-gray-500">
+      <div className="text-center text-gray-500 dark:text-gray-400">
         No flashcard sets available
       </div>
     );
@@ -196,7 +252,9 @@ const FlashcardComponent = ({
 
   if (!currentCard) {
     return (
-      <div className="text-center text-gray-500">No cards in current set</div>
+      <div className="text-center text-gray-500 dark:text-gray-400">
+        No cards in current set
+      </div>
     );
   }
 
@@ -205,18 +263,18 @@ const FlashcardComponent = ({
       {/* Delete Confirmation Modal */}
       {deleteConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">
               Delete Flashcard Set
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Are you sure you want to delete {deleteConfirmation.name}? This
               action cannot be undone.
             </p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={cancelDelete}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
               >
                 Cancel
               </button>
@@ -234,10 +292,13 @@ const FlashcardComponent = ({
       {/* Dropdown for Flashcard Sets */}
       {flashcardSets.length > 0 && (
         <div className="mb-6 w-full">
-          <h3 className="text-lg font-semibold mb-2"> {flashcardSets.length} Flashcard Sets</h3>
+          <h3 className="text-lg font-semibold mb-2 dark:text-gray-100">
+            {" "}
+            {flashcardSets.length} Flashcard Sets
+          </h3>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center justify-between w-full px-4 py-2 border rounded-lg text-sm text-gray-700 focus:outline-none"
+            className="flex items-center justify-between w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none"
           >
             <span>
               {flashcardSets[activeSetIndex]?.name || "Select flashcard set"}
@@ -266,8 +327,8 @@ const FlashcardComponent = ({
                   }}
                   className={`cursor-pointer px-3 py-2 border rounded text-sm transition-colors ${
                     activeSetIndex === index
-                      ? "bg-blue-50 border-blue-500"
-                      : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
+                      ? "bg-blue-50 dark:bg-blue-900/30 border-blue-500"
+                      : "bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
                   }`}
                 >
                   {editingSetId === set.id ? (
@@ -276,7 +337,7 @@ const FlashcardComponent = ({
                         type="text"
                         value={editingSetName}
                         onChange={(e) => setEditingSetName(e.target.value)}
-                        className="flex-1 px-2 py-1 border rounded"
+                        className="flex-1 px-2 py-1 border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                         placeholder="Enter set name"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
@@ -303,7 +364,9 @@ const FlashcardComponent = ({
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{set.name}</h3>
+                      <h3 className="font-medium dark:text-gray-200">
+                        {set.name}
+                      </h3>
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={(e) => {
@@ -311,7 +374,7 @@ const FlashcardComponent = ({
                             setEditingSetId(set.id);
                             setEditingSetName(set.name);
                           }}
-                          className="p-1 text-blue-500 hover:text-blue-600"
+                          className="p-1 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300"
                           title="Edit set name"
                         >
                           <FiEdit2 size={16} />
@@ -321,7 +384,7 @@ const FlashcardComponent = ({
                             e.stopPropagation();
                             initiateDelete(set.id, set.name);
                           }}
-                          className="p-1 text-red-500 hover:text-red-600"
+                          className="p-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
                           title="Delete set"
                         >
                           <FiTrash2 size={16} />
@@ -344,50 +407,54 @@ const FlashcardComponent = ({
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <div
-          className={`absolute w-full h-full bg-white rounded-xl shadow-lg flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out border-2 border-blue-500 ${
+          className={`absolute w-full h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out border-2 border-blue-500 ${
             isFlipped ? "opacity-0 invisible" : "opacity-100"
           }`}
         >
-          <h3 className="text-xl font-semibold text-gray-800">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
             {currentCard.question}
           </h3>
         </div>
 
         <div
-          className={`absolute w-full h-full bg-blue-100 rounded-xl shadow-lg flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out border-2 border-blue-600 ${
+          className={`absolute w-full h-full bg-blue-100 dark:bg-blue-900/30 rounded-xl shadow-lg flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out border-2 border-blue-600 ${
             isFlipped ? "opacity-100" : "opacity-0 invisible rotate-y-180"
           }`}
         >
-          <p className="text-lg text-gray-700">{currentCard.answer}</p>
+          <p className="text-lg text-gray-700 dark:text-gray-200">
+            {currentCard.answer}
+          </p>
         </div>
       </div>
 
       <div className="flex space-x-4 mt-6">
         <button
-          onClick={() =>
+          onClick={() => {
+            setIsFlipped(false);
             setActiveCardIndex(
               (prevIndex) =>
                 (prevIndex - 1 + currentSet.cards.length) %
                 currentSet.cards.length
-            )
-          }
+            );
+          }}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Previous
         </button>
         <button
-          onClick={() =>
+          onClick={() => {
+            setIsFlipped(false);
             setActiveCardIndex(
               (prevIndex) => (prevIndex + 1) % currentSet.cards.length
-            )
-          }
+            );
+          }}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Next
         </button>
       </div>
 
-      <div className="mt-4 text-gray-600">
+      <div className="mt-4 text-gray-600 dark:text-gray-400">
         Card {activeCardIndex + 1} of {currentSet.cards.length}
       </div>
 

@@ -1,12 +1,22 @@
 // routes/api.js
 import express from "express";
-import { processDocument, processBrief, testPDFPageExtraction, processPDF } from "../controllers/pdfController.js";
+import {
+  processDocument,
+  processBrief,
+  testContentExtraction,
+  processDetailedContent,
+  processQuiz,
+} from "../controllers/documentController.js";
+import paymentRoutes from "./paymentRoutes.js";
 
 const router = express.Router();
 
+// Mount payment routes
+router.use("/payments", paymentRoutes);
+
 router.post("/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  
+
   if (!userId || !lectureId || !fileId) {
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
@@ -15,12 +25,32 @@ router.post("/process-pdf", async (req, res) => {
 
   try {
     const flashcards = await processDocument(userId, lectureId, fileId);
+    
+    // Return meaningful error response if flashcards weren't generated properly
+    if (!flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
+      console.warn("No valid flashcards generated for document");
+      return res.status(422).json({
+        error: "Could not generate flashcards from the document content",
+        flashcards: [{
+          id: "error-fallback",
+          question: "Error processing document",
+          answer: "The system couldn't generate valid flashcards from this document. Please try with a different file or contact support."
+        }]
+      });
+    }
+    
     res.status(200).json({ flashcards });
   } catch (error) {
-    console.error("Error processing PDF:", error);
+    console.error("Error processing document:", error);
+    // Send a fallback response with a generic flashcard
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
+      flashcards: [{
+        id: "error-fallback",
+        question: "Error processing document",
+        answer: "An error occurred while processing your document. Please try again or upload a different file."
+      }]
     });
   }
 });
@@ -36,17 +66,36 @@ router.post("/process-brief", async (req, res) => {
 
   try {
     const brief = await processBrief(userId, lectureId, fileId);
+    
+    // Return meaningful error response if brief is invalid
+    if (!brief || typeof brief !== 'object' || !brief.summary) {
+      console.warn("No valid brief generated for document");
+      return res.status(422).json({
+        error: "Could not generate brief from the document content",
+        brief: {
+          summary: "The system couldn't generate a meaningful summary for this document. Please try with a different file.",
+          key_concepts: [],
+          important_details: []
+        }
+      });
+    }
+    
     res.status(200).json({ brief });
   } catch (error) {
     console.error("Error processing brief:", error);
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
+      brief: {
+        summary: "An error occurred while processing your document. Please try again or upload a different file.",
+        key_concepts: [],
+        important_details: []
+      }
     });
   }
 });
 
-router.post("/test-pdf-pages", async (req, res) => {
+router.post("/test-document-content", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
 
   if (!userId || !lectureId || !fileId) {
@@ -56,38 +105,61 @@ router.post("/test-pdf-pages", async (req, res) => {
   }
 
   try {
-    const pages = await testPDFPageExtraction(userId, lectureId, fileId);
+    const pages = await testContentExtraction(userId, lectureId, fileId);
+    
+    // Check if pages were extracted successfully
+    if (!pages || !Array.isArray(pages) || pages.length === 0) {
+      return res.status(422).json({
+        error: "No content could be extracted from the document",
+        pages: ["No readable content found in the document. Please check the file format and try again."]
+      });
+    }
+    
     res.status(200).json({ pages });
   } catch (error) {
     console.error("Error in test endpoint:", error);
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
+      pages: ["An error occurred while processing your document. Please try again or upload a different file."]
     });
   }
 });
 
-export default router;
-
-
-
-
-
-
-
-
-
-router.post('/detailed-brief', async (req, res) => {
+router.post("/detailed-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
 
   if (!userId || !lectureId || !fileId) {
     return res.status(400).json({
-      error: 'Missing required parameters'
+      error: "Missing required parameters",
     });
   }
 
   try {
-    const result = await processPDF(userId, lectureId, fileId);
+    const result = await processDetailedContent(userId, lectureId, fileId);
+    
+    // Check if result is valid
+    if (!result || !result.summaries || !Array.isArray(result.summaries) || result.summaries.length === 0) {
+      console.warn("Invalid detailed brief result:", result);
+      const fallbackBrief = {
+        totalPages: 1,
+        pageSummaries: ["The system couldn't generate a meaningful summary for this document."],
+        overview: {
+          documentTitle: fileId,
+          mainThemes: [],
+          fileName: fileId,
+        },
+        key_concepts: [],
+        important_details: [],
+      };
+      
+      return res.json({ 
+        success: false, 
+        error: "Could not generate a detailed brief for this document",
+        brief: fallbackBrief 
+      });
+    }
+    
     // Transform the response to match frontend expectations
     const brief = {
       totalPages: result.total_pages,
@@ -95,16 +167,115 @@ router.post('/detailed-brief', async (req, res) => {
       overview: {
         documentTitle: result.metadata?.documentTitle || fileId,
         mainThemes: result.metadata?.mainThemes || [],
-        fileName: fileId
+        fileName: fileId,
       },
       key_concepts: result.metadata?.key_concepts || [],
-      important_details: result.metadata?.important_details || []
+      important_details: result.metadata?.important_details || [],
     };
     res.json({ success: true, brief });
   } catch (error) {
+    console.error("Error generating detailed brief:", error);
+    
+    const fallbackBrief = {
+      totalPages: 1,
+      pageSummaries: ["An error occurred while processing your document."],
+      overview: {
+        documentTitle: fileId,
+        mainThemes: [],
+        fileName: fileId,
+      },
+      key_concepts: [],
+      important_details: [],
+    };
+    
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      brief: fallbackBrief
     });
   }
 });
+
+router.post("/process-quiz", async (req, res) => {
+  try {
+    const { userId, lectureId, fileId, quizOptions } = req.body;
+
+    // Validate required parameters
+    if (!userId || !lectureId || !fileId) {
+      return res.status(400).json({
+        error: true,
+        message:
+          "Missing required parameters. Please provide userId, lectureId, and fileId.",
+      });
+    }
+
+    // Process the quiz with the options
+    const result = await processQuiz(
+      userId,
+      lectureId,
+      fileId,
+      quizOptions || {}
+    );
+
+    // Check if result is valid
+    if (!result || !result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
+      console.warn("Invalid quiz result:", result);
+      
+      const fallbackQuiz = {
+        quiz_set_id: "error",
+        name: "Error Quiz",
+        questions: [{
+          id: "error-question",
+          type: "multiple_choice",
+          question: "Error generating quiz content",
+          options: [
+            "The document couldn't be processed properly",
+            "Try a different document",
+            "Contact support if the issue persists",
+            "The document may be in an unsupported format"
+          ],
+          correct_answer: 0
+        }]
+      };
+      
+      return res.status(422).json({
+        success: false,
+        message: "Could not generate a quiz from the document content",
+        data: fallbackQuiz
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Quiz processed successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error processing quiz:", error);
+    
+    const fallbackQuiz = {
+      quiz_set_id: "error",
+      name: "Error Quiz",
+      questions: [{
+        id: "error-question",
+        type: "multiple_choice",
+        question: "An error occurred while generating the quiz",
+        options: [
+          "Please try again later",
+          "The document may not be suitable for quiz generation",
+          "Try uploading a different document",
+          "Contact support if the issue persists"
+        ],
+        correct_answer: 0
+      }]
+    };
+    
+    return res.status(500).json({
+      error: true,
+      message: error.message || "An error occurred while processing the quiz",
+      data: fallbackQuiz
+    });
+  }
+});
+
+export default router;

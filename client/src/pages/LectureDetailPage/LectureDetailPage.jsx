@@ -8,11 +8,12 @@ import FilesLayout from "../../components/FilesLayout";
 import Brief from "../../components/subjects/Brief";
 import { FileSelector } from "../../components/FileSelector";
 import { ChevronLeft } from "lucide-react";
+import Quiz from "../../components/subjects/Quiz";
 
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("flashcards");
+  const [activeTab, setActiveTab] = useState("Flashcards");
   const [flashcards, setFlashcards] = useState([]);
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -194,13 +195,13 @@ const LectureDetailPage = () => {
   };
 
   return (
-    <div className="min-h-screen py-4">
+    <div className="min-h-screen py-4 theme-bg-primary">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <header className="flex items-center justify-between mb-4">
           <button
             onClick={handleBackClick}
-            className="flex items-center text-gray-700 hover:text-gray-900 transition-colors"
+            className="flex items-center theme-text-secondary hover:theme-text-primary transition-colors"
           >
             <ChevronLeft className="w-5 h-5 mr-1" />
             <span className="font-medium">Back to Subjects</span>
@@ -208,35 +209,23 @@ const LectureDetailPage = () => {
         </header>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded mb-4">
+          <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-3 py-2 rounded mb-4">
             {error}
           </div>
         )}
 
         {/* Main Content Card */}
-        <div className="bg-white rounded ">
-          {/* 
-           <div className="flex flex-col lg:flex-row items-center justify-between border-b px-4 py-3">
-            <nav className="flex gap-2 flex-wrap">
-              {["flashcards", "briefs", "shorts", "files"].map((tab) => (
-                <button
-                  key={tab}
-                  className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
-                    activeTab === tab
-                      ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                      : "bg-white text-gray-600 hover:text-gray-800"
-                  }`}
-           */}
+        <div className="theme-card rounded">
           {/* Tabs & File Selector */}
-          <div className="flex flex-col lg:flex-row items-center justify-between border-b px-4 py-3">
-            <nav className="flex gap-2 flex-wrap bg-gray-100 p-1 rounded-lg">
-              {["flashcards", "briefs", "shorts", "files"].map((tab) => (
+          <div className="flex flex-col lg:flex-row items-center justify-between theme-border border-b px-4 py-3">
+            <nav className="flex gap-2 flex-wrap theme-bg-tertiary p-1 rounded-lg">
+              {["Flashcards", "Briefs", "Quiz", "files"].map((tab) => (
                 <button
                   key={tab}
                   className={`px-3 py-1 text-[15px] font-medium rounded transition-colors ${
                     activeTab === tab
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:bg-gray-200"
+                      ? "theme-bg-primary theme-text-primary shadow-sm"
+                      : "theme-text-secondary hover:theme-bg-secondary"
                   }`}
                   onClick={() => setActiveTab(tab)}
                 >
@@ -247,8 +236,8 @@ const LectureDetailPage = () => {
             <div className="mt-2 lg:mt-0">
               <FileSelector
                 files={files}
-                selectedFile={selectedFile}
                 onFileSelect={handleFileSelect}
+                selectedFile={selectedFile}
               />
             </div>
           </div>
@@ -262,23 +251,22 @@ const LectureDetailPage = () => {
                 handleFileUpload={handleFileUpload}
                 handleDeleteFile={handleDeleteFile}
               />
-            ) : activeTab === "flashcards" ? (
+            ) : activeTab === "Flashcards" ? (
               <div className="space-y-4">
                 {files.length > 0 ? (
                   <>
                     <div className="flex justify-start items-center gap-4">
                       <button
                         onClick={handleGenerateFlashcards}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded transition-colors"
                         disabled={isGenerating}
                       >
                         {isGenerating
                           ? "Generating Flashcards..."
                           : "Generate Flashcards"}
                       </button>
-                     
                     </div>
-                    
+
                     <FlashcardComponent
                       flashcards={getAllFlashcards()}
                       lectureId={lectureId}
@@ -292,24 +280,29 @@ const LectureDetailPage = () => {
                     />
                   </>
                 ) : (
-                  <div className="text-center text-gray-600 py-4">
+                  <div className="text-center theme-text-tertiary py-4">
                     Upload files first to generate flashcards.
                   </div>
                 )}
               </div>
-            ) : activeTab === "briefs" ? (
-              <div className="space-y-4">
+            ) : activeTab === "Briefs" ? (
+              <div className="">
                 <Brief
                   selectedFile={selectedFile}
                   user={user}
                   lectureId={lectureId}
                 />
               </div>
-            ) : (
-              <div className="py-6 text-center">
-                <h2 className="text-xl font-semibold text-gray-700">Shorts</h2>
-                <p className="text-gray-600">Shorts content goes here.</p>
+            ) : activeTab === "Quiz" ? (
+              <div className=" text-center">
+                <Quiz
+                  selectedFile={selectedFile}
+                  user={user}
+                  lectureId={lectureId}
+                />
               </div>
+            ) : (
+              <div></div>
             )}
           </div>
         </div>

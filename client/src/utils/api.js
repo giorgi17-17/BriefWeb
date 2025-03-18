@@ -9,7 +9,7 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
     }
 
     // Make API call to process PDF.
-    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, {
+    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, { 
       userId,
       lectureId,
       fileId,
@@ -79,14 +79,14 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
 const handleProcessBrief = async (userId, lectureId, fileId) => {
   try {
     // Enhanced input validation
-    if (!userId || typeof userId !== 'string') {
-      throw new Error('Invalid user ID');
+    if (!userId || typeof userId !== "string") {
+      throw new Error("Invalid user ID");
     }
-    if (!lectureId || typeof lectureId !== 'string') {
-      throw new Error('Invalid lecture ID');
+    if (!lectureId || typeof lectureId !== "string") {
+      throw new Error("Invalid lecture ID");
     }
-    if (!fileId || typeof fileId !== 'string') {
-      throw new Error('Invalid file ID');
+    if (!fileId || typeof fileId !== "string") {
+      throw new Error("Invalid file ID");
     }
 
     const response = await axios.post(`${BACKEND_URL}/api/detailed-brief`, {
@@ -97,47 +97,47 @@ const handleProcessBrief = async (userId, lectureId, fileId) => {
 
     // Validate response structure
     if (!response.data || response.status !== 200) {
-      throw new Error('Invalid server response');
+      throw new Error("Invalid server response");
     }
 
     // Extract and validate brief data
     const briefData = response.data.brief;
     if (!briefData) {
-      throw new Error('No brief data received');
+      throw new Error("No brief data received");
     }
 
     // Structure the response in a consistent format
     return {
       totalPages: Number(briefData.totalPages) || 1,
-      pageSummaries: Array.isArray(briefData.pageSummaries) 
-        ? briefData.pageSummaries 
-        : [briefData.summary || 'No summary available'],
+      pageSummaries: Array.isArray(briefData.pageSummaries)
+        ? briefData.pageSummaries
+        : [briefData.summary || "No summary available"],
       overview: {
-        documentTitle: briefData.overview?.documentTitle || 'Untitled Document',
-        mainThemes: Array.isArray(briefData.overview?.mainThemes) 
-          ? briefData.overview.mainThemes 
+        documentTitle: briefData.overview?.documentTitle || "Untitled Document",
+        mainThemes: Array.isArray(briefData.overview?.mainThemes)
+          ? briefData.overview.mainThemes
           : [],
         fileInfo: {
           fileName: briefData.overview?.fileName || fileId,
           pageCount: Number(briefData.totalPages) || 1,
-        }
+        },
       },
-      key_concepts: Array.isArray(briefData.key_concepts) 
-        ? briefData.key_concepts 
+      key_concepts: Array.isArray(briefData.key_concepts)
+        ? briefData.key_concepts
         : [],
-      important_details: Array.isArray(briefData.important_details) 
-        ? briefData.important_details 
+      important_details: Array.isArray(briefData.important_details)
+        ? briefData.important_details
         : [],
       metadata: {
         generatedAt: new Date().toISOString(),
         generatedBy: userId,
         lectureId: lectureId,
-      }
+      },
     };
   } catch (error) {
     // Enhanced error handling
     const errorMessage = error.response?.data?.message || error.message;
-    console.error('Brief Processing Error:', {
+    console.error("Brief Processing Error:", {
       message: errorMessage,
       status: error.response?.status,
       userId,
@@ -150,5 +150,53 @@ const handleProcessBrief = async (userId, lectureId, fileId) => {
   }
 };
 
+async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
+  try {
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
 
-export { handleProcessBrief, handleProcessPdf };
+    // Ensure we're using strings for parameters
+    const userIdStr = String(userId);
+    const lectureIdStr = String(lectureId);
+    const fileIdStr = String(fileId);
+
+    const response = await fetch("/api/process-quiz", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: userIdStr,
+        lectureId: lectureIdStr,
+        fileId: fileIdStr,
+        quizOptions,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Failed to process quiz:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        params: { userId, lectureId, fileId, quizOptions },
+      });
+
+      throw new Error(
+        errorData.message ||
+          `Failed to process quiz: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error in handleProcessQuiz:", error);
+    throw error;
+  }
+}
+
+export { handleProcessBrief, handleProcessPdf, handleProcessQuiz };
