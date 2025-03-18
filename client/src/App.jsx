@@ -16,6 +16,8 @@ import DesignSystem from "./components/design/DesignSystem";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useEffect } from "react";
 import { PostHogProvider } from "posthog-js/react";
+import AuthCallback from "./pages/auth/callback";
+import { supabase } from "./utils/supabaseClient";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -33,12 +35,36 @@ const posthogOptions = {
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
-  // Clear the URL hash when dashboard loads to clean up OAuth fragments
+  // Process the OAuth hash when landing on dashboard
   useEffect(() => {
-    // If there's a hash in the URL (from OAuth callback), clean it up
-    if (window.location.hash) {
-      // Remove the hash without causing a page reload
-      history.replaceState(null, null, " ");
+    if (window.location.hash && window.location.hash.includes("access_token")) {
+      // Process the OAuth redirect
+      const processOAuthRedirect = async () => {
+        console.log("Processing OAuth redirect on dashboard");
+
+        try {
+          // Get session from the hash - Supabase will automatically process the hash
+          const { data, error } = await supabase.auth.getSession();
+
+          if (error) {
+            console.error("Error processing OAuth redirect:", error);
+          } else {
+            console.log(
+              "OAuth session established:",
+              data.session ? "Yes" : "No"
+            );
+          }
+
+          // Clean up the URL by removing the hash without page reload
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.pathname);
+          }
+        } catch (err) {
+          console.error("Error handling OAuth redirect:", err);
+        }
+      };
+
+      processOAuthRedirect();
     }
   }, []);
 
@@ -79,6 +105,7 @@ function App() {
               <div className="container mx-auto px-4 py-8">
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/payments" element={<PaymentsPage />} />
                   <Route
                     path="/payment-success"

@@ -133,9 +133,11 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Get the current URL without any query parameters or hash
+      // Direct redirect to dashboard
       const baseUrl = window.location.origin;
       const redirectUrl = `${baseUrl}/dashboard`;
+
+      console.log("Google OAuth redirecting to:", redirectUrl);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -145,8 +147,8 @@ export function AuthProvider({ children }) {
             prompt: "consent",
           },
           redirectTo: redirectUrl,
-          skipBrowserRedirect: false, // Ensure browser redirect happens
-          flowType: "pkce", // Use PKCE flow for better security
+          skipBrowserRedirect: false,
+          flowType: "pkce",
         },
       });
 
@@ -161,11 +163,25 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
+      // Clear the user state first
+      setUser(null);
+
+      // Attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+
+      // Even if there's an error, we want to clear local session data
+      if (error) {
+        if (error.message.includes("session_not_found")) {
+          // Session is already invalid, just clear local storage
+          window.localStorage.removeItem("supabase.auth.token");
+          return;
+        }
+        throw error;
+      }
     } catch (error) {
       console.error("Error signing out:", error);
-      throw error;
+      // Still clear local state even if there's an error
+      window.localStorage.removeItem("supabase.auth.token");
     }
   };
 
