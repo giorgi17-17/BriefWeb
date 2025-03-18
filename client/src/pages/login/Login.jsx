@@ -40,11 +40,26 @@ const Login = () => {
     try {
       setError(null);
       setIsLoading(true);
+
+      // Show loading state immediately for better UX
+      const loadingMessage = "Redirecting to Google login...";
+      setError(loadingMessage);
+
       await signInWithGoogle();
-      // Note: We don't navigate here because the OAuth flow will redirect the user
+      // The OAuth flow will handle the redirect
     } catch (error) {
       console.error("Sign in error:", error);
-      setError(error.message);
+      // Provide more specific error messages for common mobile issues
+      if (error.message?.includes("popup_closed_by_user")) {
+        setError("The login was cancelled. Please try again.");
+      } else if (error.message?.includes("popup_blocked")) {
+        setError("Please allow popups for this site to login with Google.");
+      } else {
+        setError(
+          error.message || "Failed to sign in with Google. Please try again."
+        );
+      }
+    } finally {
       setIsLoading(false);
     }
   };

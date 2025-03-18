@@ -133,6 +133,10 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Get the current URL without any query parameters or hash
+      const baseUrl = window.location.origin;
+      const redirectUrl = `${baseUrl}/dashboard`;
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -140,15 +144,13 @@ export function AuthProvider({ children }) {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: false, // Ensure browser redirect happens
+          flowType: "pkce", // Use PKCE flow for better security
         },
       });
 
       if (error) throw error;
-
-      // We can't immediately add the user to the users table here because the OAuth flow
-      // will redirect the user away from our app. Instead, we handle this in the onAuthStateChange
-      // listener by checking if this is a new user.
 
       return data;
     } catch (error) {
