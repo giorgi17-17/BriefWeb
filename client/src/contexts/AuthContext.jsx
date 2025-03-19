@@ -133,24 +133,20 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      console.log(
+        "Starting Google OAuth sign-in using v1 compatibility method"
+      );
+
+      // Using v1 signIn method (provided by our compatibility layer)
+      const result = await supabase.auth.signIn({
         provider: "google",
-        options: {
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
       });
 
-      if (error) throw error;
+      console.log("Google sign-in result:", result);
 
-      // We can't immediately add the user to the users table here because the OAuth flow
-      // will redirect the user away from our app. Instead, we handle this in the onAuthStateChange
-      // listener by checking if this is a new user.
+      if (result.error) throw result.error;
 
-      return data;
+      return { user: result.user, session: result.session };
     } catch (error) {
       console.error("Error signing in with Google:", error);
       throw error;
@@ -159,25 +155,11 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Clear the user state first
-      setUser(null);
-
-      // Attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut();
-
-      // Even if there's an error, we want to clear local session data
-      if (error) {
-        if (error.message.includes("session_not_found")) {
-          // Session is already invalid, just clear local storage
-          window.localStorage.removeItem("supabase.auth.token");
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
     } catch (error) {
       console.error("Error signing out:", error);
-      // Still clear local state even if there's an error
-      window.localStorage.removeItem("supabase.auth.token");
+      throw error;
     }
   };
 
