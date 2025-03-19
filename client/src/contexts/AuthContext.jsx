@@ -131,29 +131,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      console.log(
-        "Starting Google OAuth sign-in using v1 compatibility method",
-        "Current hostname:",
-        window.location.hostname
-      );
-
-      // Using v1 signIn method (provided by our compatibility layer)
-      const result = await supabase.auth.signIn({
-        provider: "google",
-      });
-
-      console.log("Google sign-in result:", result);
-
-      if (result.error) throw result.error;
-
-      return { user: result.user, session: result.session };
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-      throw error;
-    }
-  };
+  
 
   const logout = async () => {
     try {
@@ -170,7 +148,6 @@ export function AuthProvider({ children }) {
     loading,
     signUp,
     signInWithEmail,
-    signInWithGoogle,
     logout,
   };
 

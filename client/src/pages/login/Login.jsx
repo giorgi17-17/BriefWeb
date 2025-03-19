@@ -10,7 +10,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { signUp, signInWithEmail, signInWithGoogle } = useAuth();
+  const { signUp, signInWithEmail } = useAuth();
 
   const handleSubmit = async (e) => {
     console.log("first");
@@ -36,18 +36,7 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      await signInWithGoogle();
-      // Note: We don't navigate here because the OAuth flow will redirect the user
-    } catch (error) {
-      console.error("Sign in error:", error);
-      setError(error.message);
-      setIsLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center theme-bg-primary py-12 px-4 sm:px-6 lg:px-8">
@@ -125,18 +114,6 @@ const Login = () => {
             </div>
           </div>
 
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="mt-4 w-full flex justify-center py-2 px-4 border theme-border rounded-md text-sm font-medium theme-text-primary theme-card hover:theme-bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <img
-              className="h-5 w-5 mr-2"
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google logo"
-            />
-            <span>Continue with Google</span>
-          </button>
         </div>
       </div>
     </div>
