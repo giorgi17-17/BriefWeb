@@ -16,6 +16,8 @@ supabase.auth.signIn = async (params) => {
 
   if (params.provider) {
     // OAuth sign-in (Google, etc.)
+    // We never add any custom redirects, using Supabase's default behavior
+    // based on the current origin
     const result = await supabase.auth.signInWithOAuth({
       provider: params.provider,
     });

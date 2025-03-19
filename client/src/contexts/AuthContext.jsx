@@ -134,7 +134,9 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = async () => {
     try {
       console.log(
-        "Starting Google OAuth sign-in using v1 compatibility method"
+        "Starting Google OAuth sign-in using v1 compatibility method",
+        "Current hostname:",
+        window.location.hostname
       );
 
       // Using v1 signIn method (provided by our compatibility layer)
