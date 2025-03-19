@@ -91,6 +91,7 @@ ProtectedRoute.propTypes = {
 };
 
 function App() {
+  // No redirection logic in the App component
   return (
     <ThemeProvider>
       <PostHogProvider

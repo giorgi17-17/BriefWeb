@@ -140,7 +140,11 @@ export function AuthProvider({ children }) {
         .filter((key) => key.startsWith("supabase.auth."))
         .forEach((key) => window.localStorage.removeItem(key));
 
-      // Let Supabase client handle the redirect URL based on our custom configuration
+      // Use the current origin for the redirect
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/dashboard`;
+
+      // Let Supabase handle the OAuth flow
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -148,7 +152,7 @@ export function AuthProvider({ children }) {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: "/dashboard", // This will be processed by our custom redirectTo handler
+          redirectTo: redirectUrl,
           skipBrowserRedirect: false,
         },
       });
