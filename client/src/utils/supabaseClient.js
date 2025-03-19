@@ -7,15 +7,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-// Standard options for Supabase client
-const options = {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: "pkce",
-  },
-};
-
-// Create the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, options);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -133,18 +133,6 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     try {
-      console.log("Starting Google OAuth login");
-
-      // Clear any existing OAuth state from localStorage
-      Object.keys(window.localStorage)
-        .filter((key) => key.startsWith("supabase.auth."))
-        .forEach((key) => window.localStorage.removeItem(key));
-
-      // Use the current origin for the redirect
-      const currentOrigin = window.location.origin;
-      const redirectUrl = `${currentOrigin}/dashboard`;
-
-      // Let Supabase handle the OAuth flow
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -152,12 +140,15 @@ export function AuthProvider({ children }) {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: false,
+          redirectTo: `${window.location.origin}/dashboard`,
         },
       });
 
       if (error) throw error;
+
+      // We can't immediately add the user to the users table here because the OAuth flow
+      // will redirect the user away from our app. Instead, we handle this in the onAuthStateChange
+      // listener by checking if this is a new user.
 
       return data;
     } catch (error) {
