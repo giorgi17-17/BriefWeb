@@ -10,7 +10,7 @@ function Header() {
   const navigate = useNavigate();
   const posthog = usePostHog();
 
-  const handleTryProClick = (e) => {
+  const tryPro = (e) => {
     e.preventDefault();
 
     // Track the Try Pro button click event
@@ -27,42 +27,6 @@ function Header() {
 
     // Navigate to payments page
     navigate("/payments");
-  };
-
-  const handleGetStartedClick = (e) => {
-    e.preventDefault();
-
-    // Track the Get Started button click event
-    try {
-      posthog.capture("get_started_clicked", {
-        location: "header",
-        current_path: location.pathname,
-      });
-      console.log("Tracking event: get_started_clicked from header");
-    } catch (error) {
-      console.error("PostHog event error:", error);
-    }
-
-    // Navigate to login page
-    navigate("/login");
-  };
-
-  const handleLoginClick = (e) => {
-    e.preventDefault();
-
-    // Track the Login button click event
-    try {
-      posthog.capture("login_clicked", {
-        location: "header",
-        current_path: location.pathname,
-      });
-      console.log("Tracking event: login_clicked from header");
-    } catch (error) {
-      console.error("PostHog event error:", error);
-    }
-
-    // Navigate to login page
-    navigate("/login");
   };
 
   const handleProfileClick = (e) => {
@@ -142,7 +106,7 @@ function Header() {
                 {/* try pro */}
                 <div>
                   <button
-                    onClick={handleTryProClick}
+                    onClick={tryPro}
                     className="bg-blue-700 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                   >
                     Try Pro
@@ -162,17 +126,28 @@ function Header() {
 
                 {/* Theme Color Picker */}
 
+                {location.pathname !== "/login" &&
+                  location.pathname !== "/register" && (
+                    <>
+                      <Link
+                        to="/login"
+                        className="text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        to="/register"
+                        className="text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
+                      >
+                        Register
+                      </Link>
+                    </>
+                  )}
                 <button
-                  onClick={handleLoginClick}
-                  className="text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
-                >
-                  Log in
-                </button>
-                <button
-                  onClick={handleGetStartedClick}
+                  onClick={tryPro}
                   className="ml-4 px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-700 rounded-md transition-colors"
                 >
-                  Get Started
+                  Try Pro
                 </button>
                 <ThemeToggle />
               </div>

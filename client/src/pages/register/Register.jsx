@@ -1,20 +1,21 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
-const Login = () => {
+const Register = () => {
   const [error, setError] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithEmail, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
 
   // Check for redirect status in URL
   useEffect(() => {
@@ -27,11 +28,25 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    // Basic password strength check
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await signInWithEmail(email, password);
+      await signUp(email, password);
       navigate("/dashboard");
+      // Success message instead of navigation
     } catch (error) {
       console.error(error);
       setError(error.message);
@@ -75,7 +90,7 @@ const Login = () => {
         <div className="max-w-md w-full bg-[#1e1e1e] rounded-lg shadow-xl p-8">
           <div className="mb-10">
             <h2 className="text-center text-3xl font-semibold text-white">
-              Sign in to your account
+              Create your account
             </h2>
           </div>
 
@@ -114,19 +129,12 @@ const Login = () => {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-300"
-                >
-                  Password
-                </label>
-                <div className="text-sm">
-                  <a href="#" className="text-blue-400 hover:text-blue-300">
-                    Forgot password?
-                  </a>
-                </div>
-              </div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                Password
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-gray-400" />
@@ -157,21 +165,41 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-[#3a3a3a] rounded bg-[#2a2a2a]"
-              />
+            <div>
               <label
-                htmlFor="remember-me"
-                className="ml-2 block text-sm text-gray-300"
+                htmlFor="confirm-password"
+                className="block text-sm font-medium text-gray-300 mb-2"
               >
-                Remember me
+                Confirm password
               </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="confirm-password"
+                  name="confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="appearance-none block w-full pl-10 pr-10 py-2 border border-[#3a3a3a] rounded-md bg-[#2a2a2a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="••••••"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="text-gray-400 hover:text-gray-300 focus:outline-none"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -180,19 +208,19 @@ const Login = () => {
                 disabled={isLoading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-700 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Creating account..." : "Register"}
               </button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-400">
-              Don&apos;t have an account?{" "}
+              Already have an account?{" "}
               <Link
-                to="/register"
+                to="/login"
                 className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
-                Create one
+                Sign in
               </Link>
             </p>
           </div>
@@ -243,7 +271,7 @@ const Login = () => {
                   />
                 </g>
               </svg>
-              Sign in with Google
+              Sign up with Google
             </button>
           </div>
         </div>
@@ -252,4 +280,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

@@ -280,7 +280,7 @@ export default function Dashboard() {
               value={newSubjectName}
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="Enter subject name..."
-              className="w-full px-4 py-2 border theme-input rounded-md mb-4"
+              className="w-full px-4 py-2 border theme-input rounded-md mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               disabled={isSubmitting}
             />
 
@@ -290,14 +290,14 @@ export default function Dashboard() {
                   setIsModalOpen(false);
                   setError(null);
                 }}
-                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddSubject}
-                className="theme-button-primary px-4 py-2 rounded-md disabled:opacity-50"
+                className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Adding..." : "Add Subject"}
@@ -322,7 +322,7 @@ export default function Dashboard() {
                 setEditingSubject({ ...editingSubject, title: e.target.value })
               }
               placeholder="Enter subject name..."
-              className="w-full px-4 py-2 border rounded-md mb-4 theme-input"
+              className="w-full px-4 py-2 border rounded-md mb-4 theme-input bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               disabled={isSubmitting}
             />
 
@@ -333,14 +333,14 @@ export default function Dashboard() {
                   setEditingSubject(null);
                   setError(null);
                 }}
-                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSubject}
-                className="theme-button-primary px-4 py-2 rounded-md disabled:opacity-50"
+                className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save Changes"}
@@ -369,14 +369,14 @@ export default function Dashboard() {
                   setDeletingSubject(null);
                   setError(null);
                 }}
-                className="px-4 py-2 theme-text-secondary hover:theme-text-primary"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteSubject}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:bg-red-300"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Deleting..." : "Delete Subject"}

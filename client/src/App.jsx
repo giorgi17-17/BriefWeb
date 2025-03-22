@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/login/Login";
+import RegisterPage from "./pages/register/Register";
 import Header from "./components/Header/Header";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import PropTypes from "prop-types";
@@ -21,8 +22,7 @@ import { supabase } from "./utils/supabaseClient";
 
 // Configure PostHog options
 const posthogOptions = {
-  api_host:
-    import.meta.env.VITE_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com",
+  api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
   capture_pageview: true,
   debug: import.meta.env.DEV,
   loaded: (posthog) => {
@@ -95,7 +95,7 @@ function App() {
   return (
     <ThemeProvider>
       <PostHogProvider
-        apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+        apiKey={import.meta.env.VITE_POSTHOG_KEY}
         options={posthogOptions}
       >
         <AuthProvider>
@@ -106,6 +106,7 @@ function App() {
               <div className="container mx-auto px-4 py-8">
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/payments" element={<PaymentsPage />} />
                   <Route
