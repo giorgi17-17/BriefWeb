@@ -150,7 +150,17 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        // If the error is about missing session, it's not really an error
+        // The user is effectively already logged out
+        if (error.message.includes("Auth session missing")) {
+          console.log("No active session found, user is already logged out");
+          // Clear the user state explicitly
+          setUser(null);
+          return;
+        }
+        throw error;
+      }
     } catch (error) {
       console.error("Error signing out:", error);
       throw error;
