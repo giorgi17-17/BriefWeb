@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
 
 export default function Dashboard() {

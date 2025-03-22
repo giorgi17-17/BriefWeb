@@ -1,17 +1,20 @@
+import { useTranslation } from "react-i18next";
+
 const WhyUs = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="py-20 theme-bg-primary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <p className="text-sm uppercase tracking-wider mb-2 theme-text-tertiary">
-            THE BRIEF ADVANTAGE
+            {t("landing.whyUs.tagline")}
           </p>
           <h2 className="text-3xl font-bold theme-text-primary">
-            Why Students Are Obsessed
+            {t("landing.whyUs.title")}
           </h2>
           <p className="mt-4 max-w-2xl mx-auto theme-text-tertiary">
-            Created by students who understand the struggle, for students who
-            deserve better.
+            {t("landing.whyUs.subtitle")}
           </p>
         </div>
 
@@ -38,12 +41,10 @@ const WhyUs = () => {
               </div>
             </div>
             <h3 className="text-xl font-bold mb-3 theme-text-primary">
-              Save Massive Time
+              {t("landing.whyUs.saveTime.title")}
             </h3>
             <p className="text-sm theme-text-tertiary">
-              Our AI-powered system transforms lengthy notes into concise,
-              memorable study materials within minutes, freeing you to focus
-              where it matters most.
+              {t("landing.whyUs.saveTime.description")}
             </p>
           </div>
 
@@ -71,12 +72,10 @@ const WhyUs = () => {
               </div>
             </div>
             <h3 className="text-xl font-bold mb-3 theme-text-primary">
-              Level Up Your Grades
+              {t("landing.whyUs.grades.title")}
             </h3>
             <p className="text-sm theme-text-tertiary">
-              Our organized study materials help boost retention and
-              understanding, leading to improved exam performance and higher
-              overall grades.
+              {t("landing.whyUs.grades.description")}
             </p>
           </div>
 
@@ -106,18 +105,17 @@ const WhyUs = () => {
               </div>
             </div>
             <h3 className="text-xl font-bold mb-3 theme-text-primary">
-              Study Smarter, Not Harder
+              {t("landing.whyUs.smarter.title")}
             </h3>
             <p className="text-sm theme-text-tertiary">
-              Our intelligent tools help you focus on what you need to learn,
-              maximizing study efficiency and helping you master complex topics.
+              {t("landing.whyUs.smarter.description")}
             </p>
           </div>
         </div>
 
         <div className="text-center mt-16">
           <p className="text-sm theme-text-tertiary">
-            Join 10,000+ students already crushing their studies
+            {t("landing.whyUs.joinOthers")}
           </p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../utils/authHooks";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 const Login = () => {

@@ -11,11 +11,11 @@ export async function generateFlashcards(extractedText) {
         {
           role: "system",
           content:
-            "You are an expert educational content creator. Your task is to generate flashcards in VALID JSON format only. Never include explanatory text or markdown formatting.",
+            "You are an expert educational content creator. Your task is to generate quality flashcards in VALID JSON format only. Focus on creating as many good flashcards as possible from the content provided. Never include explanatory text or markdown formatting. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
-          content: `Generate exactly 30 high-quality flashcards from the provided text. Return ONLY a JSON array in this exact format:
+          content: `Generate high-quality flashcards from the provided text. Return ONLY a JSON array in this exact format:
 
 [
   {
@@ -25,7 +25,7 @@ export async function generateFlashcards(extractedText) {
 ]
 
 Requirements:
-1. Generate EXACTLY 30 flashcards
+1. Generate as many quality flashcards as possible, aim for 25-30 cards
 2. Each flashcard must have "question" and "answer" fields
 3. Questions must be clear and specific
 4. Answers must be concise but complete
@@ -33,6 +33,12 @@ Requirements:
 6. Do not include class rules or evaluation criteria
 7. Focus on core concepts and key information
 8. Ensure proper JSON formatting with no trailing commas
+9. If the text is in Georgian language:
+   a. Create flashcards in proper Georgian with correct spelling
+   b. Pay special attention to Georgian grammar rules and conjugation
+   c. Use appropriate terminology for academic and technical concepts
+   d. Ensure natural flow and readability in Georgian
+   e. Maintain consistent style throughout all flashcards
 
 Text to analyze: ${extractedText}`,
         },
@@ -64,11 +70,12 @@ Text to analyze: ${extractedText}`,
         throw new Error("Response must be an array");
       }
 
-      if (parsedFlashcards.length !== 30) {
-        throw new Error(
-          `Expected 30 flashcards, got ${parsedFlashcards.length}`
-        );
+      // Accept any number of flashcards
+      if (parsedFlashcards.length === 0) {
+        throw new Error("No flashcards were generated");
       }
+
+      console.log(`Generated ${parsedFlashcards.length} flashcards`);
 
       // Validate and transform each flashcard
       const flashcardsWithId = parsedFlashcards.map((card, index) => {
@@ -190,7 +197,7 @@ export async function generateBrief(pageText) {
         {
           role: "system",
           content:
-            "You are an expert in summarizing academic content for students. Your task is to generate structured, easy-to-understand summaries that focus on key points and main ideas while maintaining a balanced length. The summaries must be clear, concise, and student-friendly.",
+            "You are an expert in summarizing academic content for students. Your task is to generate structured, easy-to-understand summaries that focus on key points and main ideas while maintaining a balanced length. The summaries must be clear, concise, and student-friendly. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
@@ -203,6 +210,14 @@ export async function generateBrief(pageText) {
             
             3️⃣ **Unanswered Questions**: If the page consists of **only questions without answers**, rewrite them in an explanatory way so that students can understand their context. Do not simply list them.
       
+            4️⃣ **Language**: If the text is in Georgian language:
+               a. Maintain the Georgian language with correct grammar and spelling
+               b. Follow proper Georgian punctuation and capitalization rules
+               c. Use appropriate academic/technical terminology for the subject matter
+               d. Structure sentences in a way that feels natural to Georgian speakers
+               e. Pay extra attention to verb forms and case endings
+               f. Do not translate to any other language
+            
             🔹 Ensure that the summary is **structured, concise, and useful for students**.
       
             Here is the text to summarize:
@@ -322,7 +337,7 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
         {
           role: "system",
           content:
-            "You are an expert educational quiz generator. Your primary task is to generate EXACTLY the number of questions requested for each type, no more and no less. For multiple choice questions, you MUST provide exactly 4 options with exactly one correct answer.",
+            "You are an expert educational quiz generator. Your primary task is to generate EXACTLY the number of questions requested for each type, no more and no less. For multiple choice questions, you MUST provide exactly 4 options with exactly one correct answer. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
@@ -370,10 +385,17 @@ ${questionTypes}
 - Include multiple perspectives
 - Address real-world challenges
 
+6. Language:
+- If the input text is in Georgian language:
+  a. Create the quiz in proper Georgian with correct spelling and grammar
+  b. Pay special attention to Georgian verb conjugation and case endings
+  c. Use appropriate academic/technical terminology for the subject matter
+  d. Ensure natural sentence structure that flows well in Georgian
+  e. Follow Georgian punctuation and capitalization rules
+  f. Be especially careful with technical terms and definitions
+  g. Do not translate Georgian text to any other language
 
-
-
-6. Required Output Structure:
+7. Required Output Structure:
 {
   "success": true,
   "questions": [

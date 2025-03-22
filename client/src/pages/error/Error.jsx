@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../utils/authHooks";
 import Footer from "../../components/layout/Footer";
 
 export const Error = () => {

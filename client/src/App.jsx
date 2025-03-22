@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
 import Header from "./components/Header/Header";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+// Force refresh with timestamp
+import { useAuth } from "./utils/authHooks";
 import PropTypes from "prop-types";
 import LecturesPage from "./pages/LecturesPage/LecturesPage";
 import LectureDetailPage from "./pages/LectureDetailPage/LectureDetailPage";

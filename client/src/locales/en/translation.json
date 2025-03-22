@@ -1,0 +1,134 @@
+{
+  "app": {
+    "name": "Brief"
+  },
+  "nav": {
+    "howItWorks": "How it Works",
+    "whyUs": "Why Brief",
+    "pricing": "Pricing",
+    "login": "Login",
+    "register": "Register",
+    "tryPro": "Try Pro",
+    "dashboard": "Dashboard",
+    "profile": "Profile"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete"
+  },
+  "landing": {
+    "hero": {
+      "tagline": "Built by students, for students 🎓",
+      "title": "Don't Struggle, Make It ",
+      "subtitle": "Your personal AI study assistant that transforms your study notes into flashcards and study briefs in seconds.",
+      "startLearning": "Start Learning"
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "subtitle": "Three simple steps to transform your study materials into effective learning tools.",
+      "upload": {
+        "title": "Upload Your Notes",
+        "description": "Simply upload your lecture notes or study materials. Works with PDFs, Word docs, text files and more."
+      },
+      "process": {
+        "title": "AI Processing",
+        "description": "Our advanced AI analyzes your content and automatically generates comprehensive flashcards and study briefs."
+      },
+      "learn": {
+        "title": "Start Learning",
+        "description": "Review and learn with your personalized study materials. Track your progress and master subjects efficiently."
+      }
+    },
+    "whyUs": {
+      "tagline": "THE BRIEF ADVANTAGE",
+      "title": "Why Students Are Obsessed",
+      "subtitle": "Created by students who understand the struggle, for students who deserve better.",
+      "saveTime": {
+        "title": "Save Massive Time",
+        "description": "Our AI-powered system transforms lengthy notes into concise, memorable study materials within minutes, freeing you to focus where it matters most."
+      },
+      "grades": {
+        "title": "Level Up Your Grades",
+        "description": "Our organized study materials help boost retention and understanding, leading to improved exam performance and higher overall grades."
+      },
+      "smarter": {
+        "title": "Study Smarter, Not Harder",
+        "description": "Our intelligent tools help you focus on what you need to learn, maximizing study efficiency and helping you master complex topics."
+      },
+      "joinOthers": "Join 10,000+ students already crushing their studies"
+    },
+    "pricing": {
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "Choose the perfect plan for your study needs with no hidden fees",
+      "free": {
+        "title": "Free",
+        "subtitle": "Great place to get started",
+        "price": "$0",
+        "period": "/forever",
+        "features": [
+          "Up to 3 subjects",
+          "5 lectures per subject",
+          "Generate up to 20 flashcards",
+          "Basic note summarization",
+          "PDF file support up to 5MB"
+        ],
+        "cta": "Get Started"
+      },
+      "pro": {
+        "title": "Pro",
+        "popular": "Popular",
+        "subtitle": "Everything you need to ace your classes",
+        "price": "$2",
+        "period": "/month",
+        "features": [
+          "Unlimited subjects",
+          "Unlimited lectures",
+          "Generate unlimited flashcards",
+          "Advanced AI-powered summaries",
+          "PDF file support up to 50MB"
+        ],
+        "cta": "Upgrade Now"
+      }
+    },
+    "cta": {
+      "title": "Ready to Transform Your Study Experience?",
+      "subtitle": "Join thousands of students who are already studying smarter",
+      "button": "Get Started Now"
+    },
+    "newsletter": {
+      "title": "Stay Updated with Brief",
+      "subtitle": "Get the latest updates about new features and study tips delivered to your inbox",
+      "placeholder": "Enter your email",
+      "button": "Subscribe"
+    }
+  },
+  "footer": {
+    "description": "Helping students transform the way they study and learn with AI-powered tools",
+    "quickLinks": {
+      "title": "Quick Links",
+      "home": "Home",
+      "dashboard": "Dashboard",
+      "flashcards": "Flashcards",
+      "studyGuide": "Study Guide"
+    },
+    "support": {
+      "title": "Support",
+      "helpCenter": "Help Center",
+      "faqs": "FAQs",
+      "contactUs": "Contact Us",
+      "community": "Community"
+    },
+    "legal": {
+      "title": "Legal",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "cookies": "Cookie Policy",
+      "security": "Security"
+    },
+    "copyright": "© {year} Brief. All rights reserved."
+  }
+}

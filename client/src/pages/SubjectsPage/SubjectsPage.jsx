@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/supabaseClient";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../utils/authHooks";
 import { CirclePlus, Search } from "lucide-react";
 import SubjectCard from "./SubjectCard";
 import NewSubjectModal from "./NewSubjectModal";

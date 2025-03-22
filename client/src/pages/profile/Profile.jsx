@@ -1,4 +1,4 @@
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../utils/authHooks";
 import { useNavigate } from "react-router-dom";
 
 const Profile = () => {

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { background, text } from "../../../utils/themeUtils";
 
 const HowitWorks = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const { t } = useTranslation();
 
   useEffect(() => {
     // Function to update window width
@@ -28,13 +30,12 @@ const HowitWorks = () => {
         <h2
           className={`text-5xl font-bold text-center mb-4 ${text("primary")}`}
         >
-          How It Works
+          {t("landing.howItWorks.title")}
         </h2>
         <p
           className={`text-center mb-16 max-w-2xl mx-auto ${text("tertiary")}`}
         >
-          Three simple steps to transform your study materials into effective
-          learning tools.
+          {t("landing.howItWorks.subtitle")}
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -60,15 +61,12 @@ const HowitWorks = () => {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3 text-gray-900">
-                Upload Your Notes
+                {t("landing.howItWorks.upload.title")}
               </h3>
               <p className="text-gray-600 text-sm">
-                Simply upload your lecture notes or study materials. Works with
-                PDFs, Word docs, text files and more.
+                {t("landing.howItWorks.upload.description")}
               </p>
-              <div className="mt-auto pt-12 flex justify-center">
-               
-              </div>
+              <div className="mt-auto pt-12 flex justify-center"></div>
             </div>
           </div>
 
@@ -93,11 +91,10 @@ const HowitWorks = () => {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3 text-gray-900">
-                AI Processing
+                {t("landing.howItWorks.process.title")}
               </h3>
               <p className="text-gray-600 text-sm">
-                Our advanced AI analyzes your content and automatically
-                generates comprehensive flashcards and study briefs.
+                {t("landing.howItWorks.process.description")}
               </p>
             </div>
 
@@ -121,11 +118,10 @@ const HowitWorks = () => {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3 text-gray-900">
-                Start Learning
+                {t("landing.howItWorks.learn.title")}
               </h3>
               <p className="text-gray-600 text-sm">
-                Review and learn with your personalized study materials. Track
-                your progress and master subjects efficiently.
+                {t("landing.howItWorks.learn.description")}
               </p>
             </div>
           </div>

@@ -1,4 +1,9 @@
+import { useTranslation } from "react-i18next";
+
 const Footer = () => {
+  const { t } = useTranslation();
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="theme-bg-primary py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -7,12 +12,11 @@ const Footer = () => {
           <div>
             <div className="flex items-center mb-4">
               <span className="text-lg font-bold theme-text-primary">
-                Brief
+                {t("app.name")}
               </span>
             </div>
             <p className="text-sm theme-text-tertiary mb-4">
-              Helping students transform the way they study and learn with
-              AI-powered tools
+              {t("footer.description")}
             </p>
             <div className="flex space-x-4">
               <a
@@ -64,7 +68,7 @@ const Footer = () => {
           {/* Quick Links */}
           <div>
             <h4 className="text-sm font-semibold uppercase theme-text-primary mb-4">
-              Quick Links
+              {t("footer.quickLinks.title")}
             </h4>
             <ul className="space-y-2">
               <li>
@@ -72,7 +76,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Home
+                  {t("footer.quickLinks.home")}
                 </a>
               </li>
               <li>
@@ -80,7 +84,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Dashboard
+                  {t("footer.quickLinks.dashboard")}
                 </a>
               </li>
               <li>
@@ -88,7 +92,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Flashcards
+                  {t("footer.quickLinks.flashcards")}
                 </a>
               </li>
               <li>
@@ -96,7 +100,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Study Guide
+                  {t("footer.quickLinks.studyGuide")}
                 </a>
               </li>
             </ul>
@@ -105,7 +109,7 @@ const Footer = () => {
           {/* Support */}
           <div>
             <h4 className="text-sm font-semibold uppercase theme-text-primary mb-4">
-              Support
+              {t("footer.support.title")}
             </h4>
             <ul className="space-y-2">
               <li>
@@ -113,7 +117,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Help Center
+                  {t("footer.support.helpCenter")}
                 </a>
               </li>
               <li>
@@ -121,7 +125,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  FAQs
+                  {t("footer.support.faqs")}
                 </a>
               </li>
               <li>
@@ -129,7 +133,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Contact Us
+                  {t("footer.support.contactUs")}
                 </a>
               </li>
               <li>
@@ -137,7 +141,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Community
+                  {t("footer.support.community")}
                 </a>
               </li>
             </ul>
@@ -146,7 +150,7 @@ const Footer = () => {
           {/* Legal */}
           <div>
             <h4 className="text-sm font-semibold uppercase theme-text-primary mb-4">
-              Legal
+              {t("footer.legal.title")}
             </h4>
             <ul className="space-y-2">
               <li>
@@ -154,7 +158,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Terms of Service
+                  {t("footer.legal.terms")}
                 </a>
               </li>
               <li>
@@ -162,7 +166,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Privacy Policy
+                  {t("footer.legal.privacy")}
                 </a>
               </li>
               <li>
@@ -170,7 +174,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Cookie Policy
+                  {t("footer.legal.cookies")}
                 </a>
               </li>
               <li>
@@ -178,7 +182,7 @@ const Footer = () => {
                   href="#"
                   className="text-sm theme-text-tertiary hover:theme-text-primary transition-colors"
                 >
-                  Security
+                  {t("footer.legal.security")}
                 </a>
               </li>
             </ul>
@@ -187,7 +191,7 @@ const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="theme-border-primary border-t pt-8 text-center text-sm theme-text-tertiary">
-          © {new Date().getFullYear()} Brief. All rights reserved.
+          {t("footer.copyright", { year: currentYear })}
         </div>
       </div>
     </footer>
