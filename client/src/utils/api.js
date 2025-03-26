@@ -1,6 +1,22 @@
 import axios from "axios";
 import { BACKEND_URL } from "../helpers/helpers";
 
+// Use a fixed API URL for all endpoints - no dynamic detection
+const API_URL = "http://localhost:5000";
+
+console.log("API Configuration:", {
+  API_URL,
+  environment: import.meta.env.MODE,
+});
+
+// Create custom axios instance with longer timeout
+const apiClient = axios.create({
+  timeout: 60000, // 60 second timeout
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
 const handleProcessPdf = async (userId, lectureId, fileId) => {
   try {
     // Validate input parameters.
@@ -8,8 +24,10 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
       throw new Error("Missing required parameters");
     }
 
-    // Make API call to process PDF.
-    const response = await axios.post(`${BACKEND_URL}/api/process-pdf`, {
+    console.log(`Sending PDF processing request for lecture ${lectureId}`);
+
+    // Use the API client with fixed endpoint
+    const response = await apiClient.post(`${API_URL}/api/process-pdf`, {
       userId,
       lectureId,
       fileId,
@@ -78,7 +96,7 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
 
 const handleProcessBrief = async (userId, lectureId, fileId) => {
   try {
-    // Enhanced input validation
+    // Validate input parameters
     if (!userId || typeof userId !== "string") {
       throw new Error("Invalid user ID");
     }
@@ -89,7 +107,10 @@ const handleProcessBrief = async (userId, lectureId, fileId) => {
       throw new Error("Invalid file ID");
     }
 
-    const response = await axios.post(`${BACKEND_URL}/api/detailed-brief`, {
+    console.log(`Sending brief processing request for lecture ${lectureId}`);
+
+    // Use the API client with fixed endpoint
+    const response = await apiClient.post(`${API_URL}/api/detailed-brief`, {
       userId,
       lectureId,
       fileId,
@@ -163,7 +184,10 @@ async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
     const lectureIdStr = String(lectureId);
     const fileIdStr = String(fileId);
 
-    const response = await axios.post(`${BACKEND_URL}/api/process-quiz`, {
+    console.log(`Sending quiz processing request for lecture ${lectureIdStr}`);
+
+    // Use the API client with fixed endpoint
+    const response = await apiClient.post(`${API_URL}/api/process-quiz`, {
       userId: userIdStr,
       lectureId: lectureIdStr,
       fileId: fileIdStr,

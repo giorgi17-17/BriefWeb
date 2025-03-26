@@ -1,11 +1,14 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CircleUserRound, Menu, X } from "lucide-react";
+import { CircleUserRound, Menu, X, Crown } from "lucide-react";
 import { useAuth } from "../../utils/authHooks";
 import ThemeToggle from "../ui/ThemeToggle";
 import LanguageSwitcher from "../ui/LanguageSwitcher";
 import { usePostHog } from "posthog-js/react";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
+import PlanStatusBadge from "../PlanStatusBadge";
+import { useUserPlan } from "../../contexts/UserPlanContext";
+import { supabase } from "../../utils/supabaseClient";
 
 function Header() {
   const { user } = useAuth();
@@ -14,11 +17,48 @@ function Header() {
   const posthog = usePostHog();
   const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isFree } = useUserPlan();
 
   // Close mobile menu when changing routes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Function to upgrade to premium
+  const upgradeToPremium = async (e) => {
+    e.preventDefault();
+
+    try {
+      if (!user) return;
+
+      // Direct Supabase insert/update
+      const { error } = await supabase.from("user_plans").upsert({
+        user_id: user.id,
+        plan_type: "premium",
+        subject_limit: 999,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      // Track the upgrade event
+      try {
+        posthog.capture("premium_upgrade_clicked", {
+          location: "header",
+          current_path: location.pathname,
+          user_id: user?.id || "anonymous",
+        });
+      } catch (trackError) {
+        console.error("PostHog event error:", trackError);
+      }
+
+      // Success - refresh the page to update plan state
+      window.location.reload();
+    } catch (err) {
+      console.error("Error upgrading to premium:", err);
+      alert("Could not upgrade to premium. Please try again.");
+    }
+  };
 
   const tryPro = (e) => {
     e.preventDefault();
@@ -84,6 +124,13 @@ function Header() {
               )}
             </div>
 
+            {/* Plan status badge for logged-in users */}
+            {user && (
+              <div className="ml-3">
+                <PlanStatusBadge />
+              </div>
+            )}
+
             {/* Desktop Navigation Links - only show on homepage when not logged in */}
             {location.pathname === "/" && (
               <div className="hidden md:ml-12 md:flex md:items-center md:space-x-8">
@@ -113,15 +160,17 @@ function Header() {
           <div className="hidden md:flex items-center">
             {user ? (
               <div className="flex items-center space-x-4">
-                {/* try pro */}
-                <div>
+                {/* Upgrade to premium button for free users */}
+                {isFree && user && (
                   <button
-                    onClick={tryPro}
-                    className="bg-blue-700 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    onClick={upgradeToPremium}
+                    className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-sm font-medium py-1.5 px-3 rounded-full transition-colors"
                   >
-                    {t("nav.tryPro")}
+                    <Crown size={14} />
+                    <span>Upgrade</span>
                   </button>
-                </div>
+                )}
+
                 <button
                   onClick={handleProfileClick}
                   className="flex items-center theme-text-secondary"
@@ -165,8 +214,20 @@ function Header() {
           {/* Mobile menu button */}
           <div className="flex md:hidden">
             <div className="flex items-center space-x-3">
-              {/* Try Pro button in mobile header */}
-              {!location.pathname.includes("/login") &&
+              {/* Upgrade button in mobile header for logged-in free users */}
+              {user && isFree && (
+                <button
+                  onClick={upgradeToPremium}
+                  className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-medium py-1 px-2 rounded-full"
+                >
+                  <Crown size={12} />
+                  <span>Upgrade</span>
+                </button>
+              )}
+
+              {/* Try Pro button in mobile header for non-logged-in users */}
+              {!user &&
+                !location.pathname.includes("/login") &&
                 !location.pathname.includes("/register") && (
                   <button
                     onClick={tryPro}
@@ -249,12 +310,14 @@ function Header() {
                       <Link
                         to="/login"
                         className="theme-text-secondary hover:theme-text-primary px-4 py-3 rounded-md flex items-center justify-end text-base font-medium"
+                        onClick={() => setMobileMenuOpen(false)}
                       >
                         {t("nav.login")}
                       </Link>
                       <Link
                         to="/register"
                         className="theme-text-secondary hover:theme-text-primary px-4 py-3 rounded-md flex items-center justify-end text-base font-medium"
+                        onClick={() => setMobileMenuOpen(false)}
                       >
                         {t("nav.register")}
                       </Link>

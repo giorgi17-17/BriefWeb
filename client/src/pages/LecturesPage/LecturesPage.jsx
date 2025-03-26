@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, Plus, AlertCircle } from "lucide-react";
 import SEO from "../../components/SEO/SEO";
 import { useTranslation } from "react-i18next";
 import { getLocalizedSeoField } from "../../utils/seoTranslations";
 import { getCanonicalUrl } from "../../utils/languageSeo";
+import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const LecturesPage = () => {
   const location = useLocation();
@@ -20,6 +21,10 @@ const LecturesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingLecture, setIsAddingLecture] = useState(false);
   const { user } = useAuth();
+  const { isPremium, canCreateLecture, MAX_FREE_LECTURES_PER_SUBJECT } =
+    useUserPlan();
+  const { t: translationT } = useTranslation();
+  const [canAdd, setCanAdd] = useState(true);
 
   useEffect(() => {
     const fetchLecturesData = async () => {
@@ -88,11 +93,34 @@ const LecturesPage = () => {
     fetchLecturesData();
   }, [user, navigate, subjectId]);
 
+  // Check if user can add more lectures when lectures change
+  useEffect(() => {
+    if (!subjectId) return;
+
+    async function checkCanAdd() {
+      const result = await canCreateLecture(subjectId);
+      setCanAdd(result);
+    }
+
+    if (!isPremium) {
+      checkCanAdd();
+    }
+  }, [lectures, subjectId, isPremium, canCreateLecture]);
+
   const addLecture = async () => {
     if (!subject || !subjectId || isAddingLecture) return;
 
     try {
       setIsAddingLecture(true);
+
+      // Check if the user can create another lecture
+      if (!isPremium && lectures.length >= MAX_FREE_LECTURES_PER_SUBJECT) {
+        setError(
+          "Free plan users can create up to 5 lectures per subject. Upgrade to premium for unlimited lectures."
+        );
+        return;
+      }
+
       // Use the current lectures length + 1 for the lecture title.
       const newLecture = {
         subject_id: subjectId,
@@ -243,7 +271,7 @@ const LecturesPage = () => {
         />
 
         {/* Header Section */}
-        <div className="theme-bg-primary  ">
+        <div className="theme-bg-primary">
           <div className="max-w-7xl mx-auto py-6 px-4">
             <button
               onClick={() => navigate("/dashboard")}
@@ -261,17 +289,71 @@ const LecturesPage = () => {
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4">
           <div className="theme-card rounded-xl shadow-sm theme-border overflow-hidden">
-            <div className="p-6 theme-border border-b">
+            <div className="p-6 theme-border border-b flex justify-between items-center">
               <h2 className="text-xl font-semibold theme-text-primary">
                 Lectures {!isLoading && `(${lectures.length})`}
               </h2>
+
+              {/* Add lecture button - integrated into the header card */}
+              {!isLoading && (
+                <div className="flex items-center">
+                  {!canAdd ? (
+                    <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex items-center mr-2">
+                      <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                      <span className="text-sm">
+                        Lecture limit reached. Upgrade to premium.
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={addLecture}
+                      className="theme-button-primary flex items-center px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                      disabled={isAddingLecture || !canAdd}
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      <span>
+                        {isAddingLecture ? "Adding..." : "Add Lecture"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="p-6">
               {isLoading ? (
                 renderLoadingState()
               ) : lectures.length === 0 ? (
-                renderEmptyState()
+                <div className="text-center py-12">
+                  <div className="mb-4">
+                    <Plus className="w-12 h-12 mx-auto theme-text-tertiary" />
+                  </div>
+                  <p className="theme-text-tertiary text-lg mb-6">
+                    No lectures yet. Add your first lecture to get started.
+                  </p>
+
+                  {/* Empty state - prominent add button */}
+                  {canAdd ? (
+                    <button
+                      onClick={addLecture}
+                      className="theme-button-primary flex items-center px-6 py-3 rounded-lg mx-auto transition-all duration-300 hover:scale-105"
+                      disabled={isAddingLecture}
+                    >
+                      <Plus className="w-6 h-6 mr-2" />
+                      <span className="text-lg font-medium">
+                        Create First Lecture
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="bg-amber-50 text-amber-800 p-4 rounded-lg max-w-md mx-auto">
+                      <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                      <p>
+                        Lecture limit reached. Upgrade to premium for unlimited
+                        lectures.
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {lectures.map(renderLectureCard)}
@@ -285,23 +367,7 @@ const LecturesPage = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 theme-bg-primary">
-      {renderContent()}
-
-      {/* Fixed Add Button */}
-      <div className="fixed bottom-0 left-0 right-0 theme-bg-primary theme-border border-t p-4 backdrop-blur-lg bg-opacity-90">
-        <div className="max-w-7xl mx-auto px-4">
-          <button
-            onClick={addLecture}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center font-medium disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-700 dark:hover:bg-blue-800"
-            disabled={isLoading || isAddingLecture}
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            {isAddingLecture ? "Adding..." : "Add New Lecture"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <div className="min-h-screen pb-24 theme-bg-primary">{renderContent()}</div>
   );
 };
 

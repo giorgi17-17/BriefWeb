@@ -12,8 +12,10 @@ import {
 } from "lucide-react";
 import { handleProcessQuiz } from "../../utils/api";
 import { supabase } from "../../utils/supabaseClient";
+import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const Quiz = ({ selectedFile, user, lectureId }) => {
+  const { isPremium } = useUserPlan();
   const [quiz, setQuiz] = useState(null);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -644,9 +646,15 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
     );
   };
 
+  const shouldShowGenerateButton = () => {
+    // Always show when no quiz exists yet
+    if (noQuizExists || !quiz) return true;
+    // For existing quizzes, only show regenerate for premium users
+    return isPremium;
+  };
+
   return (
     <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -661,21 +669,24 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
                 <Settings className="h-4 w-4 mr-1" />
                 Options
               </button>
-              <button
-                onClick={generateQuiz}
-                disabled={loading || !selectedFile}
-                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
-                  ${
-                    loading || !selectedFile
-                      ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                      : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-                  }`}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-                />
-                {quiz ? "Regenerate" : "Generate"} Quiz
-              </button>
+
+              {shouldShowGenerateButton() && (
+                <button
+                  onClick={generateQuiz}
+                  disabled={loading || !selectedFile}
+                  className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
+                    ${
+                      loading || !selectedFile
+                        ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                        : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                    }`}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                  />
+                  {quiz ? "Regenerate" : "Generate"} Quiz
+                </button>
+              )}
             </div>
           ) : null}
         </div>
@@ -683,81 +694,31 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
         {showOptions && renderOptionsPanel()}
       </div>
 
-      {/* Content */}
       <div className="p-4">
-        {quizQuestions.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600 dark:text-gray-300">
+              {isGenerating ? "Generating quiz..." : "Loading quiz..."}
+            </span>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg text-red-700 dark:text-red-300 flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        ) : showOptions ? (
+          renderOptionsPanel()
+        ) : quizQuestions.length > 0 ? (
           showResults ? (
-            <div className="space-y-6">
-              <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 text-center">
-                <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300">
-                  Quiz Results
-                </h3>
-                <div className="mt-2 text-blue-700 dark:text-blue-300">
-                  {calculateScore().total > 0 && (
-                    <p>
-                      Multiple Choice Score:{" "}
-                      <span className="font-semibold">
-                        {calculateScore().score}/{calculateScore().total}
-                      </span>
-                    </p>
-                  )}
-                  {calculateScore().openEndedCount > 0 && (
-                    <p className="mt-1">
-                      You answered {calculateScore().openEndedCount} open-ended
-                      questions
-                    </p>
-                  )}
-                  {calculateScore().caseStudyModerateCount > 0 && (
-                    <p className="mt-1">
-                      You completed {calculateScore().caseStudyModerateCount}{" "}
-                      moderate difficulty case study
-                    </p>
-                  )}
-                  {calculateScore().caseStudyAdvancedCount > 0 && (
-                    <p className="mt-1">
-                      You completed {calculateScore().caseStudyAdvancedCount}{" "}
-                      advanced difficulty case study
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div>
+              <h3 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-4">
+                Quiz Results: {calculateScore().score} /{" "}
+                {calculateScore().total} Correct
+              </h3>
 
-              <div className="space-y-4">
-                {quizQuestions.map((question, index) => (
-                  <div
-                    key={question.id}
-                    className="border dark:border-gray-700 rounded-lg p-4 dark:bg-gray-800"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-medium dark:text-gray-200">
-                        Question {index + 1}
-                      </h3>
-                      {question.question_type === "multiple_choice" && (
-                        <div className="flex items-center">
-                          {userAnswers[question.id] ===
-                          question.options.find((opt) => opt.is_correct)?.id ? (
-                            <div className="text-green-500 dark:text-green-400 flex items-center">
-                              <Check className="h-4 w-4 mr-1" /> Correct
-                            </div>
-                          ) : (
-                            <div className="text-red-500 dark:text-red-400 flex items-center">
-                              <X className="h-4 w-4 mr-1" /> Incorrect
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Only show question text directly for multiple choice and open-ended */}
-                    {!question.question_type.startsWith("case_study") && (
-                      <p className="mb-3 text-gray-700 dark:text-gray-300">
-                        {question.question_text}
-                      </p>
-                    )}
-
-                    {renderResultByType(question)}
-                  </div>
-                ))}
+              <div className="space-y-6 mb-6">
+                {quizQuestions.map((question) => renderResultByType(question))}
               </div>
 
               <div className="flex justify-center mt-4">
@@ -767,6 +728,17 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
                 >
                   Retake Quiz
                 </button>
+
+                {isPremium && (
+                  <button
+                    onClick={() => {
+                      setShowOptions(true);
+                    }}
+                    className="ml-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-md"
+                  >
+                    Generate New Quiz
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -776,7 +748,6 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
               </div>
 
               <div className="space-y-4">
-                {/* Only show question text directly for multiple choice and open-ended */}
                 {!currentQuestion?.question_type.startsWith("case_study") && (
                   <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                     {currentQuestion?.question_text}
@@ -827,58 +798,44 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
               </div>
             </div>
           )
+        ) : noQuizExists ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="space-y-4">
+              <p>No quiz has been generated for this document yet.</p>
+              {!showOptions && (
+                <div className="flex justify-center space-x-2">
+                  <button
+                    onClick={toggleOptionsPanel}
+                    className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium
+                      bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Configure
+                  </button>
+                  <button
+                    onClick={generateQuiz}
+                    disabled={loading || !selectedFile}
+                    className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium
+                      ${
+                        loading || !selectedFile
+                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 mr-2 ${
+                        loading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Generate Quiz
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {noQuizExists ? (
-              <div className="space-y-4">
-                <p>No quiz has been generated for this document yet.</p>
-                {!showOptions ? (
-                  <div className="flex justify-center space-x-2">
-                    <button
-                      onClick={toggleOptionsPanel}
-                      className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium
-                        bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Configure
-                    </button>
-                    <button
-                      onClick={generateQuiz}
-                      disabled={loading || !selectedFile}
-                      className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium
-                        ${
-                          loading || !selectedFile
-                            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-700"
-                        }`}
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 mr-2 ${
-                          loading ? "animate-spin" : ""
-                        }`}
-                      />
-                      Generate Quiz
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                    <p>Generating quiz...</p>
-                  </>
-                ) : loading ? (
-                  <>
-                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                    <p>Loading quiz...</p>
-                  </>
-                ) : (
-                  <p>Select a file and click Generate to create a quiz</p>
-                )}
-              </div>
-            )}
+            Something went wrong. Please try again.
           </div>
         )}
       </div>

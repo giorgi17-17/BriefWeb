@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "dev3000": "nodemon server-3000.js",
+    "dev-both": "concurrently \"npm run dev\" \"npm run dev3000\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.46.1",
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "axios": "^1.8.2",
+    "concurrently": "^9.1.2",
     "nodemon": "^2.0.22"
   },
   "type": "module"

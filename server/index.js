@@ -3,11 +3,13 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import apiRoutes from "./routes/api.js";
+import http from "http";
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+// Base port to try first
+const basePort = process.env.PORT || 5000;
 
 // Enable CORS for your frontend domain
 app.use(
@@ -216,6 +218,26 @@ app.get("/mock-card-save", (req, res) => {
 // Routes
 app.use("/api", apiRoutes);
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
-});
+// Create HTTP server
+const server = http.createServer(app);
+
+// Try to start the server with port fallback logic
+function startServer(port) {
+  server.listen(port, () => {
+    console.log(`Server is running at http://localhost:${port}`);
+    // Save the actual port to a file that the client can read
+    console.log(`API_PORT=${port}`);
+  });
+
+  server.on("error", (e) => {
+    if (e.code === "EADDRINUSE") {
+      console.warn(`Port ${port} is already in use, trying port ${port + 1}`);
+      startServer(port + 1);
+    } else {
+      console.error("Server error:", e);
+    }
+  });
+}
+
+// Start server with initial port
+startServer(basePort);

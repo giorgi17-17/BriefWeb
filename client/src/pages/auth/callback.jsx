@@ -24,7 +24,97 @@ const AuthCallback = () => {
         }
 
         if (data?.session) {
-          console.log("Auth successful, redirecting to dashboard");
+          console.log(
+            "Auth successful, session found:",
+            data.session.user.email
+          );
+
+          // Check if this is a Google auth user and add to database if needed
+          const user = data.session.user;
+          console.log("User provider:", user.app_metadata?.provider);
+
+          if (user.app_metadata?.provider === "google") {
+            console.log(
+              "Google user authenticated, ensuring user exists in database"
+            );
+            try {
+              // First check if user already exists in our users table
+              const { data: existingUser, error: fetchError } = await supabase
+                .from("users")
+                .select("user_id")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              if (fetchError) {
+                console.error("Error checking for existing user:", fetchError);
+              } else if (!existingUser) {
+                // User doesn't exist, add them
+                console.log("Adding Google user to database:", user.email);
+                const { error: insertError } = await supabase
+                  .from("users")
+                  .insert([
+                    {
+                      user_id: user.id,
+                      email: user.email,
+                      created_at: new Date().toISOString(),
+                    },
+                  ]);
+
+                if (insertError) {
+                  console.error("Error adding user to database:", insertError);
+                } else {
+                  console.log("Successfully added Google user to database");
+                }
+              } else {
+                console.log("Google user already exists in database");
+              }
+
+              // Now check if user exists in user_plans table
+              const { data: existingPlan, error: planFetchError } =
+                await supabase
+                  .from("user_plans")
+                  .select("*")
+                  .eq("user_id", user.id)
+                  .maybeSingle();
+
+              if (planFetchError) {
+                console.error(
+                  "Error checking for existing plan:",
+                  planFetchError
+                );
+              } else if (!existingPlan) {
+                // Add user to user_plans table with free plan
+                console.log(
+                  "Adding Google user to user_plans table with free plan"
+                );
+                const { error: planInsertError } = await supabase
+                  .from("user_plans")
+                  .insert([
+                    {
+                      user_id: user.id,
+                      plan_type: "free",
+                      subject_limit: 3,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    },
+                  ]);
+
+                if (planInsertError) {
+                  console.error("Error adding user plan:", planInsertError);
+                } else {
+                  console.log(
+                    "Successfully added Google user to user_plans table"
+                  );
+                }
+              } else {
+                console.log("Google user already exists in user_plans table");
+              }
+            } catch (err) {
+              console.error("Error handling Google auth user:", err);
+            }
+          }
+
+          console.log("Redirecting to dashboard");
           navigate("/dashboard");
         } else {
           console.log("No session found, redirecting to login");

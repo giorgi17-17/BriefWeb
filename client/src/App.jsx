@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { HelmetProvider } from 'react-helmet-async';
+import { HelmetProvider } from "react-helmet-async";
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
 import Header from "./components/Header/Header";
@@ -22,6 +22,7 @@ import { useEffect } from "react";
 import { PostHogProvider } from "posthog-js/react";
 import AuthCallback from "./pages/auth/callback";
 import { supabase } from "./utils/supabaseClient";
+import { UserPlanProvider } from "./contexts/UserPlanContext";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -56,6 +57,107 @@ function ProtectedRoute({ children }) {
               "OAuth session established:",
               data.session ? "Yes" : "No"
             );
+
+            // Check if we need to add the user to our database
+            if (data.session?.user) {
+              const user = data.session.user;
+              console.log("User from OAuth redirect:", user.email);
+
+              if (user.app_metadata?.provider === "google") {
+                console.log(
+                  "Google user from redirect, ensuring user exists in database"
+                );
+                try {
+                  // Check if user already exists
+                  const { data: existingUser, error: fetchError } =
+                    await supabase
+                      .from("users")
+                      .select("user_id")
+                      .eq("user_id", user.id)
+                      .maybeSingle();
+
+                  if (fetchError) {
+                    console.error(
+                      "Error checking for existing user:",
+                      fetchError
+                    );
+                  } else if (!existingUser) {
+                    // Add user to database
+                    console.log("Adding Google user to database from redirect");
+                    const { error: insertError } = await supabase
+                      .from("users")
+                      .insert([
+                        {
+                          user_id: user.id,
+                          email: user.email,
+                          created_at: new Date().toISOString(),
+                        },
+                      ]);
+
+                    if (insertError) {
+                      console.error(
+                        "Error adding user from redirect:",
+                        insertError
+                      );
+                    } else {
+                      console.log(
+                        "Successfully added Google user from redirect"
+                      );
+                    }
+                  } else {
+                    console.log("Google user already exists in database");
+                  }
+
+                  // Now check if user exists in user_plans table
+                  const { data: existingPlan, error: planFetchError } =
+                    await supabase
+                      .from("user_plans")
+                      .select("*")
+                      .eq("user_id", user.id)
+                      .maybeSingle();
+
+                  if (planFetchError) {
+                    console.error(
+                      "Error checking for existing plan:",
+                      planFetchError
+                    );
+                  } else if (!existingPlan) {
+                    // Add user to user_plans table with free plan
+                    console.log(
+                      "Adding Google user to user_plans table from redirect"
+                    );
+                    const { error: planInsertError } = await supabase
+                      .from("user_plans")
+                      .insert([
+                        {
+                          user_id: user.id,
+                          plan_type: "free",
+                          subject_limit: 3,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        },
+                      ]);
+
+                    if (planInsertError) {
+                      console.error(
+                        "Error adding user plan from redirect:",
+                        planInsertError
+                      );
+                    } else {
+                      console.log(
+                        "Successfully added Google user to user_plans table from redirect"
+                      );
+                    }
+                  } else {
+                    console.log(
+                      "Google user already exists in user_plans table"
+                    );
+                  }
+                } catch (err) {
+                  console.error("Error handling user from redirect:", err);
+                }
+              }
+            }
           }
 
           // Clean up the URL by removing the hash without page reload
@@ -103,72 +205,74 @@ function App() {
           options={posthogOptions}
         >
           <AuthProvider>
-            <BrowserRouter>
-              {/* Full-page background wrapper */}
-              <div className="min-h-screen w-full theme-bg-primary">
-                <Header />
-                <div className="container mx-auto px-4 py-8">
-                  <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/auth/callback" element={<AuthCallback />} />
-                    <Route path="/payments" element={<PaymentsPage />} />
-                    <Route
-                      path="/payment-success"
-                      element={<PaymentSuccessPage />}
-                    />
-                    <Route
-                      path="/payment-failure"
-                      element={<PaymentFailurePage />}
-                    />
-                    <Route path="/" element={<Home />} />
-                    <Route path="/design-system" element={<DesignSystem />} />
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <ProtectedRoute>
-                          <Dashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/lectures"
-                      element={
-                        <ProtectedRoute>
-                          <LecturesPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/subjects/:name"
-                      element={
-                        <ProtectedRoute>
-                          <LecturesPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/subjects/:name/lectures/:lectureId"
-                      element={
-                        <ProtectedRoute>
-                          <LectureDetailPage />
-                        </ProtectedRoute>
-                      }
-                    />
+            <UserPlanProvider>
+              <BrowserRouter>
+                {/* Full-page background wrapper */}
+                <div className="min-h-screen w-full theme-bg-primary">
+                  <Header />
+                  <div className="container mx-auto px-4 py-8">
+                    <Routes>
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
+                      <Route path="/payments" element={<PaymentsPage />} />
+                      <Route
+                        path="/payment-success"
+                        element={<PaymentSuccessPage />}
+                      />
+                      <Route
+                        path="/payment-failure"
+                        element={<PaymentFailurePage />}
+                      />
+                      <Route path="/" element={<Home />} />
+                      <Route path="/design-system" element={<DesignSystem />} />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/lectures"
+                        element={
+                          <ProtectedRoute>
+                            <LecturesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/subjects/:name"
+                        element={
+                          <ProtectedRoute>
+                            <LecturesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/subjects/:name/lectures/:lectureId"
+                        element={
+                          <ProtectedRoute>
+                            <LectureDetailPage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route path="*" element={<Error />} />
-                  </Routes>
+                      <Route path="*" element={<Error />} />
+                    </Routes>
+                  </div>
                 </div>
-              </div>
-            </BrowserRouter>
+              </BrowserRouter>
+            </UserPlanProvider>
           </AuthProvider>
         </PostHogProvider>
       </ThemeProvider>

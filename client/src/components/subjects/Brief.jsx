@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { handleProcessBrief } from "../../utils/api";
 import { supabase } from "../../utils/supabaseClient";
+import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const Brief = ({ selectedFile, user, lectureId }) => {
   const [brief, setBrief] = useState(null);
@@ -15,6 +16,7 @@ const Brief = ({ selectedFile, user, lectureId }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [noBriefExists, setNoBriefExists] = useState(false);
+  const { isPremium } = useUserPlan();
   console.log(brief);
   useEffect(() => {
     if (lectureId) {
@@ -297,21 +299,25 @@ const Brief = ({ selectedFile, user, lectureId }) => {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             Document Summary
           </h2>
-          <button
-            onClick={generateBrief}
-            disabled={isLoading || !selectedFile}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
-              ${
-                isLoading || !selectedFile
-                  ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                  : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
-              }`}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-            />
-            {brief ? "Regenerate" : "Generate"} Summary
-          </button>
+
+          {/* Only show button if no brief exists yet OR user is premium */}
+          {(noBriefExists || !brief || isPremium) && (
+            <button
+              onClick={generateBrief}
+              disabled={isLoading || !selectedFile}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
+                ${
+                  isLoading || !selectedFile
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                }`}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {brief ? "Regenerate" : "Generate"} Summary
+            </button>
+          )}
         </div>
       </div>
 

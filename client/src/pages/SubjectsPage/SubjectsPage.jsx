@@ -5,6 +5,8 @@ import { useAuth } from "../../utils/authHooks";
 import { CirclePlus, Search } from "lucide-react";
 import SubjectCard from "./SubjectCard";
 import NewSubjectModal from "./NewSubjectModal";
+import PlanAlert from "../../components/PlanAlert";
+import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const SubjectsPage = () => {
   const [subjects, setSubjects] = useState([]);
@@ -12,8 +14,10 @@ const SubjectsPage = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [canAdd, setCanAdd] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { canCreateSubject, isFree, subjectLimit } = useUserPlan();
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -32,12 +36,16 @@ const SubjectsPage = () => {
 
         if (error) throw error;
 
-        setSubjects(
-          subjectsData.map((subject) => ({
-            ...subject,
-            lectureCount: subject.lectures[0].count,
-          }))
-        );
+        const formattedSubjects = subjectsData.map((subject) => ({
+          ...subject,
+          lectureCount: subject.lectures[0].count,
+        }));
+
+        setSubjects(formattedSubjects);
+
+        // Check if user can add more subjects based on their plan
+        const canAddMore = await canCreateSubject();
+        setCanAdd(canAddMore);
       } catch (error) {
         console.error("Error fetching subjects:", error);
         setError(error.message);
@@ -47,7 +55,7 @@ const SubjectsPage = () => {
     };
 
     fetchSubjects();
-  }, [user]);
+  }, [user, canCreateSubject]);
 
   const handleSubjectClick = (subjectId) => {
     navigate(`/lectures?subjectId=${subjectId}`);
@@ -55,6 +63,16 @@ const SubjectsPage = () => {
 
   const handleAddSubject = async (subjectData) => {
     try {
+      // Verify again that the user can create more subjects
+      const canAddMore = await canCreateSubject();
+
+      if (!canAddMore && isFree) {
+        setError(
+          `You have reached the limit of ${subjectLimit} subjects on the free plan. Please upgrade to create more.`
+        );
+        return false;
+      }
+
       const { data, error } = await supabase
         .from("subjects")
         .insert([{ ...subjectData, user_id: user.id }])
@@ -64,6 +82,10 @@ const SubjectsPage = () => {
       if (error) throw error;
 
       setSubjects((prev) => [...prev, { ...data, lectureCount: 0 }]);
+
+      // Update the canAdd state after adding a new subject
+      setCanAdd(await canCreateSubject());
+
       return true;
     } catch (error) {
       console.error("Error adding subject:", error);
@@ -115,13 +137,21 @@ const SubjectsPage = () => {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="theme-button-primary flex items-center justify-center gap-2 px-4 py-2 rounded-md"
+              disabled={!canAdd && isFree}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md ${
+                !canAdd && isFree
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+                  : "theme-button-primary"
+              }`}
             >
               <CirclePlus className="h-5 w-5" />
               <span>Add Subject</span>
             </button>
           </div>
         </div>
+
+        {/* Plan alert banner for free users */}
+        {isFree && <PlanAlert />}
 
         {error && (
           <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-6">
@@ -141,7 +171,12 @@ const SubjectsPage = () => {
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="theme-button-primary flex items-center justify-center gap-2 px-4 py-2 rounded-md mx-auto"
+              disabled={!canAdd && isFree}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-md mx-auto ${
+                !canAdd && isFree
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+                  : "theme-button-primary"
+              }`}
             >
               <CirclePlus className="h-5 w-5" />
               <span>Add Subject</span>

@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
-export const SubjectCard = ({ subject, onEdit, onDelete }) => {
+export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
   const getFontSize = (text) => {
     if (text.length > 30) return "text-sm";
     if (text.length > 20) return "text-base";
@@ -19,13 +19,17 @@ export const SubjectCard = ({ subject, onEdit, onDelete }) => {
           >
             <FiEdit2 size={16} />
           </button>
-          <button
-            onClick={onDelete}
-            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-full transition-colors"
-            aria-label="Delete subject"
-          >
-            <FiTrash2 size={16} />
-          </button>
+
+          {/* Only show delete button for premium users */}
+          {isPremium && (
+            <button
+              onClick={onDelete}
+              className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-full transition-colors"
+              aria-label="Delete subject"
+            >
+              <FiTrash2 size={16} />
+            </button>
+          )}
         </div>
         <h3
           className={`${getFontSize(
@@ -49,6 +53,11 @@ SubjectCard.propTypes = {
   }).isRequired,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
+  isPremium: PropTypes.bool,
+};
+
+SubjectCard.defaultProps = {
+  isPremium: false,
 };
 
 export default SubjectCard;

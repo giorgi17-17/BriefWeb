@@ -8,11 +8,15 @@ import {
   processQuiz,
 } from "../controllers/documentController.js";
 import paymentRoutes from "./paymentRoutes.js";
+import userPlanRoutes from "./userPlanRoutes.js";
 
 const router = express.Router();
 
 // Mount payment routes
 router.use("/payments", paymentRoutes);
+
+// Mount user plan routes
+router.use("/user-plans", userPlanRoutes);
 
 router.post("/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
