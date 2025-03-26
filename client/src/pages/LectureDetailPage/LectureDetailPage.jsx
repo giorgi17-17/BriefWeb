@@ -159,7 +159,7 @@ const LectureDetailPage = () => {
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from("files").getPublicUrl(filePath);
+      } = supabase.storage.from("lecture-files").getPublicUrl(filePath);
 
       const { data: fileRecord, error: dbError } = await supabase
         .from("files")
@@ -187,20 +187,43 @@ const LectureDetailPage = () => {
   const handleDeleteFile = async (fileId) => {
     setError(null);
     try {
+      console.log("Deleting file with ID:", fileId);
       const fileToDelete = files.find((f) => f.id === fileId);
-      if (!fileToDelete) throw new Error("File not found");
+      if (!fileToDelete) {
+        console.error("File not found for deletion:", fileId);
+        throw new Error("File not found");
+      }
 
-      const { error: storageError } = await supabase.storage
-        .from("files")
-        .remove([fileToDelete.path]);
-      if (storageError) throw storageError;
+      console.log("Found file to delete:", fileToDelete);
 
+      if (fileToDelete.path) {
+        // First attempt to remove the file from storage
+        console.log("Removing file from storage:", fileToDelete.path);
+        const { data: removeData, error: storageError } = await supabase.storage
+          .from("lecture-files")
+          .remove([fileToDelete.path]);
+
+        if (storageError) {
+          console.error("Error removing file from storage:", storageError);
+          // We continue even if storage removal fails
+        } else {
+          console.log("Storage removal result:", removeData);
+        }
+      }
+
+      // Then delete the database record
+      console.log("Deleting file record from database");
       const { error: dbError } = await supabase
         .from("files")
         .delete()
         .eq("id", fileId);
-      if (dbError) throw dbError;
 
+      if (dbError) {
+        console.error("Database deletion error:", dbError);
+        throw dbError;
+      }
+
+      console.log("File successfully deleted");
       setFiles((prevFiles) => prevFiles.filter((f) => f.id !== fileId));
     } catch (error) {
       console.error("Error deleting file:", error);
@@ -213,7 +236,7 @@ const LectureDetailPage = () => {
   };
 
   return (
-    <div className="min-h-screen py-4 bg-[#121212]">
+    <div className="min-h-screen py-4 theme-bg-primary">
       <SEO
         title={`${lectureTitle}${subjectTitle ? ` - ${subjectTitle}` : ""}`}
         description={`Study materials, flashcards, and resources for ${lectureTitle}${
@@ -253,7 +276,7 @@ const LectureDetailPage = () => {
         <header className="flex items-center justify-between mb-4">
           <button
             onClick={handleBackClick}
-            className="flex items-center text-gray-400 hover:text-white transition-colors"
+            className="flex items-center theme-text-secondary hover:text-blue-500 transition-colors"
           >
             <ChevronLeft className="w-5 h-5 mr-1" />
             <span className="font-medium">Back to Subjects</span>
@@ -261,23 +284,23 @@ const LectureDetailPage = () => {
         </header>
 
         {error && (
-          <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-red-500/10 border border-red-500/30 text-red-500 px-4 py-3 rounded-lg mb-4">
             {error}
           </div>
         )}
 
         {/* Main Content Card */}
-        <div className="bg-gray-800/40 rounded-lg border border-gray-700 shadow-xl overflow-hidden">
+        <div className="rounded-lg theme-border shadow-xl overflow-hidden bg-white dark:bg-[#1a1a22]">
           {/* Tabs & File Selector */}
-          <div className="flex flex-col lg:flex-row items-center justify-between border-b border-gray-700 px-4 py-3">
-            <nav className="flex gap-2 flex-wrap bg-gray-700/50 p-1 rounded-lg">
+          <div className="flex flex-col lg:flex-row items-center justify-between  theme-border-primary px-4 py-3 ">
+            <nav className="flex gap-2 flex-wrap bg-[#ebebeb] dark:bg-[#2a2a35] p-2 rounded-lg">
               {["Flashcards", "Briefs", "Quiz"].map((tab) => (
                 <button
                   key={tab}
                   className={`px-3 py-1.5 text-[15px] font-medium rounded transition-colors ${
                     activeTab === tab
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-gray-300 hover:bg-gray-600/80"
+                      : "theme-text-secondary hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a]"
                   }`}
                   onClick={() => setActiveTab(tab)}
                 >
@@ -290,7 +313,7 @@ const LectureDetailPage = () => {
                 className={`px-3 py-2 text-[15px] font-medium rounded transition-colors border ${
                   activeTab === "files"
                     ? "bg-blue-600 text-white shadow-sm border-blue-500"
-                    : "text-gray-300 hover:bg-gray-600/80 border-gray-700"
+                    : "theme-text-secondary hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] theme-border-primary"
                 }`}
                 onClick={() => setActiveTab("files")}
               >
@@ -346,7 +369,7 @@ const LectureDetailPage = () => {
                     />
                   </>
                 ) : (
-                  <div className="text-center text-gray-400 py-8">
+                  <div className="text-center theme-text-secondary py-8">
                     Upload files first to generate flashcards.
                   </div>
                 )}

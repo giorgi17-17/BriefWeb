@@ -250,7 +250,7 @@ const LecturesPage = () => {
               className="flex items-center theme-text-secondary hover:theme-text-primary font-medium mb-4 group"
             >
               <ChevronLeft className="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
-              {t("common.backToSubjects")}
+              Back to Subjects
             </button>
             <h1 className="text-3xl font-bold theme-text-primary">
               {subject?.title || t("common.loading")}
