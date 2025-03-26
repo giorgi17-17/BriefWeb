@@ -11,7 +11,7 @@ export async function generateFlashcards(extractedText) {
         {
           role: "system",
           content:
-            "You are an expert educational content creator. Your task is to generate quality flashcards in VALID JSON format only. Focus on creating as many good flashcards as possible from the content provided. Never include explanatory text or markdown formatting. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
+            "You are an expert educational content creator. Your task is to generate quality flashcards in VALID JSON format only. Focus on creating as many good flashcards as possible from the content provided. Never include explanatory text or markdown formatting. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate flashcards in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
@@ -33,12 +33,11 @@ Requirements:
 6. Do not include class rules or evaluation criteria
 7. Focus on core concepts and key information
 8. Ensure proper JSON formatting with no trailing commas
-9. If the text is in Georgian language:
-   a. Create flashcards in proper Georgian with correct spelling
-   b. Pay special attention to Georgian grammar rules and conjugation
-   c. Use appropriate terminology for academic and technical concepts
-   d. Ensure natural flow and readability in Georgian
-   e. Maintain consistent style throughout all flashcards
+9. IMPORTANT: Generate flashcards in the EXACT SAME LANGUAGE as the input text:
+   a. If the input is in English, create flashcards in English
+   b. If the input is in Georgian, create flashcards in proper Georgian with correct spelling and grammar
+   c. Never translate from one language to another
+   d. Maintain consistent language and terminology with the source material
 
 Text to analyze: ${extractedText}`,
         },
@@ -197,7 +196,7 @@ export async function generateBrief(pageText) {
         {
           role: "system",
           content:
-            "You are an expert in summarizing academic content for students. Your task is to generate structured, easy-to-understand summaries that focus on key points and main ideas while maintaining a balanced length. The summaries must be clear, concise, and student-friendly. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
+            "You are an expert in summarizing academic content for students. Your task is to generate structured, easy-to-understand summaries that focus on key points and main ideas while maintaining a balanced length. The summaries must be clear, concise, and student-friendly. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate the summary in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
@@ -210,13 +209,11 @@ export async function generateBrief(pageText) {
             
             3️⃣ **Unanswered Questions**: If the page consists of **only questions without answers**, rewrite them in an explanatory way so that students can understand their context. Do not simply list them.
       
-            4️⃣ **Language**: If the text is in Georgian language:
-               a. Maintain the Georgian language with correct grammar and spelling
-               b. Follow proper Georgian punctuation and capitalization rules
-               c. Use appropriate academic/technical terminology for the subject matter
-               d. Structure sentences in a way that feels natural to Georgian speakers
-               e. Pay extra attention to verb forms and case endings
-               f. Do not translate to any other language
+            4️⃣ **Language**: IMPORTANT: Generate content in the EXACT SAME LANGUAGE as the input text:
+               a. If the input is in English, create the summary in English
+               b. If the input is in Georgian, maintain the Georgian language with correct grammar and spelling
+               c. Never translate from one language to another
+               d. Maintain consistent language and terminology with the source material
             
             🔹 Ensure that the summary is **structured, concise, and useful for students**.
       
@@ -337,7 +334,7 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
         {
           role: "system",
           content:
-            "You are an expert educational quiz generator. Your primary task is to generate EXACTLY the number of questions requested for each type, no more and no less. For multiple choice questions, you MUST provide exactly 4 options with exactly one correct answer. If the content is in Georgian language, maintain the Georgian language in your output with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
+            "You are an expert educational quiz generator. Your primary task is to generate EXACTLY the number of questions requested for each type, no more and no less. For multiple choice questions, you MUST provide exactly 4 options with exactly one correct answer. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate the quiz in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
         },
         {
           role: "user",
@@ -386,14 +383,13 @@ ${questionTypes}
 - Address real-world challenges
 
 6. Language:
-- If the input text is in Georgian language:
-  a. Create the quiz in proper Georgian with correct spelling and grammar
-  b. Pay special attention to Georgian verb conjugation and case endings
-  c. Use appropriate academic/technical terminology for the subject matter
-  d. Ensure natural sentence structure that flows well in Georgian
-  e. Follow Georgian punctuation and capitalization rules
-  f. Be especially careful with technical terms and definitions
-  g. Do not translate Georgian text to any other language
+- IMPORTANT: Generate content in the EXACT SAME LANGUAGE as the input text:
+  a. If the input is in English, create the quiz in English
+  b. If the input is in Georgian, create the quiz in proper Georgian
+  c. Never translate from one language to another
+  d. Use appropriate academic/technical terminology consistent with the source material
+  e. Follow proper grammar, punctuation, and formatting rules for the respective language
+  f. Maintain the same language throughout all questions, options, and answers
 
 7. Required Output Structure:
 {
@@ -495,9 +491,12 @@ Text to analyze: ${extractedText}`,
       });
 
       // Validate counts
-      if (includeMultipleChoice && counts.multiple_choice !== 10) {
+      if (
+        includeMultipleChoice &&
+        (counts.multiple_choice < 8 || counts.multiple_choice > 12)
+      ) {
         throw new Error(
-          `Must have exactly 10 multiple choice questions, got ${counts.multiple_choice}`
+          `Must have 8-12 multiple choice questions, got ${counts.multiple_choice}`
         );
       }
       if (includeOpenEnded && counts.open_ended !== 3) {

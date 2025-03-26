@@ -9,6 +9,8 @@ const FlashcardComponent = ({
   lectureId,
   onFlashcardsUploaded,
   onFlashcardsModified,
+  activeSetIndex: externalActiveSetIndex,
+  setActiveSetIndex: setExternalActiveSetIndex,
 }) => {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -18,9 +20,34 @@ const FlashcardComponent = ({
   const [editingSetId, setEditingSetId] = useState(null);
   const [editingSetName, setEditingSetName] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
-  const [processingSetIds, setProcessingSetIds] = useState(new Set()); // Track sets being processed
-  // New state for dropdown open/close
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Simplify the external active set index handling
+  useEffect(() => {
+    if (externalActiveSetIndex !== undefined && flashcardSets.length > 0) {
+      if (
+        externalActiveSetIndex >= 0 &&
+        externalActiveSetIndex < flashcardSets.length
+      ) {
+        // Only update local state if external index is different
+        if (activeSetIndex !== externalActiveSetIndex) {
+          setActiveSetIndex(externalActiveSetIndex);
+          setActiveCardIndex(0);
+          setIsFlipped(false);
+        }
+      }
+    }
+  }, [externalActiveSetIndex, flashcardSets.length, activeSetIndex]);
+
+  // Sync back to parent when internal index changes
+  useEffect(() => {
+    if (
+      setExternalActiveSetIndex &&
+      activeSetIndex !== externalActiveSetIndex
+    ) {
+      setExternalActiveSetIndex(activeSetIndex);
+    }
+  }, [activeSetIndex, externalActiveSetIndex, setExternalActiveSetIndex]);
 
   // Update local state when flashcards prop changes
   useEffect(() => {
@@ -39,71 +66,71 @@ const FlashcardComponent = ({
     }
   }, [flashcards, activeSetIndex]);
 
-  // Process and upload new flashcards when they arrive
+  // Process and upload new flashcards
   useEffect(() => {
-    const uploadNewSet = async () => {
-      const newSet = flashcards?.[flashcards.length - 1];
+    let isMounted = true;
 
-      // Skip if no new set or if it's already uploaded or being processed
-      if (!newSet || newSet.isUploaded || !newSet.cards?.length) {
+    const processSet = async (setToProcess) => {
+      if (
+        !setToProcess ||
+        setToProcess.isUploaded ||
+        !setToProcess.cards?.length
+      ) {
         return;
       }
 
-      // Skip if we've already started processing this set (using tempId or another identifier)
-      const setIdentifier =
-        newSet.tempId || `temp-${flashcards.length}-${Date.now()}`;
-      if (processingSetIds.has(setIdentifier)) {
-        console.log("Skipping already processing set:", setIdentifier);
-        return;
-      }
-
-      // Mark this set as being processed
-      setProcessingSetIds((prev) => {
-        const updated = new Set(prev);
-        updated.add(setIdentifier);
-        return updated;
-      });
+      console.log(`Processing set: ${setToProcess.id} (${setToProcess.name})`);
 
       try {
-        console.log("Uploading new flashcard set:", newSet);
-
-        // Create new flashcard set
+        // Create the flashcard set in the database
         const { data: flashcardSet, error: setError } = await supabase
           .from("flashcard_sets")
           .insert({
             lecture_id: lectureId,
-            name: newSet.name || `Set ${flashcards.length}`,
+            name: setToProcess.name || "New Flashcard Set",
           })
           .select()
           .single();
 
         if (setError) throw setError;
+        console.log(`Created flashcard set with ID: ${flashcardSet.id}`);
 
-        // Insert all flashcards for the set
-        const { error: cardsError } = await supabase.from("flashcards").insert(
-          newSet.cards.map((card) => ({
-            flashcard_set_id: flashcardSet.id,
-            question: card.question,
-            answer: card.answer,
-          }))
-        );
+        // Insert flashcards in batches
+        const batchSize = 25;
+        const cardBatches = [];
 
-        if (cardsError) throw cardsError;
+        for (let i = 0; i < setToProcess.cards.length; i += batchSize) {
+          cardBatches.push(
+            setToProcess.cards.slice(i, i + batchSize).map((card) => ({
+              flashcard_set_id: flashcardSet.id,
+              question: card.question,
+              answer: card.answer,
+            }))
+          );
+        }
+
+        for (let i = 0; i < cardBatches.length; i++) {
+          if (!isMounted) return;
+
+          const { error: batchError } = await supabase
+            .from("flashcards")
+            .insert(cardBatches[i]);
+
+          if (batchError) throw batchError;
+          console.log(`Uploaded batch ${i + 1}/${cardBatches.length}`);
+        }
 
         // Get the complete set with cards
         const { data: completeSet, error: fetchError } = await supabase
           .from("flashcard_sets")
-          .select(
-            `
-              *,
-              flashcards(*)
-            `
-          )
+          .select(`*, flashcards(*)`)
           .eq("id", flashcardSet.id)
           .single();
 
         if (fetchError) throw fetchError;
+        if (!isMounted) return;
 
+        // Create a structured set object
         const processedSet = {
           id: completeSet.id,
           name: completeSet.name,
@@ -116,60 +143,63 @@ const FlashcardComponent = ({
           isUploaded: true,
         };
 
-        console.log("Successfully uploaded flashcard set:", processedSet);
+        console.log(
+          `Successfully processed set: ${processedSet.id} with ${processedSet.cards.length} cards`
+        );
 
-        // Update local state immediately before callback
-        setFlashcardSets((prevSets) => {
-          // Make sure we don't add the same set twice
-          if (prevSets.some((set) => set.id === processedSet.id)) {
-            return prevSets;
+        if (isMounted) {
+          // Add to local state first
+          setFlashcardSets((prev) => {
+            if (prev.some((set) => set.id === processedSet.id)) return prev;
+            return [...prev, processedSet];
+          });
+
+          // Notify parent without automatic selection logic
+          if (onFlashcardsUploaded) {
+            console.log(`Notifying parent about new set: ${processedSet.id}`);
+            onFlashcardsUploaded(processedSet);
           }
-          const updatedSets = [...prevSets, processedSet];
-
-          // Set the active index to the newly added set (in a separate effect)
-          setTimeout(() => {
-            setActiveSetIndex(updatedSets.length - 1);
-            setActiveCardIndex(0);
-            setIsFlipped(false);
-          }, 0);
-
-          return updatedSets;
-        });
-
-        if (onFlashcardsUploaded) {
-          onFlashcardsUploaded(processedSet);
         }
       } catch (error) {
-        console.error("Error uploading flashcards:", error);
-        setUploadError(error.message || "Failed to upload flashcards");
-      } finally {
-        // Remove this set from processing, regardless of success/failure
-        setProcessingSetIds((prev) => {
-          const updated = new Set(prev);
-          updated.delete(setIdentifier);
-          return updated;
-        });
+        console.error(`Error processing flashcards: ${error.message}`);
+        if (isMounted) {
+          setUploadError(`Failed to upload flashcards: ${error.message}`);
+        }
       }
     };
 
-    // Only run if there are flashcards and the last one isn't uploaded
-    const lastSet = flashcards?.[flashcards.length - 1];
-    if (
-      lectureId &&
-      lastSet &&
-      !lastSet.isUploaded &&
-      lastSet.cards?.length > 0
-    ) {
-      uploadNewSet();
+    // Find any pending sets that need processing
+    const pendingSets =
+      flashcards?.filter((set) => !set.isUploaded && set.cards?.length > 0) ||
+      [];
+
+    if (pendingSets.length > 0 && lectureId) {
+      // Only process the first pending set
+      processSet(pendingSets[0]);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [flashcards, lectureId, onFlashcardsUploaded]);
 
+  // Simplify handle set change - only update indices without scrolling
   const handleSetChange = (index) => {
+    // Update local state
     setActiveSetIndex(index);
     setActiveCardIndex(0);
     setIsFlipped(false);
+
+    // Close dropdown
+    setDropdownOpen(false);
+
+    // Update external state if available
+    if (setExternalActiveSetIndex) {
+      setExternalActiveSetIndex(index);
+    }
   };
 
+  // Set deletion functions
   const initiateDelete = (setId, setName) => {
     setDeleteConfirmation({ id: setId, name: setName });
   };
@@ -182,7 +212,7 @@ const FlashcardComponent = ({
     if (!deleteConfirmation) return;
 
     try {
-      // Delete flashcard set (this will cascade delete the flashcards)
+      // Delete the set from the database
       const { error: deleteError } = await supabase
         .from("flashcard_sets")
         .delete()
@@ -190,15 +220,18 @@ const FlashcardComponent = ({
 
       if (deleteError) throw deleteError;
 
+      // Update local state
       const updatedFlashcards = flashcardSets.filter(
         (set) => set.id !== deleteConfirmation.id
       );
+
       setFlashcardSets(updatedFlashcards);
+
       if (activeSetIndex >= updatedFlashcards.length) {
         setActiveSetIndex(Math.max(0, updatedFlashcards.length - 1));
       }
 
-      // Only call onFlashcardsModified if we have a valid set to show
+      // Notify parent if needed
       if (updatedFlashcards.length > 0) {
         onFlashcardsModified?.(updatedFlashcards);
       }
@@ -211,10 +244,12 @@ const FlashcardComponent = ({
     }
   };
 
+  // Edit set name function
   const handleEditSetName = async (setId) => {
     if (!editingSetName.trim()) return;
 
     try {
+      // Update the set name in the database
       const { error: updateError } = await supabase
         .from("flashcard_sets")
         .update({ name: editingSetName })
@@ -222,9 +257,11 @@ const FlashcardComponent = ({
 
       if (updateError) throw updateError;
 
+      // Update local state
       const updatedFlashcards = flashcardSets.map((set) =>
         set.id === setId ? { ...set, name: editingSetName } : set
       );
+
       setFlashcardSets(updatedFlashcards);
 
       if (onFlashcardsModified) {
@@ -239,6 +276,7 @@ const FlashcardComponent = ({
     }
   };
 
+  // Show empty state if no sets
   if (!flashcardSets.length) {
     return (
       <div className="text-center theme-text-secondary">
@@ -247,9 +285,11 @@ const FlashcardComponent = ({
     );
   }
 
+  // Get current set and card
   const currentSet = flashcardSets[activeSetIndex];
   const currentCard = currentSet?.cards[activeCardIndex];
 
+  // Show empty state if no cards in current set
   if (!currentCard) {
     return (
       <div className="text-center theme-text-secondary">
@@ -399,7 +439,7 @@ const FlashcardComponent = ({
 
       {/* Flashcard Display */}
       <div
-        className={`relative w-full max-w-md h-96 cursor-pointer transition-all duration-500 ease-in-out ${
+        className={`relative w-full max-w-md h-96 cursor-pointer transition-all duration-500 ease-in-out flashcard-display ${
           isFlipped ? "transform rotate-y-180" : ""
         }`}
         onClick={() => setIsFlipped(!isFlipped)}
@@ -480,6 +520,8 @@ FlashcardComponent.propTypes = {
   lectureId: PropTypes.string.isRequired,
   onFlashcardsUploaded: PropTypes.func,
   onFlashcardsModified: PropTypes.func,
+  activeSetIndex: PropTypes.number,
+  setActiveSetIndex: PropTypes.func,
 };
 
 export default FlashcardComponent;

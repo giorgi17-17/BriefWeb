@@ -6,24 +6,24 @@ export const Error = () => {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-white flex flex-col relative overflow-hidden mt-[150px]">
+    <div className="min-h-screen bg-white dark:bg-[#121212] flex flex-col relative overflow-hidden mt-[150px]">
       {/* Subtle grid background */}
-      <div className="absolute inset-0 bg-grid opacity-5" />
+      <div className="absolute inset-0 bg-grid dark:bg-grid-dark opacity-5" />
 
       {/* Main content - centered in the viewport */}
       <div className="flex-1 flex items-center justify-center p-4 mb-[300px]">
         <div className="relative z-10 text-center max-w-2xl mx-auto">
-          <h1 className="text-[9rem] leading-none font-black text-gray-900 mb-2 tracking-tight">
+          <h1 className="text-[9rem] leading-none font-black text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
             404
           </h1>
 
           <div className="w-16 h-1 mx-auto bg-blue-600 mb-6" />
 
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
             Page Not Found
           </h2>
 
-          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
             The resource you&apos;re looking for doesn&apos;t exist or has been
             moved. Please check the URL or navigate back to the home page.
           </p>
@@ -31,7 +31,7 @@ export const Error = () => {
           {user ? (
             <Link
               to="/dashboard"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -50,7 +50,7 @@ export const Error = () => {
           ) : (
             <Link
               to="/"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -81,6 +81,12 @@ export const Error = () => {
           background-image: 
             linear-gradient(to right, #e5e7eb 1px, transparent 1px),
             linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+          background-size: 20px 20px;
+        }
+        .bg-grid-dark {
+          background-image: 
+            linear-gradient(to right, #2a2a2a 1px, transparent 1px),
+            linear-gradient(to bottom, #2a2a2a 1px, transparent 1px);
           background-size: 20px 20px;
         }
       `}</style>

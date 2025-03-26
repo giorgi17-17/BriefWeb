@@ -71,11 +71,11 @@ const Register = () => {
   // If we're in the Google redirecting state, show a loading message
   if (isGoogleRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#121212] text-white">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
-          <p className="text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400">
             You are being redirected to Google for authentication.
           </p>
         </div>
@@ -84,19 +84,19 @@ const Register = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#121212] text-white">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white">
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="max-w-md w-full bg-[#1e1e1e] rounded-lg shadow-xl p-8">
+        <div className="max-w-md w-full bg-white dark:bg-[#1e1e1e] rounded-lg shadow-xl p-8">
           <div className="mb-10">
-            <h2 className="text-center text-3xl font-semibold text-white">
+            <h2 className="text-center text-3xl font-semibold text-gray-900 dark:text-white">
               Create your account
             </h2>
           </div>
 
           {error && (
             <div
-              className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-md mb-6"
+              className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded-md mb-6"
               role="alert"
             >
               <span className="block sm:inline">{error}</span>
@@ -107,7 +107,7 @@ const Register = () => {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
                 Email address
               </label>
@@ -122,7 +122,7 @@ const Register = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-3 py-2 border border-[#3a3a3a] rounded-md bg-[#2a2a2a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-[#3a3a3a] rounded-md bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="you@example.com"
                 />
               </div>
@@ -131,7 +131,7 @@ const Register = () => {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
                 Password
               </label>
@@ -146,14 +146,14 @@ const Register = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-10 py-2 border border-[#3a3a3a] rounded-md bg-[#2a2a2a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-[#3a3a3a] rounded-md bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="••••••"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-300 focus:outline-none"
+                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -168,7 +168,7 @@ const Register = () => {
             <div>
               <label
                 htmlFor="confirm-password"
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
                 Confirm password
               </label>
@@ -183,14 +183,14 @@ const Register = () => {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-10 py-2 border border-[#3a3a3a] rounded-md bg-[#2a2a2a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-[#3a3a3a] rounded-md bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="••••••"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="text-gray-400 hover:text-gray-300 focus:outline-none"
+                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none"
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -214,11 +214,11 @@ const Register = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium transition-colors"
               >
                 Sign in
               </Link>
@@ -228,10 +228,10 @@ const Register = () => {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#3a3a3a]" />
+                <div className="w-full border-t border-gray-300 dark:border-[#3a3a3a]" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[#1e1e1e] text-gray-400">
+                <span className="px-2 bg-white dark:bg-[#1e1e1e] text-gray-500 dark:text-gray-400">
                   Or continue with
                 </span>
               </div>
@@ -243,7 +243,7 @@ const Register = () => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-[#3a3a3a] rounded-md shadow-sm bg-[#2a2a2a] text-sm font-medium text-white hover:bg-[#333333] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 dark:border-[#3a3a3a] rounded-md shadow-sm bg-white dark:bg-[#2a2a2a] text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-[#333333] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
               <svg
                 className="h-5 w-5 mr-2"

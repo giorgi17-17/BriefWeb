@@ -26,15 +26,17 @@ const LectureDetailPage = () => {
   const [subjectId, setSubjectId] = useState(null);
   const [lectureTitle, setLectureTitle] = useState("");
   const [subjectTitle, setSubjectTitle] = useState("");
+  const [activeFlashcardSetIndex, setActiveFlashcardSetIndex] = useState(0);
 
   // Fetch initial lecture data
-  useEffect(() => {
-    const fetchLectureData = async () => {
-      try {
-        const { data: lectureData, error: lectureError } = await supabase
-          .from("lectures")
-          .select(
-            `
+  const fetchLectureData = async () => {
+    try {
+      console.log("Fetching lecture data including flashcard sets...");
+
+      const { data: lectureData, error: lectureError } = await supabase
+        .from("lectures")
+        .select(
+          `
             *,
             files(*),
             flashcard_sets(
@@ -42,49 +44,56 @@ const LectureDetailPage = () => {
               flashcards(*)
             )
           `
-          )
-          .eq("id", lectureId)
-          .single();
+        )
+        .eq("id", lectureId)
+        .single();
 
-        if (lectureError) throw lectureError;
+      if (lectureError) throw lectureError;
 
-        if (lectureData) {
-          setFiles(lectureData.files || []);
-          setSubjectId(lectureData.subject_id);
-          setLectureTitle(lectureData.title || "");
+      if (lectureData) {
+        setFiles(lectureData.files || []);
+        setSubjectId(lectureData.subject_id);
+        setLectureTitle(lectureData.title || "");
 
-          // Fetch subject title
-          if (lectureData.subject_id) {
-            const { data: subjectData } = await supabase
-              .from("subjects")
-              .select("title")
-              .eq("id", lectureData.subject_id)
-              .single();
+        // Fetch subject title
+        if (lectureData.subject_id) {
+          const { data: subjectData } = await supabase
+            .from("subjects")
+            .select("title")
+            .eq("id", lectureData.subject_id)
+            .single();
 
-            if (subjectData) {
-              setSubjectTitle(subjectData.title || "");
-            }
+          if (subjectData) {
+            setSubjectTitle(subjectData.title || "");
           }
-
-          const allFlashcards = lectureData.flashcard_sets.map((set) => ({
-            id: set.id,
-            name: set.name,
-            createdAt: set.created_at,
-            cards: set.flashcards.map((card) => ({
-              id: card.id,
-              question: card.question,
-              answer: card.answer,
-            })),
-            isUploaded: true,
-          }));
-          setFlashcards(allFlashcards);
         }
-      } catch (error) {
-        console.error("Error fetching lecture data:", error);
-        setError(error.message);
-      }
-    };
 
+        // Get flashcard sets with their cards
+        const allFlashcards = lectureData.flashcard_sets.map((set) => ({
+          id: set.id,
+          name: set.name,
+          createdAt: set.created_at,
+          cards: set.flashcards.map((card) => ({
+            id: card.id,
+            question: card.question,
+            answer: card.answer,
+          })),
+          isUploaded: true,
+        }));
+
+        console.log(`Found ${allFlashcards.length} flashcard sets`);
+        setFlashcards(allFlashcards);
+
+        // Return the data in case we need it elsewhere
+        return lectureData;
+      }
+    } catch (error) {
+      console.error("Error fetching lecture data:", error);
+      setError(error.message);
+    }
+  };
+
+  useEffect(() => {
     if (user?.id && lectureId) {
       fetchLectureData();
     }
@@ -98,23 +107,81 @@ const LectureDetailPage = () => {
 
   const handleGenerateFlashcards = async () => {
     try {
+      // Don't do anything if already generating
+      if (isGenerating) return;
+
       setIsGenerating(true);
       setError(null);
-      const filePath = selectedFile?.path.split("/").pop();
-      if (!filePath) throw new Error("No file selected");
+
+      if (!selectedFile) {
+        throw new Error("No file selected");
+      }
+
+      // First check if we already have a pending set for this file
+      const pendingSetForFile = getAllFlashcards().find(
+        (set) => !set.isUploaded && set.name === selectedFile.name
+      );
+
+      if (pendingSetForFile) {
+        console.log(
+          `Already have pending flashcards for "${selectedFile.name}"`
+        );
+        setError(
+          `Already processing flashcards for "${selectedFile.name}". Please wait for it to complete.`
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      // Check if we already have uploaded flashcards for this file
+      const existingSetForFile = flashcards.find(
+        (set) => set.name === selectedFile.name
+      );
+
+      if (existingSetForFile) {
+        console.log(`Flashcards already exist for "${selectedFile.name}"`);
+        setError(
+          `Flashcards already exist for "${selectedFile.name}". Please delete the existing set first if you want to regenerate.`
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      const filePath = selectedFile.path.split("/").pop();
+      console.log(
+        `Generating flashcards for ${selectedFile.name} (${filePath})`
+      );
 
       const data = await handleProcessPdf(user.id, lectureId, filePath);
-      if (data && data.length > 0) {
-        setProcessedData({
-          id: crypto.randomUUID(),
-          name: selectedFile.name,
-          createdAt: new Date().toISOString(),
-          cards: data,
-          isUploaded: false,
-        });
+
+      if (!data || data.length === 0) {
+        setError("No flashcards could be generated from this file.");
+        return;
       }
+
+      console.log(
+        `Generated ${data.length} flashcards for file: ${selectedFile.name}`
+      );
+
+      // Create a stable ID that won't change across renders
+      const fileSlug = selectedFile.name
+        .replace(/\.[^/.]+$/, "") // Remove extension
+        .replace(/\s+/g, "-") // Replace spaces with hyphens
+        .replace(/[^a-z0-9-]/gi, "") // Remove special chars
+        .toLowerCase();
+
+      const uniqueId = `temp-${fileSlug}-${Date.now()}`;
+
+      setProcessedData({
+        id: uniqueId,
+        name: selectedFile.name,
+        createdAt: new Date().toISOString(),
+        cards: data,
+        isUploaded: false,
+      });
     } catch (err) {
-      setError(err.message);
+      console.error("Error generating flashcards:", err);
+      setError(`Failed to generate flashcards: ${err.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -360,10 +427,29 @@ const LectureDetailPage = () => {
                       flashcards={getAllFlashcards()}
                       lectureId={lectureId}
                       fileName={selectedFile?.name}
+                      activeSetIndex={activeFlashcardSetIndex}
+                      setActiveSetIndex={setActiveFlashcardSetIndex}
                       onFlashcardsUploaded={(updatedSet) => {
-                        console.log("Uploaded cards:", updatedSet);
+                        console.log(
+                          "Flashcards uploaded successfully:",
+                          updatedSet.id
+                        );
+
+                        // Clear the processed data
                         setProcessedData(null);
-                        setFlashcards((prev) => [...prev, updatedSet]);
+
+                        // Update flashcards array without setting lastCreatedSetId
+                        setFlashcards((prevSets) => {
+                          if (
+                            prevSets.some((set) => set.id === updatedSet.id)
+                          ) {
+                            return prevSets;
+                          }
+                          return [...prevSets, updatedSet];
+                        });
+
+                        // Refresh data from database
+                        fetchLectureData();
                       }}
                       onFlashcardsModified={handleFlashcardsModified}
                     />

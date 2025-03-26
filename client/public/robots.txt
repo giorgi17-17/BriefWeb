@@ -10,4 +10,4 @@ Disallow: /payment-success
 Disallow: /payment-failure
 
 # Sitemap location
-Sitemap: https://yourwebsite.com/sitemap.xml 
+Sitemap: https://briefly.ge/sitemap.xml 

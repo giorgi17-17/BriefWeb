@@ -48,14 +48,14 @@ const SEO = ({
         <link
           key={link.lang}
           rel="alternate"
-          hreflang={link.lang}
+          hrefLang={link.lang}
           href={link.url}
         />
       ))}
       {/* x-default hreflang for search engines */}
       <link
         rel="alternate"
-        hreflang="x-default"
+        hrefLang="x-default"
         href={
           hreflangLinks.find((link) => link.lang === "en")?.url ||
           hreflangLinks[0]?.url
