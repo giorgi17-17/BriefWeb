@@ -3,9 +3,15 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
 import { ChevronLeft, Plus } from "lucide-react";
+import SEO from "../../components/SEO/SEO";
+import { useTranslation } from "react-i18next";
+import { getLocalizedSeoField } from "../../utils/seoTranslations";
+import { getCanonicalUrl } from "../../utils/languageSeo";
 
 const LecturesPage = () => {
   const location = useLocation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
   const subjectId = location.state?.subjectId;
   const navigate = useNavigate();
   const [subject, setSubject] = useState(null);
@@ -170,8 +176,72 @@ const LecturesPage = () => {
   const renderContent = () => {
     if (error) return renderError();
 
+    // Get localized SEO content
+    let title, description, keywords;
+
+    if (subject) {
+      // If we have a subject, use its name in the title
+      title = getLocalizedSeoField("generic", "subject", currentLang, [
+        subject.title,
+      ]);
+      description = getLocalizedSeoField(
+        "lectures",
+        "description",
+        currentLang
+      );
+      keywords = [
+        ...getLocalizedSeoField("lectures", "keywords", currentLang),
+        subject.title,
+      ];
+    } else {
+      // Generic lectures page
+      title = getLocalizedSeoField("lectures", "title", currentLang);
+      description = getLocalizedSeoField(
+        "lectures",
+        "description",
+        currentLang
+      );
+      keywords = getLocalizedSeoField("lectures", "keywords", currentLang);
+    }
+
+    // Get canonical URL
+    const canonicalUrl = getCanonicalUrl(location.pathname, currentLang);
+
+    // Structured data with language-specific content
+    const structuredData = subject
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Course",
+          name: subject.title,
+          description: `${subject.title} - ${description}`,
+          provider: {
+            "@type": "Organization",
+            name: "Brief",
+            sameAs: canonicalUrl.split("/").slice(0, 3).join("/"),
+          },
+          hasCourseInstance: {
+            "@type": "CourseInstance",
+            courseMode: "online",
+            courseWorkload: "Multiple lectures",
+            instructor: {
+              "@type": "Person",
+              name: "Brief Instructors",
+            },
+          },
+        }
+      : null;
+
     return (
       <div className="space-y-8">
+        {/* SEO component with dynamic data */}
+        <SEO
+          title={title}
+          description={description}
+          keywords={keywords}
+          structuredData={structuredData}
+          canonicalUrl={canonicalUrl}
+        />
+
         {/* Header Section */}
         <div className="theme-bg-primary  ">
           <div className="max-w-7xl mx-auto py-6 px-4">
@@ -180,10 +250,10 @@ const LecturesPage = () => {
               className="flex items-center theme-text-secondary hover:theme-text-primary font-medium mb-4 group"
             >
               <ChevronLeft className="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
-              Back to Subjects
+              {t("common.backToSubjects")}
             </button>
             <h1 className="text-3xl font-bold theme-text-primary">
-              {subject?.title || "Loading..."}
+              {subject?.title || t("common.loading")}
             </h1>
           </div>
         </div>

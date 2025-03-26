@@ -1,10 +1,10 @@
 {
   "app": {
-    "name": "Brief"
+    "name": "Briefly"
   },
   "nav": {
     "howItWorks": "How it Works",
-    "whyUs": "Why Brief",
+    "whyUs": "Why Briefly",
     "pricing": "Pricing",
     "login": "Login",
     "register": "Register",

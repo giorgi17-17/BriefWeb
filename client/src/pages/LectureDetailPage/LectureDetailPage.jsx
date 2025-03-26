@@ -9,6 +9,7 @@ import Brief from "../../components/subjects/Brief";
 import { FileSelector } from "../../components/FileSelector";
 import { ChevronLeft } from "lucide-react";
 import Quiz from "../../components/subjects/Quiz";
+import SEO from "../../components/SEO/SEO";
 
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
@@ -23,6 +24,8 @@ const LectureDetailPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [processedData, setProcessedData] = useState(null);
   const [subjectId, setSubjectId] = useState(null);
+  const [lectureTitle, setLectureTitle] = useState("");
+  const [subjectTitle, setSubjectTitle] = useState("");
 
   // Fetch initial lecture data
   useEffect(() => {
@@ -48,6 +51,21 @@ const LectureDetailPage = () => {
         if (lectureData) {
           setFiles(lectureData.files || []);
           setSubjectId(lectureData.subject_id);
+          setLectureTitle(lectureData.title || "");
+
+          // Fetch subject title
+          if (lectureData.subject_id) {
+            const { data: subjectData } = await supabase
+              .from("subjects")
+              .select("title")
+              .eq("id", lectureData.subject_id)
+              .single();
+
+            if (subjectData) {
+              setSubjectTitle(subjectData.title || "");
+            }
+          }
+
           const allFlashcards = lectureData.flashcard_sets.map((set) => ({
             id: set.id,
             name: set.name,
@@ -196,6 +214,40 @@ const LectureDetailPage = () => {
 
   return (
     <div className="min-h-screen py-4 bg-[#121212]">
+      <SEO
+        title={`${lectureTitle}${subjectTitle ? ` - ${subjectTitle}` : ""}`}
+        description={`Study materials, flashcards, and resources for ${lectureTitle}${
+          subjectTitle ? ` in ${subjectTitle}` : ""
+        }.`}
+        keywords={[
+          lectureTitle,
+          subjectTitle,
+          "lecture",
+          "study materials",
+          "flashcards",
+          "educational resources",
+        ]}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "LearningResource",
+          name: lectureTitle,
+          description: `Educational materials for ${lectureTitle}${
+            subjectTitle ? ` in ${subjectTitle}` : ""
+          }`,
+          educationalLevel: "College",
+          learningResourceType: "Lecture",
+          isPartOf: {
+            "@type": "Course",
+            name: subjectTitle,
+          },
+          provider: {
+            "@type": "Organization",
+            name: "Brief",
+            sameAs: "https://yourwebsite.com",
+          },
+        }}
+      />
+
       <div className="max-w-5xl mx-auto px-4">
         {/* Header */}
         <header className="flex items-center justify-between mb-4">

@@ -6,13 +6,122 @@ import HowitWorks from "./homeComponents/HowitWorks";
 import WhyUs from "./homeComponents/WhyUs";
 import Pricing from "./homeComponents/Pricing";
 import { background, text, border } from "../../utils/themeUtils";
+import SEO from "../../components/SEO/SEO";
+import { getLocalizedSeoField } from "../../utils/seoTranslations";
+import { useLocation } from "react-router-dom";
+import { getCanonicalUrl } from "../../utils/languageSeo";
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const location = useLocation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
+
+  // Get localized SEO content
+  const title = getLocalizedSeoField("home", "title", currentLang);
+  const description = getLocalizedSeoField("home", "description", currentLang);
+  const keywords = getLocalizedSeoField("home", "keywords", currentLang);
+
+  // Get canonical URL
+  const canonicalUrl = getCanonicalUrl(location.pathname, currentLang);
+
+  // Landing page specific FAQ structured data
+  const faqStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is Brief?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Brief is an educational platform for students providing concise learning materials, quizzes, and study resources.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does Brief help students?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Brief helps students by providing AI-generated flashcards, summarized lecture notes, and interactive quizzes to enhance learning efficiency.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is Brief available in multiple languages?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes, Brief is available in multiple languages including English and Georgian, with more languages coming soon.",
+        },
+      },
+    ],
+  };
+
+  // Main organization structured data
+  const organizationStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    name: "Brief",
+    description: description,
+    url: canonicalUrl,
+    sameAs: [
+      "https://twitter.com/yourhandle",
+      "https://facebook.com/yourpage",
+      "https://linkedin.com/company/yourcompany",
+    ],
+    offers: {
+      "@type": "Offer",
+      category: "Educational Resources",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+    },
+  };
+
+  // WebSite structured data for landing page
+  const websiteStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    url: canonicalUrl.split("/").slice(0, 3).join("/"),
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${canonicalUrl
+        .split("/")
+        .slice(0, 3)
+        .join("/")}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
 
   return (
     <div>
+      <SEO
+        title={title}
+        description={description}
+        keywords={keywords}
+        structuredData={organizationStructuredData}
+        canonicalUrl={canonicalUrl}
+        ogImage="/images/brief-preview.jpg"
+        ogType="website"
+      >
+        <script type="application/ld+json">
+          {JSON.stringify(faqStructuredData)}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify(websiteStructuredData)}
+        </script>
+        <meta name="twitter:site" content="@briefeducation" />
+        <meta name="twitter:creator" content="@briefeducation" />
+        <meta property="og:site_name" content="Brief Education" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+      </SEO>
+
       {/* Hero Section for Students */}
       <Hero />
 

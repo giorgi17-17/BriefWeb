@@ -3,6 +3,7 @@ import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
+import SEO from "../../components/SEO/SEO";
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,6 +191,33 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen px-4 py-8 theme-bg-primary">
+      <SEO
+        title="Dashboard"
+        description="Access your subjects, create flashcards and briefs using AI. Organize your educational materials all in one place."
+        keywords={[
+          "dashboard",
+          "subjects",
+          "educational materials",
+          "flashcards",
+          "student resources",
+        ]}
+        noIndex={true} // Keep dashboard private from search engines
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "Student Dashboard",
+          description: "Access your educational materials and study resources",
+          publisher: {
+            "@type": "Organization",
+            name: "Brief",
+            logo: {
+              "@type": "ImageObject",
+              url: "https://yourwebsite.com/icons/icon-512x512.png",
+            },
+          },
+        }}
+      />
+
       {/* Hero Section */}
       <section className="text-center mb-16">
         <h1 className="text-4xl font-bold mb-4 theme-text-primary">

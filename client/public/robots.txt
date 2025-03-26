@@ -1,0 +1,13 @@
+# Allow all search engines to index the site
+User-agent: *
+Allow: /
+
+# Disallow private or authenticated pages
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /payments
+Disallow: /payment-success
+Disallow: /payment-failure
+
+# Sitemap location
+Sitemap: https://yourwebsite.com/sitemap.xml 
