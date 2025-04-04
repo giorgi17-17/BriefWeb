@@ -33,6 +33,9 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
       fileId,
     });
 
+    console.log("Received API response:", response.status);
+    console.log("Response data structure:", Object.keys(response.data || {}));
+
     // Check if response data exists.
     if (!response.data) {
       throw new Error("No data found in the response");
@@ -43,10 +46,12 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
 
     // Case 1: Direct flashcards array in response.
     if (Array.isArray(response.data.flashcards)) {
+      console.log("Found flashcards array in response.data.flashcards");
       flashcards = response.data.flashcards;
     }
     // Case 2: Flashcards as a string that needs parsing.
     else if (typeof response.data.flashcards === "string") {
+      console.log("Found flashcards as string in response.data.flashcards");
       try {
         const parsedData = JSON.parse(response.data.flashcards);
 
@@ -65,8 +70,10 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
     }
     // Case 3: Flashcards directly in response data.
     else if (Array.isArray(response.data)) {
+      console.log("Found flashcards directly in response.data");
       flashcards = response.data;
     } else {
+      console.error("Unexpected response structure:", response.data);
       throw new Error("Unable to extract flashcards from response");
     }
 
@@ -79,12 +86,16 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
 
     // Filter out any invalid flashcards.
     const validFlashcards = flashcards.filter(isValidFlashcard);
+    console.log(
+      `Found ${validFlashcards.length} valid flashcards out of ${flashcards.length}`
+    );
 
     if (validFlashcards.length === 0) {
       throw new Error("No valid flashcards found");
     }
 
     // Return the valid flashcards.
+    console.log("Returning flashcards to UI");
     return validFlashcards;
   } catch (error) {
     console.error("Error processing PDF:", error);

@@ -130,3 +130,62 @@
   border: 1px solid var(--border-primary) !important;
   color: var(--text-primary) !important;
 }
+
+/* Add custom scrollbar styles at the end of the file */
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Hide scrollbar for Firefox */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: #4a5568 transparent;
+}
+
+/* Flashcard transforms */
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+/* Ensure flashcard container has proper perspective */
+.flashcard-display {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+}

@@ -21,14 +21,22 @@ router.use("/user-plans", userPlanRoutes);
 router.post("/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
 
+  console.log("process-pdf endpoint called with:", { userId, lectureId, fileId });
+
   if (!userId || !lectureId || !fileId) {
+    console.log("Missing required parameters");
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
   }
 
   try {
+    console.log("Calling processDocument...");
     const flashcards = await processDocument(userId, lectureId, fileId);
+    console.log("processDocument returned:", {
+      isArray: Array.isArray(flashcards),
+      length: Array.isArray(flashcards) ? flashcards.length : 'not an array'
+    });
 
     // Return meaningful error response if flashcards weren't generated properly
     if (!flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
@@ -46,10 +54,12 @@ router.post("/process-pdf", async (req, res) => {
       });
     }
 
+    console.log(`Sending response with ${flashcards.length} flashcards`);
     res.status(200).json({ flashcards });
   } catch (error) {
     console.error("Error processing document:", error);
     // Send a fallback response with a generic flashcard
+    console.log("Sending error response with fallback flashcard");
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,

@@ -25,8 +25,26 @@ export async function processDocument(userId, lectureId, fileId) {
       throw new Error("Failed to extract text from document.");
     }
 
-    console.log("Successfully extracted text, generating flashcards...");
-    return await generateFlashcards(extractedText);
+    console.log("Successfully extracted text, length:", extractedText.length);
+    console.log("Calling generateFlashcards...");
+
+    const flashcards = await generateFlashcards(extractedText);
+
+    console.log(
+      "Received flashcards from AI service:",
+      Array.isArray(flashcards)
+        ? `${flashcards.length} cards`
+        : typeof flashcards
+    );
+
+    if (flashcards && Array.isArray(flashcards) && flashcards.length > 0) {
+      console.log("First flashcard sample:", {
+        question: flashcards[0].question?.substring(0, 50),
+        answer: flashcards[0].answer?.substring(0, 50),
+      });
+    }
+
+    return flashcards;
   } catch (error) {
     console.error("Error processing document:", error);
     throw error;

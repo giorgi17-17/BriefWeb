@@ -1,50 +1,98 @@
-import { openai } from "../config/openai.js";
+import { geminiAI, geminiModel } from "../config/gemini.js";
 import uniqid from "uniqid";
 
 export async function generateFlashcards(extractedText) {
   try {
-    console.log("Generating flashcards...");
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.7,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert educational content creator. Your task is to generate quality flashcards in VALID JSON format only. Focus on creating as many good flashcards as possible from the content provided. Never include explanatory text or markdown formatting. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate flashcards in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
-        },
-        {
-          role: "user",
-          content: `Generate high-quality flashcards from the provided text. Return ONLY a JSON array in this exact format:
+    console.log("Generating flashcards with Gemini API...");
+
+    // Detect if the text is in Georgian by checking for Georgian Unicode character ranges
+    const containsGeorgian = /[\u10A0-\u10FF]/.test(extractedText);
+    const textLanguage = containsGeorgian ? "Georgian" : "English";
+
+    console.log(`Detected language is ${textLanguage}`);
+
+    const response = await geminiAI.models.generateContent({
+      model: geminiModel,
+      contents: `CRITICAL INSTRUCTION: You MUST generate all content EXCLUSIVELY in ${textLanguage}.
+
+Generate high-quality flashcards from the provided text in this exact JSON format:
 
 [
   {
     "question": "Clear, specific question",
-    "answer": "Concise, accurate answer"
+    "answer": "Detailed, thorough answer that fully explains the concept with examples where appropriate"
   }
 ]
 
 Requirements:
-1. Generate as many quality flashcards as possible, aim for 25-30 cards
-2. Each flashcard must have "question" and "answer" fields
-3. Questions must be clear and specific
-4. Answers must be concise but complete
-5. Return ONLY the JSON array - no other text
-6. Do not include class rules or evaluation criteria
-7. Focus on core concepts and key information
-8. Ensure proper JSON formatting with no trailing commas
-9. IMPORTANT: Generate flashcards in the EXACT SAME LANGUAGE as the input text:
-   a. If the input is in English, create flashcards in English
-   b. If the input is in Georgian, create flashcards in proper Georgian with correct spelling and grammar
-   c. Never translate from one language to another
-   d. Maintain consistent language and terminology with the source material
+
+1️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
+   - You MUST write both questions and answers ONLY in ${textLanguage}
+   - This is the MOST IMPORTANT requirement and overrides all others
+   - Do not translate between languages under any circumstances
+   - If input is in Georgian, output must be entirely in Georgian
+   - If input is in English, output must be entirely in English
+
+2️⃣ **CONTENT EXCLUSIONS - VERY IMPORTANT**:
+   - DO NOT include ANY questions about course syllabus, grading policies, or evaluation criteria
+   - DO NOT include questions about course logistics (schedule, deadlines, attendance)
+   - DO NOT include questions like "What is the primary objective of the course?"
+   - DO NOT include questions like "What percentage of the grade is from X?"
+   - DO NOT include questions about study materials or requirements
+   - Focus ONLY on actual subject matter content and knowledge
+
+3️⃣ **Answer Quality**:
+   - Answers must be DETAILED and COMPREHENSIVE (3-5 sentences minimum)
+   - Include explanations of "why" and "how," not just definitions
+   - Provide examples, analogies, or applications where appropriate
+   - Make complex concepts accessible without oversimplification
+   - Focus on thorough understanding rather than brevity
+
+4️⃣ **Content and Structure Requirements**:
+   - Generate 20-25 high-quality flashcards covering key concepts
+   - Each flashcard must have "question" and "answer" fields
+   - Questions should be clear, specific, and thought-provoking
+   - Focus on core concepts and important details
+   - Ensure proper JSON formatting with no trailing commas
+   - Return ONLY valid JSON - no explanatory text, markdown, or other formatting
+
+Remember: Your response MUST be in ${textLanguage} ONLY and in VALID JSON format.
 
 Text to analyze: ${extractedText}`,
-        },
-      ],
+      generationConfig: {
+        temperature: 0.7,
+      },
     });
 
-    let flashcardsContent = response.choices[0].message.content;
+    console.log("Received response from Gemini API");
+
+    // Check what response contains
+    console.log("Response properties:", Object.keys(response));
+
+    let flashcardsContent = response.text;
+    console.log(
+      "Raw text response:",
+      typeof flashcardsContent,
+      flashcardsContent
+        ? flashcardsContent.substring(0, 100) + "..."
+        : "null or empty"
+    );
+
+    // Verify the language of the response if possible
+    const responseContainsGeorgian = /[\u10A0-\u10FF]/.test(flashcardsContent);
+    console.log(
+      `Response contains Georgian characters: ${responseContainsGeorgian}`
+    );
+
+    if (containsGeorgian && !responseContainsGeorgian) {
+      console.warn(
+        "WARNING: Input was in Georgian but response doesn't contain Georgian characters!"
+      );
+    } else if (!containsGeorgian && responseContainsGeorgian) {
+      console.warn(
+        "WARNING: Input was not in Georgian but response contains Georgian characters!"
+      );
+    }
 
     try {
       // Clean up the response
@@ -53,6 +101,11 @@ Text to analyze: ${extractedText}`,
         .replace(/```\n?/g, "")
         .replace(/\n+/g, " ")
         .trim();
+
+      console.log(
+        "Cleaned flashcards content:",
+        flashcardsContent.substring(0, 100) + "..."
+      );
 
       // Ensure content starts with [ and ends with ]
       if (
@@ -63,6 +116,7 @@ Text to analyze: ${extractedText}`,
       }
 
       const parsedFlashcards = JSON.parse(flashcardsContent);
+      console.log("Successfully parsed JSON");
 
       // Validate array and length
       if (!Array.isArray(parsedFlashcards)) {
@@ -85,6 +139,15 @@ Text to analyze: ${extractedText}`,
           throw new Error(`Invalid answer in flashcard ${index + 1}`);
         }
 
+        // Check for potentially short answers
+        if (card.answer.split(" ").length < 10) {
+          console.warn(
+            `Flashcard ${index + 1} has a short answer (${
+              card.answer.split(" ").length
+            } words)`
+          );
+        }
+
         return {
           id: uniqid(),
           question: card.question.trim(),
@@ -92,22 +155,24 @@ Text to analyze: ${extractedText}`,
         };
       });
 
-      if (response.usage) {
-        console.log("Token Usage:", {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        });
+      console.log("Final flashcards with IDs:", flashcardsWithId.length);
+
+      if (response.promptFeedback) {
+        console.log("Prompt Feedback:", response.promptFeedback);
       }
 
       return flashcardsWithId;
     } catch (parseError) {
       console.error("Raw response:", flashcardsContent);
       console.error("Parse error:", parseError);
-      throw new Error(`Failed to parse GPT response: ${parseError.message}`);
+      throw new Error(`Failed to parse Gemini response: ${parseError.message}`);
     }
   } catch (error) {
     console.error("Error generating flashcards:", error);
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      console.error("Error response status:", error.response.status);
+    }
     throw error;
   }
 }
@@ -115,7 +180,7 @@ Text to analyze: ${extractedText}`,
 // export async function generateBrief(extractedText) {
 //   try {
 //     console.log("Generating brief...");
-//     const response = await openai.chat.completions.create({
+//     const response = await geminiModel.chat.completions.create({
 //       model: "gpt-4o-mini",
 //       messages: [
 //         {
@@ -190,47 +255,84 @@ export async function generateBrief(pageText) {
   console.log("page text", pageText);
   try {
     console.log("Generating brief with text length:", pageText.length);
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert in summarizing academic content for students. Your task is to generate structured, easy-to-understand summaries that focus on key points and main ideas while maintaining a balanced length. The summaries must be clear, concise, and student-friendly. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate the summary in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
-        },
-        {
-          role: "user",
-          content: `Summarize the following text while following these specific rules:
-            
-            1️⃣ **General Summarization**: Extract the most important information from the text. The summary should be **mid-length**—not too short, but also not overly detailed. Keep it clear and easy to understand.
-            
-            2️⃣ **Class Rules & Evaluation System**: If the text contains general class rules or an evaluation system, **do not summarize**. Instead, return this exact response:  
-               This page contains class general rules and evaluation system. Please move to the next page.
-            
-            3️⃣ **Unanswered Questions**: If the page consists of **only questions without answers**, rewrite them in an explanatory way so that students can understand their context. Do not simply list them.
-      
-            4️⃣ **Language**: IMPORTANT: Generate content in the EXACT SAME LANGUAGE as the input text:
-               a. If the input is in English, create the summary in English
-               b. If the input is in Georgian, maintain the Georgian language with correct grammar and spelling
-               c. Never translate from one language to another
-               d. Maintain consistent language and terminology with the source material
-            
-            🔹 Ensure that the summary is **structured, concise, and useful for students**.
-      
-            Here is the text to summarize:
-            ${pageText}`,
-        },
-      ],
+
+    // Detect if the text is in Georgian by checking for Georgian Unicode character ranges
+    const containsGeorgian = /[\u10A0-\u10FF]/.test(pageText);
+    const textLanguage = containsGeorgian ? "Georgian" : "English";
+
+    console.log(`Detected language is ${textLanguage}`);
+
+    const response = await geminiAI.models.generateContent({
+      model: geminiModel,
+      contents: `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${textLanguage}. Do not use any other language regardless of what you think is appropriate.
+
+Summarize and explain the following text using these specific guidelines:
+          
+4️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
+   - You MUST respond ONLY in ${textLanguage}
+   - If the input text is in Georgian, you MUST write ONLY in Georgian
+   - If the input text is in English, you MUST write ONLY in English
+   - DO NOT translate between languages under any circumstances
+   - Maintain consistent terminology with the source material
+   - This is the MOST IMPORTANT requirement and overrides all others
+
+1️⃣ **Explanation Depth**: 
+   - Don't just restate or rewrite the content
+   - Explain key concepts with deeper insight
+   - Break down complex ideas into simpler terms
+   - Use examples or analogies when helpful
+   - Make abstract concepts concrete and relatable
+   - Focus on "why" and "how" explanations, not just "what"
+
+2️⃣ **Structure and Format**:
+   - Use clear paragraphs with logical flow
+   - DO NOT use asterisks (*) for emphasis or headings
+   - DO NOT use markdown formatting
+   - Use proper sentence structure and paragraphs
+   - For headings or important terms, simply use appropriate capitalization
+   - Keep explanations concise but comprehensive
+
+3️⃣ **Special Cases**:
+   - If the text contains class rules or evaluation system, respond EXACTLY with:
+     "This page contains class general rules and evaluation system. Please move to the next page."
+   - If the page has only questions without answers, provide explanatory context for those questions
+
+The summary should be educational, insightful, and easy to understand - imagine you're explaining to a student who needs to truly grasp the concepts, not just memorize them.
+
+Remember once more - your response MUST be in ${textLanguage} ONLY.
+
+Here is the text to summarize and explain:
+${pageText}`,
+      generationConfig: {
+        temperature: 0.4,
+      },
     });
 
     // Get the raw summary from the AI response
-    const summary = response.choices[0].message.content;
+    const summary = response.text;
     console.log("Received AI response:", summary);
+
+    // Verify the language of the response if possible
+    const responseContainsGeorgian = /[\u10A0-\u10FF]/.test(summary);
+    console.log(
+      `Response contains Georgian characters: ${responseContainsGeorgian}`
+    );
+
+    if (containsGeorgian && !responseContainsGeorgian) {
+      console.warn(
+        "WARNING: Input was in Georgian but response doesn't contain Georgian characters!"
+      );
+    } else if (!containsGeorgian && responseContainsGeorgian) {
+      console.warn(
+        "WARNING: Input was not in Georgian but response contains Georgian characters!"
+      );
+    }
 
     // Clean up the summary text
     const cleanedSummary = summary
       .replace(/^(It seems that |I apologize, but )/, "") // Remove common AI prefixes
       .replace(/\n+/g, " ") // Replace multiple newlines with space
+      .replace(/\*\*?([^*]+)\*\*?/g, "$1") // Remove any remaining asterisks for emphasis
       .trim();
 
     if (!cleanedSummary || cleanedSummary.includes("no content provided")) {
@@ -245,12 +347,8 @@ export async function generateBrief(pageText) {
     };
 
     console.log("Generated brief:", brief);
-    if (response.usage) {
-      console.log("Token Usage:", {
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
-        totalTokens: response.usage.total_tokens,
-      });
+    if (response.promptFeedback) {
+      console.log("Prompt Feedback:", response.promptFeedback);
     }
     return brief;
   } catch (error) {
@@ -280,7 +378,7 @@ export async function generateBrief(pageText) {
 //       .replace(/[\u0000-\u001F]/g, "")
 //       .substring(0, 8000); // Stay within token limits.
 
-//     const response = await openai.chat.completions.create({
+//     const response = await geminiModel.chat.completions.create({
 //       model: "gpt-4",
 //       response_format: { type: "json_object" },
 //       messages: [
@@ -327,23 +425,22 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
       questionTypes += `- THIRD: Generate exactly 2 case study questions (1 moderate, 1 advanced)\n`;
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.5,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert educational quiz generator. Your primary task is to generate EXACTLY the number of questions requested for each type, no more and no less. For multiple choice questions, you MUST provide exactly 4 options with exactly one correct answer. IMPORTANT: You must generate content in the EXACT SAME LANGUAGE as the input text. If the input is in English, generate the quiz in English. If the input is in Georgian, maintain the Georgian language with perfect grammar, correct spelling, and proper sentence structure according to Georgian language rules. Pay special attention to Georgian verb conjugation, case endings, and technical terminology.",
-        },
-        {
-          role: "user",
-          content: `Generate a quiz with EXACTLY the specified number of questions. Follow these requirements strictly:
+    const response = await geminiAI.models.generateContent({
+      model: geminiModel,
+      contents: `Generate a quiz with EXACTLY the specified number of questions. Follow these requirements strictly:
 
-1. Question Types and Order:
+1. CONTENT EXCLUSIONS - HIGHEST PRIORITY:
+   - DO NOT include ANY questions about course syllabus, grading policies, or evaluation criteria
+   - DO NOT include questions about course logistics (schedule, deadlines, attendance)
+   - DO NOT include questions like "What is the primary objective of the course?"
+   - DO NOT include questions like "What percentage of the grade is from X?"
+   - DO NOT include questions about study materials or requirements
+   - Focus ONLY on actual subject matter content and knowledge
+
+2. Question Types and Order:
 ${questionTypes}
 
-2. Multiple Choice Format (EXACTLY 10 questions required):
+3. Multiple Choice Format (EXACTLY 10 questions required):
 {
   "type": "multiple_choice",
   "question": "Clear question text",
@@ -355,14 +452,14 @@ ${questionTypes}
   ]
 }
 
-3. Open Ended Format (if requested):
+4. Open Ended Format (if requested):
 {
   "type": "open_ended",
   "question": "Question text",
   "sampleAnswer": "Detailed sample answer"
 }
 
-4. Case Study Format (if requested):
+5. Case Study Format (if requested):
 {
   "type": "case_study_moderate/advanced",
   "scenario": "Detailed scenario text",
@@ -370,7 +467,7 @@ ${questionTypes}
   "sampleAnswer": "Detailed analysis referencing the scenario"
 }
 
-5. Case Study Guidelines:
+6. Case Study Guidelines:
 - Make scenarios detailed and specific
 - Include actual data and metrics
 - Provide clear context and background
@@ -382,7 +479,7 @@ ${questionTypes}
 - Include multiple perspectives
 - Address real-world challenges
 
-6. Language:
+7. Language:
 - IMPORTANT: Generate content in the EXACT SAME LANGUAGE as the input text:
   a. If the input is in English, create the quiz in English
   b. If the input is in Georgian, create the quiz in proper Georgian
@@ -391,7 +488,7 @@ ${questionTypes}
   e. Follow proper grammar, punctuation, and formatting rules for the respective language
   f. Maintain the same language throughout all questions, options, and answers
 
-7. Required Output Structure:
+8. Required Output Structure:
 {
   "success": true,
   "questions": [
@@ -404,11 +501,12 @@ ${questionTypes}
 IMPORTANT: You MUST generate EXACTLY the number of questions specified for each type. No more, no less.
 
 Text to analyze: ${extractedText}`,
-        },
-      ],
+      generationConfig: {
+        temperature: 0.5,
+      },
     });
 
-    let quizContent = response.choices[0].message.content;
+    let quizContent = response.text;
 
     try {
       // Clean up the response
@@ -524,12 +622,8 @@ Text to analyze: ${extractedText}`,
         return order[a.type] - order[b.type];
       });
 
-      if (response.usage) {
-        console.log("Token Usage:", {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        });
+      if (response.promptFeedback) {
+        console.log("Prompt Feedback:", response.promptFeedback);
       }
 
       return parsedQuiz;

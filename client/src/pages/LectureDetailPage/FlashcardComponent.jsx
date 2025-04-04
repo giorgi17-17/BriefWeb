@@ -52,17 +52,41 @@ const FlashcardComponent = ({
   // Update local state when flashcards prop changes
   useEffect(() => {
     if (flashcards && Array.isArray(flashcards)) {
-      const uploadedSets = flashcards.filter((set) => set.isUploaded !== false);
-      setFlashcardSets(uploadedSets);
+      console.log("FlashcardComponent received flashcards:", flashcards);
+
+      // Log the structure of the first flashcard set if available
+      if (flashcards.length > 0) {
+        const firstSet = flashcards[0];
+        console.log("First flashcard set structure:", {
+          id: firstSet.id,
+          name: firstSet.name,
+          isUploaded: firstSet.isUploaded,
+          cardsCount: firstSet.cards?.length || 0,
+        });
+
+        // Log first card if available
+        if (firstSet.cards && firstSet.cards.length > 0) {
+          console.log("First card sample:", {
+            question: firstSet.cards[0].question?.substring(0, 50),
+            answer: firstSet.cards[0].answer?.substring(0, 50),
+          });
+        }
+      }
+
+      // Include both uploaded and pending sets - we need to see pending sets too
+      setFlashcardSets(flashcards);
+      console.log(
+        `Setting all ${flashcards.length} flashcard sets, including pending ones`
+      );
 
       // Reset active index if needed
-      if (activeSetIndex >= uploadedSets.length && uploadedSets.length > 0) {
+      if (activeSetIndex >= flashcards.length && flashcards.length > 0) {
         setActiveSetIndex(0);
         setActiveCardIndex(0);
         setIsFlipped(false);
       }
 
-      console.log("Flashcard sets updated:", uploadedSets);
+      console.log("Flashcard sets updated:", flashcards);
     }
   }, [flashcards, activeSetIndex]);
 
@@ -299,28 +323,28 @@ const FlashcardComponent = ({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full mt-4">
-      {/* Delete Confirmation Modal */}
+    <div className="flex flex-col items-center w-full max-w-3xl mx-auto">
+      {/* Set deletion confirmation */}
       {deleteConfirmation && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="theme-bg-secondary theme-border rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4 theme-text-primary">
-              Delete Flashcard Set
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1a1a22] rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4 theme-text-primary">
+              Delete "{deleteConfirmation.name}"?
             </h3>
-            <p className="theme-text-secondary mb-6">
-              Are you sure you want to delete {deleteConfirmation.name}? This
-              action cannot be undone.
+            <p className="mb-6 theme-text-secondary">
+              This will permanently delete this flashcard set and all its cards.
+              This action cannot be undone.
             </p>
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-3">
               <button
+                className="px-4 py-2 theme-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                 onClick={cancelDelete}
-                className="px-4 py-2 theme-text-secondary hover:text-blue-500 transition-colors"
               >
                 Cancel
               </button>
               <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500/80 hover:bg-red-500 text-white rounded transition-colors"
               >
                 Delete
               </button>
@@ -340,6 +364,11 @@ const FlashcardComponent = ({
             className="flex items-center justify-between w-full px-4 py-2 theme-border rounded-lg text-sm theme-text-primary bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           >
             <span>
+              {currentSet.isUploaded === false && (
+                <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
+                  Pending
+                </span>
+              )}
               {flashcardSets[activeSetIndex]?.name || "Select flashcard set"}
             </span>
             {dropdownOpen ? (
@@ -353,113 +382,162 @@ const FlashcardComponent = ({
               dropdownOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
             }`}
           >
-            <ul className="mt-2 space-y-2">
+            <div className="mt-1 border theme-border rounded-lg divide-y theme-divide overflow-y-auto max-h-60">
               {flashcardSets.map((set, index) => (
-                <li
+                <div
                   key={set.id}
-                  onClick={() => {
-                    if (!editingSetId) {
-                      handleSetChange(index);
-                      setDropdownOpen(false);
-                    }
-                  }}
-                  className={`cursor-pointer px-3 py-2 rounded-lg transition-all ${
+                  className={`flex items-center justify-between p-3 cursor-pointer ${
                     activeSetIndex === index
-                      ? "bg-blue-600/20 border border-blue-500/50"
-                      : "bg-[#ebebeb] dark:bg-[#2a2a35] theme-border hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a]"
+                      ? "bg-blue-50 dark:bg-blue-900/30"
+                      : "hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
                   }`}
+                  onClick={() => handleSetChange(index)}
                 >
-                  {editingSetId === set.id ? (
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-center">
+                    {/* Show edit interface or set name */}
+                    {editingSetId === set.id ? (
                       <input
                         type="text"
                         value={editingSetName}
                         onChange={(e) => setEditingSetName(e.target.value)}
-                        className="flex-1 px-2 py-1 rounded theme-bg-tertiary theme-border theme-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        placeholder="Enter set name"
-                        autoFocus
+                        className="px-2 py-1 theme-border rounded text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleEditSetName(set.id);
+                          } else if (e.key === "Escape") {
+                            setEditingSetId(null);
+                            setEditingSetName("");
+                          }
+                        }}
                         onClick={(e) => e.stopPropagation()}
+                        autoFocus
                       />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditSetName(set.id);
-                        }}
-                        className="px-2 py-1 bg-green-500/80 hover:bg-green-500 text-white rounded transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingSetId(null);
-                          setEditingSetName("");
-                        }}
-                        className="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium theme-text-primary">
-                        {set.name}
-                      </h3>
-                      <div className="flex items-center space-x-2">
+                    ) : (
+                      <div className="flex items-center">
+                        {set.isUploaded === false && (
+                          <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
+                            Pending
+                          </span>
+                        )}
+                        <span className="theme-text-primary">{set.name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Only show edit/delete buttons for uploaded sets */}
+                  {set.isUploaded !== false && (
+                    <div
+                      className="flex space-x-2 opacity-50 hover:opacity-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Edit Button */}
+                      {editingSetId === set.id ? (
                         <button
+                          className="text-blue-600 dark:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                          onClick={() => handleEditSetName(set.id)}
+                        >
+                          Save
+                        </button>
+                      ) : (
+                        <button
+                          className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingSetId(set.id);
                             setEditingSetName(set.name);
                           }}
-                          className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
                           title="Edit set name"
                         >
-                          <FiEdit2 size={16} />
+                          <FiEdit2 className="w-4 h-4 theme-text-primary" />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            initiateDelete(set.id, set.name);
-                          }}
-                          className="p-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
-                          title="Delete set"
-                        >
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
+                      )}
+
+                      {/* Delete Button */}
+                      <button
+                        className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          initiateDelete(set.id, set.name);
+                        }}
+                        title="Delete set"
+                      >
+                        <FiTrash2 className="w-4 h-4 text-red-500" />
+                      </button>
                     </div>
                   )}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       )}
 
       {/* Flashcard Display */}
-      <div
-        className={`relative w-full max-w-md h-96 cursor-pointer transition-all duration-500 ease-in-out flashcard-display ${
-          isFlipped ? "transform rotate-y-180" : ""
-        }`}
-        onClick={() => setIsFlipped(!isFlipped)}
-      >
+      <div className="w-full max-w-md md:max-w-lg lg:max-w-xl mx-auto">
         <div
-          className={`absolute w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out theme-border ${
-            isFlipped ? "opacity-0 invisible" : "opacity-100"
+          className={`relative w-full h-auto aspect-[4/3] min-h-[24rem] flashcard-display ${
+            isFlipped ? "is-flipped" : ""
           }`}
         >
-          <h3 className="text-xl font-semibold theme-text-primary">
-            {currentCard.question}
-          </h3>
-        </div>
+          {/* Show pending notice for un-uploaded sets */}
+          {currentSet.isUploaded === false && (
+            <div className="absolute top-0 left-0 right-0 z-20 bg-blue-500 text-white text-center text-sm py-1 rounded-t-lg">
+              Pending Upload - Click cards to review
+            </div>
+          )}
 
-        <div
-          className={`absolute w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex items-center justify-center text-center p-6 transition-all duration-500 ease-in-out theme-border ${
-            isFlipped ? "opacity-100" : "opacity-0 invisible rotate-y-180"
-          }`}
-        >
-          <p className="text-lg theme-text-primary">{currentCard.answer}</p>
+          <div
+            className="w-full h-full transition-transform duration-700 preserve-3d"
+            style={{
+              transformStyle: "preserve-3d",
+              transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            }}
+          >
+            {/* Question Side */}
+            <div
+              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-3 theme-border overflow-hidden backface-hidden"
+              onClick={() => setIsFlipped(true)}
+            >
+              <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
+                Question
+              </div>
+              <div className="flex items-center justify-center flex-grow p-2">
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="max-h-[22rem] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                    <h3 className="text-xl font-semibold theme-text-primary text-center">
+                      {currentCard.question}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
+                Click to see answer
+              </div>
+            </div>
+
+            {/* Answer Side */}
+            <div
+              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-3 theme-border overflow-hidden backface-hidden"
+              style={{ transform: "rotateY(180deg)" }}
+              onClick={() => setIsFlipped(false)}
+            >
+              <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
+                Answer
+              </div>
+              <div className="flex items-center justify-center flex-grow p-2">
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="max-h-[22rem] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                    <p className="text-base theme-text-primary whitespace-pre-line">
+                      {currentCard.answer}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
+                Click to see question
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -492,6 +570,7 @@ const FlashcardComponent = ({
 
       <div className="mt-4 theme-text-secondary">
         Card {activeCardIndex + 1} of {currentSet.cards.length}
+        {currentSet.isUploaded === false && " (Pending Upload)"}
       </div>
 
       {uploadError && (

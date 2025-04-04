@@ -152,7 +152,20 @@ const LectureDetailPage = () => {
         `Generating flashcards for ${selectedFile.name} (${filePath})`
       );
 
+      console.log("Calling handleProcessPdf with:", {
+        userId: user.id,
+        lectureId,
+        filePath,
+      });
+
       const data = await handleProcessPdf(user.id, lectureId, filePath);
+
+      console.log("Received data from handleProcessPdf:", {
+        receivedData: !!data,
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        length: Array.isArray(data) ? data.length : "N/A",
+      });
 
       if (!data || data.length === 0) {
         setError("No flashcards could be generated from this file.");
@@ -172,13 +185,22 @@ const LectureDetailPage = () => {
 
       const uniqueId = `temp-${fileSlug}-${Date.now()}`;
 
-      setProcessedData({
+      const processedDataObj = {
         id: uniqueId,
         name: selectedFile.name,
         createdAt: new Date().toISOString(),
         cards: data,
         isUploaded: false,
+      };
+
+      console.log("Setting processedData with:", {
+        id: processedDataObj.id,
+        name: processedDataObj.name,
+        cardsCount: processedDataObj.cards.length,
+        isUploaded: processedDataObj.isUploaded,
       });
+
+      setProcessedData(processedDataObj);
     } catch (err) {
       console.error("Error generating flashcards:", err);
       setError(`Failed to generate flashcards: ${err.message}`);
@@ -190,9 +212,21 @@ const LectureDetailPage = () => {
   // Get all flashcard sets (existing plus newly processed)
   const getAllFlashcards = () => {
     const allSets = [...flashcards];
+
+    console.log("getAllFlashcards - existing flashcards:", flashcards.length);
+
     if (processedData && !processedData.isUploaded) {
+      console.log("getAllFlashcards - adding processedData:", {
+        id: processedData.id,
+        name: processedData.name,
+        cardsCount: processedData.cards?.length || 0,
+      });
       allSets.push(processedData);
+    } else {
+      console.log("getAllFlashcards - no processedData to add");
     }
+
+    console.log("getAllFlashcards - returning total sets:", allSets.length);
     return allSets;
   };
 
@@ -338,7 +372,7 @@ const LectureDetailPage = () => {
         }}
       />
 
-      <div className="max-w-5xl mx-auto px-4">
+      <div className="max-w-5xl mx-auto px-0 sm:px-4">
         {/* Header */}
         <header className="flex items-center justify-between mb-4">
           <button
@@ -346,7 +380,7 @@ const LectureDetailPage = () => {
             className="flex items-center theme-text-secondary hover:text-blue-500 transition-colors"
           >
             <ChevronLeft className="w-5 h-5 mr-1" />
-            <span className="font-medium">Back to Subjects</span>
+            <span className="font-medium">Back to Lectures</span>
           </button>
         </header>
 
