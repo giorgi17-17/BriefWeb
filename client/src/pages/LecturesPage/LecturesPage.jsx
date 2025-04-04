@@ -9,11 +9,23 @@ import { getLocalizedSeoField } from "../../utils/seoTranslations";
 import { getCanonicalUrl } from "../../utils/languageSeo";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 
+// Helper to check if a string is a valid UUID
+const isUuid = (str) => {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const LecturesPage = () => {
   const location = useLocation();
+  const { name: subjectIdFromUrl } = useParams();
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language;
-  const subjectId = location.state?.subjectId;
+
+  // Get subject ID from URL param or location state, ensuring it's a UUID
+  const subjectIdFromUrlOrState = subjectIdFromUrl || location.state?.subjectId;
+  const [subjectId, setSubjectId] = useState(null);
+
   const navigate = useNavigate();
   const [subject, setSubject] = useState(null);
   const [lectures, setLectures] = useState([]);
@@ -23,9 +35,70 @@ const LecturesPage = () => {
   const { user } = useAuth();
   const { isPremium, canCreateLecture, MAX_FREE_LECTURES_PER_SUBJECT } =
     useUserPlan();
-  const { t: translationT } = useTranslation();
   const [canAdd, setCanAdd] = useState(true);
 
+  // Extract the subject ID resolution logic to a reusable function
+  const resolveSubjectId = async (idOrSlug) => {
+    if (!idOrSlug) {
+      setError(
+        "Subject not found. Please go back to the home page and try again."
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    // If it's already a UUID, use it directly
+    if (isUuid(idOrSlug)) {
+      console.log("Subject ID is a valid UUID:", idOrSlug);
+      setSubjectId(idOrSlug);
+      return;
+    }
+
+    // If not a UUID, try to find the subject by title
+    console.log("Subject ID is not a UUID, searching by title:", idOrSlug);
+    try {
+      // Search by title match
+      const { data: titleData, error: titleError } = await supabase
+        .from("subjects")
+        .select("id")
+        .ilike("title", `%${idOrSlug}%`)
+        .limit(1);
+
+      if (titleError) {
+        console.error("Error finding subject by title:", titleError);
+        setError(
+          "Subject not found. Please go back to the home page and try again."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (!titleData || titleData.length === 0) {
+        console.error("No subject found for name:", idOrSlug);
+        setError(
+          "Subject not found. Please go back to the home page and try again."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Found subject by title:", titleData[0].id);
+      setSubjectId(titleData[0].id);
+    } catch (err) {
+      console.error("Unexpected error resolving subject ID:", err);
+      setError(
+        "Subject not found. Please go back to the home page and try again."
+      );
+      setIsLoading(false);
+    }
+  };
+
+  // First check if the URL parameter is a valid UUID or find the subject by name/slug
+  useEffect(() => {
+    resolveSubjectId(subjectIdFromUrlOrState);
+  }, [subjectIdFromUrlOrState]);
+
+  // Now fetch lectures once we have a valid subject ID
   useEffect(() => {
     const fetchLecturesData = async () => {
       if (!user) {
@@ -34,33 +107,35 @@ const LecturesPage = () => {
       }
 
       if (!subjectId) {
-        setError(
-          "Subject not found. Please go back to the home page and try again."
-        );
-        setIsLoading(false);
+        // We'll handle this error in the first useEffect
         return;
       }
 
       try {
+        console.log("Fetching subject with ID:", subjectId);
+
         // First, fetch the subject
         const { data: subjectData, error: subjectError } = await supabase
           .from("subjects")
           .select("*")
           .eq("id", subjectId)
           .single();
-        setIsLoading(true);
+
         if (subjectError) {
+          console.error("Error fetching subject:", subjectError);
           setError(subjectError.message);
           setIsLoading(false);
           return;
         }
 
         if (!subjectData) {
+          console.error("No subject data found for ID:", subjectId);
           setError("Subject not found.");
           setIsLoading(false);
           return;
         }
 
+        console.log("Subject data found:", subjectData.title);
         setSubject(subjectData);
 
         // Then, fetch all lectures for this subject in ascending order by date
@@ -77,20 +152,25 @@ const LecturesPage = () => {
           .order("date", { ascending: true });
 
         if (lecturesError) {
+          console.error("Error fetching lectures:", lecturesError);
           setError(lecturesError.message);
           setIsLoading(false);
           return;
         }
 
+        console.log(`Found ${lecturesData?.length || 0} lectures for subject`);
         setLectures(lecturesData || []);
       } catch (error) {
+        console.error("Unexpected error:", error);
         setError(error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchLecturesData();
+    if (subjectId) {
+      fetchLecturesData();
+    }
   }, [user, navigate, subjectId]);
 
   // Check if user can add more lectures when lectures change
@@ -173,17 +253,6 @@ const LecturesPage = () => {
         </div>
       </div>
     </Link>
-  );
-
-  const renderEmptyState = () => (
-    <div className="text-center py-12">
-      <div className="mb-4">
-        <Plus className="w-12 h-12 mx-auto theme-text-tertiary" />
-      </div>
-      <p className="theme-text-tertiary text-lg">
-        No lectures yet. Click the Add Lecture button to get started.
-      </p>
-    </div>
   );
 
   const renderLoadingState = () => (

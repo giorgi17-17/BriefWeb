@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
@@ -28,8 +28,19 @@ const LectureDetailPage = () => {
   const [subjectTitle, setSubjectTitle] = useState("");
   const [activeFlashcardSetIndex, setActiveFlashcardSetIndex] = useState(0);
 
+  // Add refs to track pending operations
+  const isMounted = useRef(true);
+  const pendingRequests = useRef({});
+
   // Fetch initial lecture data
   const fetchLectureData = async () => {
+    if (!isMounted.current) return;
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    const requestId = Date.now().toString();
+    pendingRequests.current[requestId] = controller;
+
     try {
       console.log("Fetching lecture data including flashcard sets...");
 
@@ -50,21 +61,30 @@ const LectureDetailPage = () => {
 
       if (lectureError) throw lectureError;
 
-      if (lectureData) {
-        setFiles(lectureData.files || []);
-        setSubjectId(lectureData.subject_id);
-        setLectureTitle(lectureData.title || "");
+      if (lectureData && isMounted.current) {
+        // These state updates will be handled by the caller with isMounted check
 
         // Fetch subject title
         if (lectureData.subject_id) {
-          const { data: subjectData } = await supabase
+          const { data: subjectData, error: subjectError } = await supabase
             .from("subjects")
-            .select("title")
+            .select("title, id")
             .eq("id", lectureData.subject_id)
             .single();
 
-          if (subjectData) {
+          if (subjectError) {
+            console.error("Error fetching subject data:", subjectError);
+            // Don't throw - continue with empty subject data
+          }
+
+          if (subjectData && isMounted.current) {
             setSubjectTitle(subjectData.title || "");
+            setSubjectId(subjectData.id);
+          } else if (isMounted.current) {
+            // Set default values if subject not found
+            setSubjectTitle("");
+            // Keep the existing subject ID from the lecture
+            setSubjectId(lectureData.subject_id);
           }
         }
 
@@ -82,37 +102,152 @@ const LectureDetailPage = () => {
         }));
 
         console.log(`Found ${allFlashcards.length} flashcard sets`);
-        setFlashcards(allFlashcards);
+        if (isMounted.current) {
+          setFlashcards(allFlashcards);
+        }
 
         // Return the data in case we need it elsewhere
         return lectureData;
       }
     } catch (error) {
       console.error("Error fetching lecture data:", error);
-      setError(error.message);
+      if (isMounted.current) {
+        if (error.message.includes("not found")) {
+          setError(
+            "Lecture not found. Please go back to the home page and try again."
+          );
+        } else {
+          setError(
+            "Failed to load lecture data. Please try refreshing the page."
+          );
+        }
+      }
+      throw error; // Let the caller handle the error with isMounted check
+    } finally {
+      delete pendingRequests.current[requestId];
     }
   };
 
   useEffect(() => {
+    isMounted.current = true;
+
     if (user?.id && lectureId) {
-      fetchLectureData();
+      const loadData = async () => {
+        try {
+          const data = await fetchLectureData();
+          // Only update state if component is still mounted
+          if (isMounted.current && data) {
+            setFiles(data.files || []);
+            setLectureTitle(data.title || "");
+            // We set the subject ID in fetchLectureData to ensure it's always consistent
+          }
+        } catch (error) {
+          if (isMounted.current) {
+            console.error("Error in useEffect data loading:", error);
+            // Don't overwrite error from fetchLectureData
+            if (!error.handled) {
+              setError(error.message);
+            }
+          }
+        }
+      };
+
+      loadData();
     }
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted.current = false;
+
+      // Cancel all pending requests
+      Object.values(pendingRequests.current).forEach((controller) => {
+        if (controller && controller.abort) {
+          controller.abort();
+        }
+      });
+
+      // Clear state
+      setFlashcards([]);
+      setFiles([]);
+      setProcessedData(null);
+      setError(null);
+      setIsGenerating(false);
+      setIsUploading(false);
+    };
   }, [user?.id, lectureId]);
 
+  // Enhanced navigation handling
+  const navigateWithCleanup = (path, state = {}) => {
+    if (!isMounted.current) return;
+
+    // First set that we're unmounting to prevent further state updates
+    isMounted.current = false;
+
+    // Cancel all pending operations
+    Object.values(pendingRequests.current).forEach((controller) => {
+      if (controller && controller.abort) {
+        controller.abort();
+      }
+    });
+
+    // Clear all state immediately
+    setFlashcards([]);
+    setFiles([]);
+    setProcessedData(null);
+    setError(null);
+    setIsGenerating(false);
+    setIsUploading(false);
+
+    // Navigate immediately without setTimeout
+    navigate(path, { state });
+  };
+
+  const handleBackClick = () => {
+    // Get the current URL path segments
+    const pathParts = window.location.pathname.split("/");
+
+    // The URL structure should be /subjects/{subject-identifier}/lectures/{lecture-id}
+    // So we want to extract the subject-identifier from the path
+    if (pathParts.length >= 3) {
+      const subjectIdentifier = pathParts[2];
+      console.log(
+        "Navigating back to subject page with identifier:",
+        subjectIdentifier
+      );
+      navigateWithCleanup(`/subjects/${subjectIdentifier}`);
+    } else if (subjectId) {
+      // Fallback to using the subject ID from state if URL parsing fails
+      console.log(
+        "Navigating back to subject using state subjectId:",
+        subjectId
+      );
+      navigateWithCleanup(`/subjects/${subjectId}`);
+    } else {
+      // If all else fails, go to subjects list
+      console.log("No subject identifier available, going to subjects list");
+      navigateWithCleanup("/subjects");
+    }
+  };
+
   const handleFileSelect = (file) => {
+    if (!isMounted.current) return;
     setSelectedFile(file);
     setError(null);
     setProcessedData(null);
   };
 
   const handleGenerateFlashcards = async () => {
+    if (!isMounted.current || isGenerating) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    const requestId = `generate-${Date.now()}`;
+    pendingRequests.current[requestId] = controller;
+
     try {
-      // Don't do anything if already generating
-      if (isGenerating) return;
-
-      setIsGenerating(true);
-      setError(null);
-
       if (!selectedFile) {
         throw new Error("No file selected");
       }
@@ -129,7 +264,6 @@ const LectureDetailPage = () => {
         setError(
           `Already processing flashcards for "${selectedFile.name}". Please wait for it to complete.`
         );
-        setIsGenerating(false);
         return;
       }
 
@@ -143,7 +277,6 @@ const LectureDetailPage = () => {
         setError(
           `Flashcards already exist for "${selectedFile.name}". Please delete the existing set first if you want to regenerate.`
         );
-        setIsGenerating(false);
         return;
       }
 
@@ -159,6 +292,8 @@ const LectureDetailPage = () => {
       });
 
       const data = await handleProcessPdf(user.id, lectureId, filePath);
+
+      if (!isMounted.current) return;
 
       console.log("Received data from handleProcessPdf:", {
         receivedData: !!data,
@@ -200,12 +335,19 @@ const LectureDetailPage = () => {
         isUploaded: processedDataObj.isUploaded,
       });
 
-      setProcessedData(processedDataObj);
+      if (isMounted.current) {
+        setProcessedData(processedDataObj);
+      }
     } catch (err) {
       console.error("Error generating flashcards:", err);
-      setError(`Failed to generate flashcards: ${err.message}`);
+      if (isMounted.current) {
+        setError(`Failed to generate flashcards: ${err.message}`);
+      }
     } finally {
-      setIsGenerating(false);
+      delete pendingRequests.current[requestId];
+      if (isMounted.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -231,6 +373,8 @@ const LectureDetailPage = () => {
   };
 
   const handleFlashcardsModified = (updatedFlashcards) => {
+    if (!isMounted.current) return;
+
     if (Array.isArray(updatedFlashcards) && updatedFlashcards.length > 0) {
       setFlashcards(
         updatedFlashcards.map((set) => ({
@@ -244,10 +388,18 @@ const LectureDetailPage = () => {
   };
 
   const handleFileUpload = async (event) => {
+    if (!isMounted.current) return;
+
     const file = event.target.files[0];
     if (!file) return;
+
     setIsUploading(true);
     setError(null);
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    const requestId = `upload-${Date.now()}`;
+    pendingRequests.current[requestId] = controller;
 
     try {
       const fileExt = file.name.split(".").pop();
@@ -257,6 +409,8 @@ const LectureDetailPage = () => {
         .from("lecture-files")
         .upload(filePath, file);
       if (uploadError) throw uploadError;
+
+      if (!isMounted.current) return;
 
       const {
         data: { publicUrl },
@@ -276,17 +430,33 @@ const LectureDetailPage = () => {
         .single();
 
       if (dbError) throw dbError;
-      setFiles((prev) => [...prev, fileRecord]);
+
+      if (isMounted.current) {
+        setFiles((prev) => [...prev, fileRecord]);
+      }
     } catch (error) {
       console.error("Error uploading file:", error);
-      setError(error.message);
+      if (isMounted.current) {
+        setError(error.message);
+      }
     } finally {
-      setIsUploading(false);
+      delete pendingRequests.current[requestId];
+      if (isMounted.current) {
+        setIsUploading(false);
+      }
     }
   };
 
   const handleDeleteFile = async (fileId) => {
+    if (!isMounted.current) return;
+
     setError(null);
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    const requestId = `delete-${Date.now()}`;
+    pendingRequests.current[requestId] = controller;
+
     try {
       console.log("Deleting file with ID:", fileId);
       const fileToDelete = files.find((f) => f.id === fileId);
@@ -312,6 +482,8 @@ const LectureDetailPage = () => {
         }
       }
 
+      if (!isMounted.current) return;
+
       // Then delete the database record
       console.log("Deleting file record from database");
       const { error: dbError } = await supabase
@@ -325,15 +497,17 @@ const LectureDetailPage = () => {
       }
 
       console.log("File successfully deleted");
-      setFiles((prevFiles) => prevFiles.filter((f) => f.id !== fileId));
+      if (isMounted.current) {
+        setFiles((prevFiles) => prevFiles.filter((f) => f.id !== fileId));
+      }
     } catch (error) {
       console.error("Error deleting file:", error);
-      setError(error.message);
+      if (isMounted.current) {
+        setError(error.message);
+      }
+    } finally {
+      delete pendingRequests.current[requestId];
     }
-  };
-
-  const handleBackClick = () => {
-    navigate("/lectures", { state: { subjectId } });
   };
 
   return (
@@ -464,6 +638,8 @@ const LectureDetailPage = () => {
                       activeSetIndex={activeFlashcardSetIndex}
                       setActiveSetIndex={setActiveFlashcardSetIndex}
                       onFlashcardsUploaded={(updatedSet) => {
+                        if (!isMounted.current) return;
+
                         console.log(
                           "Flashcards uploaded successfully:",
                           updatedSet.id

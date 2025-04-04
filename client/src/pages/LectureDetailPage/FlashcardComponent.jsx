@@ -22,9 +22,15 @@ const FlashcardComponent = ({
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Simplify the external active set index handling
+  // Sync with external active set index
   useEffect(() => {
-    if (externalActiveSetIndex !== undefined && flashcardSets.length > 0) {
+    let isMounted = true;
+
+    if (
+      externalActiveSetIndex !== undefined &&
+      flashcardSets.length > 0 &&
+      isMounted
+    ) {
       if (
         externalActiveSetIndex >= 0 &&
         externalActiveSetIndex < flashcardSets.length
@@ -37,21 +43,34 @@ const FlashcardComponent = ({
         }
       }
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [externalActiveSetIndex, flashcardSets.length, activeSetIndex]);
 
   // Sync back to parent when internal index changes
   useEffect(() => {
+    let isMounted = true;
+
     if (
       setExternalActiveSetIndex &&
-      activeSetIndex !== externalActiveSetIndex
+      activeSetIndex !== externalActiveSetIndex &&
+      isMounted
     ) {
       setExternalActiveSetIndex(activeSetIndex);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [activeSetIndex, externalActiveSetIndex, setExternalActiveSetIndex]);
 
   // Update local state when flashcards prop changes
   useEffect(() => {
-    if (flashcards && Array.isArray(flashcards)) {
+    let isMounted = true;
+
+    if (flashcards && Array.isArray(flashcards) && isMounted) {
       console.log("FlashcardComponent received flashcards:", flashcards);
 
       // Log the structure of the first flashcard set if available
@@ -80,7 +99,11 @@ const FlashcardComponent = ({
       );
 
       // Reset active index if needed
-      if (activeSetIndex >= flashcards.length && flashcards.length > 0) {
+      if (
+        activeSetIndex >= flashcards.length &&
+        flashcards.length > 0 &&
+        isMounted
+      ) {
         setActiveSetIndex(0);
         setActiveCardIndex(0);
         setIsFlipped(false);
@@ -88,6 +111,10 @@ const FlashcardComponent = ({
 
       console.log("Flashcard sets updated:", flashcards);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [flashcards, activeSetIndex]);
 
   // Process and upload new flashcards
@@ -98,7 +125,8 @@ const FlashcardComponent = ({
       if (
         !setToProcess ||
         setToProcess.isUploaded ||
-        !setToProcess.cards?.length
+        !setToProcess.cards?.length ||
+        !isMounted
       ) {
         return;
       }
@@ -117,6 +145,8 @@ const FlashcardComponent = ({
           .single();
 
         if (setError) throw setError;
+        if (!isMounted) return;
+
         console.log(`Created flashcard set with ID: ${flashcardSet.id}`);
 
         // Insert flashcards in batches
@@ -185,8 +215,8 @@ const FlashcardComponent = ({
           }
         }
       } catch (error) {
-        console.error(`Error processing flashcards: ${error.message}`);
         if (isMounted) {
+          console.error(`Error processing flashcards: ${error.message}`);
           setUploadError(`Failed to upload flashcards: ${error.message}`);
         }
       }
@@ -197,7 +227,7 @@ const FlashcardComponent = ({
       flashcards?.filter((set) => !set.isUploaded && set.cards?.length > 0) ||
       [];
 
-    if (pendingSets.length > 0 && lectureId) {
+    if (pendingSets.length > 0 && lectureId && isMounted) {
       // Only process the first pending set
       processSet(pendingSets[0]);
     }
@@ -329,7 +359,7 @@ const FlashcardComponent = ({
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1a1a22] rounded-lg shadow-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-bold mb-4 theme-text-primary">
-              Delete "{deleteConfirmation.name}"?
+              Delete &quot;{deleteConfirmation.name}&quot;?
             </h3>
             <p className="mb-6 theme-text-secondary">
               This will permanently delete this flashcard set and all its cards.
@@ -588,6 +618,7 @@ FlashcardComponent.propTypes = {
       id: PropTypes.string,
       name: PropTypes.string,
       createdAt: PropTypes.string,
+      isUploaded: PropTypes.bool,
       cards: PropTypes.arrayOf(
         PropTypes.shape({
           question: PropTypes.string.isRequired,

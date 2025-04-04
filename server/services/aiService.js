@@ -36,6 +36,7 @@ Requirements:
 2️⃣ **CONTENT EXCLUSIONS - VERY IMPORTANT**:
    - DO NOT include ANY questions about course syllabus, grading policies, or evaluation criteria
    - DO NOT include questions about course logistics (schedule, deadlines, attendance)
+   - DO NOT include questions about lecturers, professors, or their credentials/background
    - DO NOT include questions like "What is the primary objective of the course?"
    - DO NOT include questions like "What percentage of the grade is from X?"
    - DO NOT include questions about study materials or requirements
@@ -276,6 +277,15 @@ Summarize and explain the following text using these specific guidelines:
    - Maintain consistent terminology with the source material
    - This is the MOST IMPORTANT requirement and overrides all others
 
+5️⃣ **CONTENT EXCLUSIONS - VERY IMPORTANT**:
+   - DO NOT include ANY information about course syllabus, grading policies, or evaluation criteria
+   - DO NOT include information about course logistics (schedule, deadlines, attendance)
+   - DO NOT include information about lecturers or professors and their credentials or personal information
+   - DO NOT summarize sections about "course objectives" or "learning outcomes"
+   - DO NOT describe grading percentages or course requirements
+   - DO NOT summarize information about study materials or requirements
+   - Focus ONLY on actual subject matter content and knowledge
+
 1️⃣ **Explanation Depth**: 
    - Don't just restate or rewrite the content
    - Explain key concepts with deeper insight
@@ -296,13 +306,17 @@ Summarize and explain the following text using these specific guidelines:
    - If the text contains class rules or evaluation system, respond EXACTLY with:
      "This page contains class general rules and evaluation system. Please move to the next page."
    - If the page has only questions without answers, provide explanatory context for those questions
+   - If the page primarily contains information about lecturers, professors, or administrative staff, respond EXACTLY with:
+     "This page contains information about course instructors. Please move to the next page."
+   - If the page primarily contains information about study materials or requirements, respond EXACTLY with:
+     "This page contains information about study materials. Please move to the next page."
 
 The summary should be educational, insightful, and easy to understand - imagine you're explaining to a student who needs to truly grasp the concepts, not just memorize them.
 
 Remember once more - your response MUST be in ${textLanguage} ONLY.
 
 Here is the text to summarize and explain:
-${pageText}`,
+            ${pageText}`,
       generationConfig: {
         temperature: 0.4,
       },
@@ -432,6 +446,7 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
 1. CONTENT EXCLUSIONS - HIGHEST PRIORITY:
    - DO NOT include ANY questions about course syllabus, grading policies, or evaluation criteria
    - DO NOT include questions about course logistics (schedule, deadlines, attendance)
+   - DO NOT include questions about lecturers, professors, or their credentials/background
    - DO NOT include questions like "What is the primary objective of the course?"
    - DO NOT include questions like "What percentage of the grade is from X?"
    - DO NOT include questions about study materials or requirements
