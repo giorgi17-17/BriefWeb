@@ -38,9 +38,7 @@ export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
         >
           {subject.name}
         </h3>
-        <div className="text-sm theme-text-tertiary">
-          {subject.lectureCount} Lectures
-        </div>
+          
       </div>
     </div>
   );

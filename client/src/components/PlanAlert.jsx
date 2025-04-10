@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useUserPlan } from "../contexts/UserPlanContext";
 import { AlertCircle } from "lucide-react";
+import PropTypes from "prop-types";
 
 const PlanAlert = ({ showSubjectLimit = true }) => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const PlanAlert = ({ showSubjectLimit = true }) => {
       <div className="flex items-start gap-3">
         <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium">You're on the Free Plan</p>
+          <p className="font-medium">You&apos;re on the Free Plan</p>
           {showSubjectLimit && (
             <p className="mt-1 text-sm opacity-90">
               You can create up to {subjectLimit} subjects on the {planType}{" "}
@@ -32,6 +33,10 @@ const PlanAlert = ({ showSubjectLimit = true }) => {
       </button>
     </div>
   );
+};
+
+PlanAlert.propTypes = {
+  showSubjectLimit: PropTypes.bool,
 };
 
 export default PlanAlert;
