@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../utils/supabaseClient";
 import PropTypes from "prop-types";
 import { AuthContext } from "./AuthContextValue";
@@ -6,12 +6,47 @@ import { AuthContext } from "./AuthContextValue";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const lastActivityTimestamp = useRef(Date.now());
+  const tokenRefreshIntervalId = useRef(null);
+  const REFRESH_INTERVAL = 20 * 60 * 1000; // 20 minutes
+  const visibilityChangeHandler = useRef(null);
+
+  // Function to refresh the token
+  const refreshToken = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Error getting session:", error);
+        return;
+      }
+
+      if (data?.session) {
+        // Update last activity timestamp
+        lastActivityTimestamp.current = Date.now();
+
+        // Explicitly refresh token
+        const { error: refreshError } = await supabase.auth.refreshSession();
+
+        if (refreshError) {
+          console.error("Error refreshing token:", refreshError);
+        } else {
+          console.log("Auth token refreshed successfully");
+        }
+      }
+    } catch (err) {
+      console.error("Exception during token refresh:", err);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
+        // Update last activity timestamp
+        lastActivityTimestamp.current = Date.now();
+
         // Check if we need to add the user to our database on initial load
         if (session.user.app_metadata?.provider === "google") {
           console.log(
@@ -36,6 +71,8 @@ export function AuthProvider({ children }) {
 
       if (session?.user) {
         setUser(session.user);
+        // Update last activity timestamp
+        lastActivityTimestamp.current = Date.now();
 
         // If this is a new sign in, check if we need to add the user to our database
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -57,8 +94,88 @@ export function AuthProvider({ children }) {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Set up periodic token refresh
+    tokenRefreshIntervalId.current = setInterval(
+      refreshToken,
+      REFRESH_INTERVAL
+    );
+
+    // Handle visibility changes
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        // Calculate time since last activity
+        const inactivityPeriod = Date.now() - lastActivityTimestamp.current;
+        const minutes = Math.floor(inactivityPeriod / 60000);
+
+        if (minutes > 5) {
+          // If inactive for more than 5 minutes
+          console.log(
+            `Auth: Page visible after ${minutes} minutes inactivity, refreshing auth state`
+          );
+
+          try {
+            // Force a token refresh
+            await refreshToken();
+
+            // Get the current session
+            const { data, error } = await supabase.auth.getSession();
+
+            if (error) {
+              console.error("Error getting session after inactivity:", error);
+              return;
+            }
+
+            if (data?.session && data.session.user) {
+              // Update the user state if session is still valid
+              setUser(data.session.user);
+              console.log("Auth: Session restored after inactivity");
+            } else if (user) {
+              // Session expired, clear the user
+              console.log(
+                "Auth: Session expired during inactivity, logging out"
+              );
+              setUser(null);
+            }
+          } catch (err) {
+            console.error("Auth: Error handling visibility change:", err);
+          }
+        } else {
+          // Update the activity timestamp
+          lastActivityTimestamp.current = Date.now();
+        }
+      } else {
+        // Update timestamp when user navigates away
+        lastActivityTimestamp.current = Date.now();
+      }
+    };
+
+    // Store the handler reference for cleanup
+    visibilityChangeHandler.current = handleVisibilityChange;
+
+    // Add visibility change listener
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Clean up interval when page unloads
+    window.addEventListener("beforeunload", () => {
+      clearInterval(tokenRefreshIntervalId.current);
+    });
+
+    return () => {
+      // Clean up subscriptions
+      subscription.unsubscribe();
+
+      // Clear the token refresh interval
+      if (tokenRefreshIntervalId.current) {
+        clearInterval(tokenRefreshIntervalId.current);
+      }
+
+      // Remove visibility change listener
+      document.removeEventListener(
+        "visibilitychange",
+        visibilityChangeHandler.current
+      );
+    };
+  }, [user, REFRESH_INTERVAL]);
 
   // Function to add a new user to the users table
   const addUserToDatabase = async (user) => {
@@ -177,6 +294,9 @@ export function AuthProvider({ children }) {
         await addUserToDatabase(data.user);
       }
 
+      // Update the activity timestamp
+      lastActivityTimestamp.current = Date.now();
+
       return data;
     } catch (error) {
       console.error("Error signing up:", error);
@@ -192,6 +312,10 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+
+      // Update the activity timestamp
+      lastActivityTimestamp.current = Date.now();
+
       return data;
     } catch (error) {
       console.error("Error signing in:", error);
@@ -209,6 +333,9 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+
+      // Update the activity timestamp
+      lastActivityTimestamp.current = Date.now();
     } catch (error) {
       console.error("Error signing in with Google:", error);
       throw error;
@@ -242,6 +369,7 @@ export function AuthProvider({ children }) {
     signInWithEmail,
     signInWithGoogle,
     logout,
+    refreshToken,
   };
 
   return (

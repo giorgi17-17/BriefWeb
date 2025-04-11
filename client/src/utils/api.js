@@ -9,13 +9,28 @@ console.log("API Configuration:", {
   environment: import.meta.env.MODE,
 });
 
-// Create custom axios instance with longer timeout
-const apiClient = axios.create({
-  timeout: 60000, // 60 second timeout
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+// Create function to generate a new API client to ensure fresh connections
+const createApiClient = () => {
+  return axios.create({
+    timeout: 60000, // 60 second timeout
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+};
+
+// Initial API client instance
+let apiClient = createApiClient();
+
+// Handle visibility change to reset API client when page becomes visible again
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      console.log("Page is visible, recreating API client");
+      apiClient = createApiClient();
+    }
+  });
+}
 
 const handleProcessPdf = async (userId, lectureId, fileId) => {
   try {
@@ -99,6 +114,17 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
     return validFlashcards;
   } catch (error) {
     console.error("Error processing PDF:", error);
+
+    // Check if we need to recreate the API client due to a network issue
+    if (
+      error.code === "ECONNABORTED" ||
+      error.message === "Network Error" ||
+      error.response?.status === 0
+    ) {
+      console.log("Network error detected, recreating API client");
+      apiClient = createApiClient();
+    }
+
     throw error;
   }
 };
