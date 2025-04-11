@@ -14,9 +14,12 @@ export function useLectureData(lectureId, userId) {
   // Add refs to track pending operations
   const isMounted = useRef(true);
   const pendingRequests = useRef({});
+  const visibilityChangeHandler = useRef(null);
+  const sessionRecoveryHandler = useRef(null);
+  const lastSuccessfulFetch = useRef(Date.now());
 
   // Fetch initial lecture data
-  const fetchLectureData = async () => {
+  const fetchLectureData = async (forceRefresh = false) => {
     if (!isMounted.current) return;
 
     // Create an abort controller for this request
@@ -26,6 +29,11 @@ export function useLectureData(lectureId, userId) {
 
     try {
       console.log("Fetching lecture data including flashcard sets...");
+
+      // For forced refreshes, set loading back to true
+      if (forceRefresh && isMounted.current) {
+        setIsLoading(true);
+      }
 
       const { data: lectureData, error: lectureError } = await supabase
         .from("lectures")
@@ -87,6 +95,10 @@ export function useLectureData(lectureId, userId) {
           setFlashcards(allFlashcards);
           setFiles(lectureData.files || []);
           setLectureTitle(lectureData.title || "");
+          // Clear any previous errors on successful fetch
+          setError(null);
+          // Update the last successful fetch timestamp
+          lastSuccessfulFetch.current = Date.now();
         }
 
         // Return the data in case we need it elsewhere
@@ -238,7 +250,7 @@ export function useLectureData(lectureId, userId) {
     }
   };
 
-  // Set up effect for data fetching
+  // Set up effect for data fetching and visibility change handling
   useEffect(() => {
     // Track mounted state
     isMounted.current = true;
@@ -246,20 +258,90 @@ export function useLectureData(lectureId, userId) {
     // Create a local reference to pendingRequests that will be captured in closure
     const requests = pendingRequests;
 
+    // Handler for document visibility changes
+    const handleVisibilityChange = () => {
+      if (!isMounted.current) return;
+
+      if (document.visibilityState === "visible") {
+        const timeSinceLastFetch = Date.now() - lastSuccessfulFetch.current;
+        const needsRefresh = timeSinceLastFetch > 60000; // 60 seconds
+
+        console.log(
+          `Page is now visible, time since last fetch: ${Math.round(
+            timeSinceLastFetch / 1000
+          )}s`
+        );
+
+        // Recreate Supabase connection by refreshing data
+        if (userId && lectureId) {
+          try {
+            console.log(
+              `Reconnecting data services, force refresh: ${needsRefresh}`
+            );
+            fetchLectureData(needsRefresh).catch((err) => {
+              console.error(
+                "Error refreshing data after visibility change:",
+                err
+              );
+            });
+          } catch (e) {
+            console.error("Error in visibility change handler:", e);
+          }
+        }
+      }
+    };
+
+    // Handler for session recovery events
+    const handleSessionRecovery = (event) => {
+      if (!isMounted.current) return;
+
+      console.log("Session recovery event received:", event.detail);
+
+      if (event.detail.success && userId && lectureId) {
+        // Wait a moment to ensure the session is fully restored
+        setTimeout(() => {
+          if (!isMounted.current) return;
+
+          console.log("Reloading data after session recovery");
+          // Force a full data refresh after session recovery
+          fetchLectureData(true).catch((err) => {
+            console.error("Error reloading data after session recovery:", err);
+          });
+        }, 500);
+      }
+    };
+
+    // Store the handler references for cleanup
+    visibilityChangeHandler.current = handleVisibilityChange;
+    sessionRecoveryHandler.current = handleSessionRecovery;
+
+    // Add event listeners
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener(
+      "supabase:sessionRecovered",
+      handleSessionRecovery
+    );
+
     if (userId && lectureId) {
       fetchLectureData();
     }
 
-    // Cleanup function to prevent state updates after unmount
+    // Cleanup function
     return () => {
-      // Mark as unmounted first
       isMounted.current = false;
 
-      // Create a shallow copy of all current requests
-      const requestsToAbort = { ...requests.current };
+      // Remove event listeners
+      document.removeEventListener(
+        "visibilitychange",
+        visibilityChangeHandler.current
+      );
+      document.removeEventListener(
+        "supabase:sessionRecovered",
+        sessionRecoveryHandler.current
+      );
 
-      // Abort all pending requests using the copy
-      Object.values(requestsToAbort).forEach((controller) => {
+      // Cancel all pending operations
+      Object.values(requests.current).forEach((controller) => {
         if (controller && controller.abort) {
           controller.abort();
         }

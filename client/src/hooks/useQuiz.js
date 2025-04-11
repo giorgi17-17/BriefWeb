@@ -20,10 +20,77 @@ export function useQuiz(lectureId, user) {
 
   // Track if component is mounted
   const isMounted = useRef(true);
+  const visibilityChangeHandler = useRef(null);
+  const sessionRecoveryHandler = useRef(null);
+  const lastSuccessfulFetch = useRef(Date.now());
 
   useEffect(() => {
     // Set mounted flag
     isMounted.current = true;
+
+    // Handler for document visibility changes
+    const handleVisibilityChange = () => {
+      if (!isMounted.current) return;
+
+      if (document.visibilityState === "visible") {
+        const timeSinceLastFetch = Date.now() - lastSuccessfulFetch.current;
+        const needsRefresh = timeSinceLastFetch > 60000; // 60 seconds
+
+        console.log(
+          `Quiz: Page is visible, time since last fetch: ${Math.round(
+            timeSinceLastFetch / 1000
+          )}s`
+        );
+
+        // Refresh data when the page becomes visible again
+        if (isMounted.current && lectureId) {
+          try {
+            console.log(
+              `Quiz: Reconnecting data services, force refresh: ${needsRefresh}`
+            );
+            fetchQuiz(needsRefresh).catch((err) => {
+              console.error(
+                "Error refreshing quiz after visibility change:",
+                err
+              );
+            });
+          } catch (e) {
+            console.error("Error in quiz visibility change handler:", e);
+          }
+        }
+      }
+    };
+
+    // Handler for session recovery events
+    const handleSessionRecovery = (event) => {
+      if (!isMounted.current) return;
+
+      console.log("Quiz: Session recovery event received:", event.detail);
+
+      if (event.detail.success && lectureId) {
+        // Wait a moment to ensure the session is fully restored
+        setTimeout(() => {
+          if (!isMounted.current) return;
+
+          console.log("Quiz: Reloading data after session recovery");
+          // Force a full data refresh after session recovery
+          fetchQuiz(true).catch((err) => {
+            console.error("Error reloading quiz after session recovery:", err);
+          });
+        }, 500);
+      }
+    };
+
+    // Store the handler references for cleanup
+    visibilityChangeHandler.current = handleVisibilityChange;
+    sessionRecoveryHandler.current = handleSessionRecovery;
+
+    // Add event listeners
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener(
+      "supabase:sessionRecovered",
+      handleSessionRecovery
+    );
 
     if (lectureId) {
       fetchQuiz();
@@ -32,16 +99,27 @@ export function useQuiz(lectureId, user) {
     // Cleanup when component unmounts
     return () => {
       isMounted.current = false;
+      document.removeEventListener(
+        "visibilitychange",
+        visibilityChangeHandler.current
+      );
+      document.removeEventListener(
+        "supabase:sessionRecovered",
+        sessionRecoveryHandler.current
+      );
     };
   }, [lectureId]);
 
-  const fetchQuiz = async () => {
+  const fetchQuiz = async (forceRefresh = false) => {
     try {
-      if (!lectureId) return;
+      if (!lectureId || !isMounted.current) return;
 
       // Don't set loading state if we're already generating
-      if (!isGenerating) {
-        setLoading(true);
+      if (!isGenerating && isMounted.current) {
+        // For forced refreshes, always set loading back to true
+        if (forceRefresh || !loading) {
+          setLoading(true);
+        }
       }
 
       // First, fetch the quiz set
@@ -133,9 +211,16 @@ export function useQuiz(lectureId, user) {
 
       console.log(`Loaded ${processedQuestions.length} questions for quiz`);
       setQuizQuestions(processedQuestions);
-      setUserAnswers({});
-      setCurrentQuestionIndex(0);
-      setShowResults(false);
+      // Don't reset user answers on visibility change unless forced
+      if (forceRefresh || userAnswers.length === 0) {
+        setUserAnswers({});
+        setCurrentQuestionIndex(0);
+        setShowResults(false);
+      }
+      // Clear any errors
+      setError(null);
+      // Update last successful fetch time
+      lastSuccessfulFetch.current = Date.now();
     } catch (err) {
       // If component unmounted during API call, exit early
       if (!isMounted.current) return;
@@ -194,7 +279,10 @@ export function useQuiz(lectureId, user) {
       if (!isMounted.current) return;
 
       // Now fetch the quiz data
-      await fetchQuiz();
+      await fetchQuiz(true);
+
+      // Update last successful fetch time
+      lastSuccessfulFetch.current = Date.now();
     } catch (err) {
       // If component unmounted during API call, exit early
       if (!isMounted.current) return;
