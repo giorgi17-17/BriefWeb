@@ -206,7 +206,13 @@ export default function Dashboard() {
     const urlName = encodeURIComponent(
       subjectName.toLowerCase().replace(/ /g, "-")
     );
-    navigate(`/subjects/${urlName}`, { state: { subjectId } });
+    navigate(`/subjects/${urlName}`, {
+      state: {
+        subjectId,
+        subjectName,
+        exactTitle: subjectName, // Pass the exact title for precise matching
+      },
+    });
   };
 
   // Add a function to upgrade the user to premium
@@ -487,8 +493,8 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <p className="mb-4 theme-text-secondary">
-                  Are you sure you want to delete "{deletingSubject.title}"?
-                  This action cannot be undone.
+                  Are you sure you want to delete {deletingSubject.title}? This
+                  action cannot be undone.
                 </p>
               )}
 

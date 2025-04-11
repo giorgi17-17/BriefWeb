@@ -3,7 +3,7 @@
     "name": "Briefly"
   },
   "nav": {
-    "howItWorks": "How it Works",
+    "howItWorks": "How It Works",
     "whyUs": "Why Briefly",
     "pricing": "Pricing",
     "login": "Login",
@@ -130,5 +130,102 @@
       "security": "Security"
     },
     "copyright": "© {year} Brief. All rights reserved."
+  },
+  "profile": {
+    "title": "Profile Settings",
+    "navigation": "Navigation",
+    "tabs": {
+      "general": "General",
+      "security": "Security",
+      "subscription": "Subscription",
+      "appearance": "Appearance",
+      "notifications": "Notifications"
+    },
+    "general": {
+      "displayName": "Display Name",
+      "email": "Email",
+      "phoneNumber": "Phone Number",
+      "phoneNumberPlaceholder": "Optional",
+      "bio": "Bio",
+      "bioPlaceholder": "Tell us about yourself",
+      "changePhoto": "Change photo",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "profileUpdated": "Profile successfully updated"
+    },
+    "security": {
+      "password": "Password",
+      "passwordMessage": "You can reset your password by clicking the button below. We'll send you an email with instructions.",
+      "resetPassword": "Reset Password",
+      "sending": "Sending...",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorMessage": "Enhance your account security by enabling two-factor authentication. This will require a verification code when you sign in.",
+      "comingSoon": "Coming Soon",
+      "dangerZone": "Danger Zone",
+      "deleteAccount": "Delete Account",
+      "deleteWarning": "Once you delete your account, there is no going back. Please be certain."
+    },
+    "subscription": {
+      "currentPlan": "Current Plan",
+      "free": "Free",
+      "premium": "Premium",
+      "subjectLimit": "Subject Limit",
+      "unlimited": "Unlimited",
+      "renewalDate": "Renewal Date",
+      "manageSubscription": "Manage Subscription",
+      "upgradeToPremium": "Upgrade to Premium",
+      "paymentHistory": "Payment History",
+      "noPaymentHistory": "No payment history available for free plan users.",
+      "premiumPlanMonthly": "Premium Plan - Monthly"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "themeMessage": "Choose your preferred theme mode for the application.",
+      "darkMode": "Dark Mode",
+      "lightMode": "Light Mode",
+      "language": "Language",
+      "languageMessage": "Select your preferred language for the application interface."
+    },
+    "notifications": {
+      "preferences": "Notification Preferences",
+      "preferencesMessage": "Configure how and when you'd like to receive notifications.",
+      "email": "Email Notifications",
+      "emailDescription": "Receive updates and information via email",
+      "push": "Push Notifications",
+      "pushDescription": "Receive notifications in your browser",
+      "studyReminders": "Study Reminders",
+      "studyRemindersDescription": "Get reminders to practice and review your materials"
+    },
+    "accessibility": {
+      "title": "Accessibility Settings",
+      "message": "Customize your experience to make the application more accessible to your needs.",
+      "motionSensitivity": "Motion Sensitivity",
+      "reducedMotion": "Reduced Motion",
+      "reducedMotionDescription": "Minimize animations and transitions throughout the interface",
+      "visualPreferences": "Visual Preferences",
+      "highContrast": "High Contrast Mode",
+      "highContrastDescription": "Increase contrast for better readability",
+      "textSettings": "Text Settings",
+      "textSize": "Text Size",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large",
+      "xLarge": "X-Large",
+      "focusIndicators": "Focus Indicators",
+      "alwaysShowFocus": "Always show focus indicators when navigating with keyboard",
+      "accessibilityCommitment": "We're committed to making our platform accessible to everyone. If you have any specific accessibility needs that aren't addressed here, please",
+      "contactUs": "contact us",
+      "savePreferences": "Save Preferences"
+    },
+    "logout": "Logout"
+  },
+  "userStats": {
+    "title": "Your Activity",
+    "subjects": "Subjects",
+    "lectures": "Lectures",
+    "briefs": "Briefs",
+    "lastActivity": "Last Activity",
+    "noActivity": "No activity yet",
+    "errorTitle": "Error Loading Stats"
   }
 }

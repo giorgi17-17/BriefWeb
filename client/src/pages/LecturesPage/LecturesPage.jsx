@@ -24,6 +24,7 @@ const LecturesPage = () => {
 
   // Get subject ID from URL param or location state, ensuring it's a UUID
   const subjectIdFromUrlOrState = subjectIdFromUrl || location.state?.subjectId;
+  const exactTitleFromState = location.state?.exactTitle;
   const [subjectId, setSubjectId] = useState(null);
 
   const navigate = useNavigate();
@@ -54,18 +55,85 @@ const LecturesPage = () => {
       return;
     }
 
-    // If not a UUID, try to find the subject by title
-    console.log("Subject ID is not a UUID, searching by title:", idOrSlug);
-    try {
-      // Search by title match
-      const { data: titleData, error: titleError } = await supabase
-        .from("subjects")
-        .select("id")
-        .ilike("title", `%${idOrSlug}%`)
-        .limit(1);
+    // If we have the exact title from state, try to find by exact match first
+    if (exactTitleFromState) {
+      console.log("Using exact title from state:", exactTitleFromState);
+      try {
+        const { data: exactData, error: exactError } = await supabase
+          .from("subjects")
+          .select("id")
+          .eq("title", exactTitleFromState)
+          .eq("user_id", user.id)
+          .limit(1);
 
-      if (titleError) {
-        console.error("Error finding subject by title:", titleError);
+        if (!exactError && exactData && exactData.length > 0) {
+          console.log("Found subject by exact state title:", exactData[0].id);
+          setSubjectId(exactData[0].id);
+          return;
+        }
+      } catch (err) {
+        console.error("Error finding subject by exact state title:", err);
+        // Continue to regular search if this fails
+      }
+    }
+
+    // If not a UUID, try to find the subject by exact slug match first
+    console.log("Subject ID is not a UUID, searching by slug/title:", idOrSlug);
+    try {
+      // First attempt: Find subject by exact match of URL slug format
+      const slugFormatted = idOrSlug.replace(/-/g, " ");
+
+      // Try exact match first (case insensitive)
+      const { data: exactMatch, error: exactError } = await supabase
+        .from("subjects")
+        .select("id, title")
+        .ilike("title", slugFormatted)
+        .eq("user_id", user.id)
+        .limit(10);
+
+      if (!exactError && exactMatch && exactMatch.length > 0) {
+        // Find the exact match by comparing normalized strings
+        const normalizedSlug = slugFormatted.toLowerCase();
+        const exactItem = exactMatch.find(
+          (s) => s.title.toLowerCase() === normalizedSlug
+        );
+
+        if (exactItem) {
+          console.log("Found subject by exact title match:", exactItem.id);
+          setSubjectId(exactItem.id);
+          return;
+        }
+      }
+
+      // If no exact match, look for subjects that start with the provided string
+      const { data: startsWith, error: startsError } = await supabase
+        .from("subjects")
+        .select("id, title")
+        .ilike("title", `${slugFormatted}%`)
+        .eq("user_id", user.id)
+        .limit(10);
+
+      if (!startsError && startsWith && startsWith.length > 0) {
+        // If we have multiple matches that start with the string, use the shortest one
+        // as it's likely the most precise match
+        const sorted = [...startsWith].sort(
+          (a, b) => a.title.length - b.title.length
+        );
+        console.log("Found subject by starts-with match:", sorted[0].id);
+        setSubjectId(sorted[0].id);
+        return;
+      }
+
+      // Last resort: partial match (this is what was causing the bug)
+      const { data: partialMatch, error: partialError } = await supabase
+        .from("subjects")
+        .select("id, title")
+        .ilike("title", `%${slugFormatted}%`)
+        .eq("user_id", user.id)
+        .limit(10);
+
+      if (partialError) {
+        console.error("Error finding subject by title:", partialError);
         setError(
           "Subject not found. Please go back to the home page and try again."
         );
@@ -73,7 +141,7 @@ const LecturesPage = () => {
         return;
       }
 
-      if (!titleData || titleData.length === 0) {
+      if (!partialMatch || partialMatch.length === 0) {
         console.error("No subject found for name:", idOrSlug);
         setError(
           "Subject not found. Please go back to the home page and try again."
@@ -82,8 +150,8 @@ const LecturesPage = () => {
         return;
       }
 
-      console.log("Found subject by title:", titleData[0].id);
-      setSubjectId(titleData[0].id);
+      console.log("Found subject by partial match:", partialMatch[0].id);
+      setSubjectId(partialMatch[0].id);
     } catch (err) {
       console.error("Unexpected error resolving subject ID:", err);
       setError(
@@ -349,7 +417,7 @@ const LecturesPage = () => {
               <ChevronLeft className="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
               Back to Subjects
             </button>
-            <h1 className="text-3xl font-bold theme-text-primary">
+            <h1 className="text-3xl font-bold theme-text-primary truncate">
               {subject?.title || t("common.loading")}
             </h1>
           </div>
@@ -358,25 +426,23 @@ const LecturesPage = () => {
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4">
           <div className="theme-card rounded-xl shadow-sm theme-border overflow-hidden">
-            <div className="p-6 theme-border border-b flex justify-between items-center">
+            <div className="p-4 md:p-6 theme-border border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h2 className="text-xl font-semibold theme-text-primary">
                 Lectures {!isLoading && `(${lectures.length})`}
               </h2>
 
               {/* Add lecture button - integrated into the header card */}
               {!isLoading && (
-                <div className="flex items-center">
+                <div className="flex items-center w-full sm:w-auto">
                   {!canAdd ? (
-                    <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex items-center mr-2">
+                    <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex items-center mr-2 text-xs sm:text-sm w-full">
                       <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                      <span className="text-sm">
-                        Lecture limit reached. Upgrade to premium.
-                      </span>
+                      <span>Lecture limit reached. Upgrade to premium.</span>
                     </div>
                   ) : (
                     <button
                       onClick={addLecture}
-                      className="theme-button-primary flex items-center px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                      className="theme-button-primary flex items-center justify-center px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 w-full sm:w-auto"
                       disabled={isAddingLecture || !canAdd}
                     >
                       <Plus className="w-5 h-5 mr-2" />
