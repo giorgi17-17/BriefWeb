@@ -20,6 +20,7 @@ BEGIN
     RETURN NEW;
   END IF;
   
+  
   -- Count existing lectures in this subject
   SELECT COUNT(*) INTO lecture_count 
   FROM lectures 

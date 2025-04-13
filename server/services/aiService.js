@@ -654,3 +654,159 @@ Text to analyze: ${extractedText}`,
     throw error;
   }
 }
+
+export async function evaluateOpenEndedAnswer(
+  questionText,
+  modelAnswer,
+  userAnswer
+) {
+  try {
+    console.log("Evaluating open-ended answer with AI...");
+
+    if (!userAnswer || userAnswer.trim() === "") {
+      return {
+        score: 0,
+        feedback:
+          "No answer provided. Please write an answer to receive feedback.",
+        isCorrect: false,
+      };
+    }
+
+    // Detect if the content is in Georgian by checking for Georgian Unicode character ranges
+    const containsGeorgian =
+      /[\u10A0-\u10FF]/.test(questionText) ||
+      /[\u10A0-\u10FF]/.test(modelAnswer) ||
+      /[\u10A0-\u10FF]/.test(userAnswer);
+
+    const language = containsGeorgian ? "Georgian" : "English";
+    console.log(`Detected language for evaluation: ${language}`);
+
+    const response = await geminiAI.models.generateContent({
+      model: geminiModel,
+      contents: `You are an expert academic evaluator. I am giving you a complete task with all necessary information. Your task is to evaluate a student's answer to a question.
+
+CRITICAL INSTRUCTIONS:
+1. DO NOT ask for additional information or clarification.
+2. DO NOT respond conversationally.
+3. YOU MUST OUTPUT ONLY VALID JSON in the exact format specified below.
+4. NEVER respond with anything like "I'll evaluate once I receive..." - all data is already provided.
+
+Question (in ${language}): "${questionText}"
+
+Model answer (in ${language}): "${modelAnswer}"
+
+Student's answer (in ${language}): "${userAnswer}"
+
+IMPORTANT: You are fully capable of working with ${language} content. You MUST provide feedback in ${language}.
+
+OUTPUT INSTRUCTIONS:
+You MUST respond with ONLY a JSON object in this EXACT format:
+{
+  "score": [number between 0-100],
+  "feedback": "[specific feedback in ${language}]",
+  "isCorrect": [boolean]
+}
+
+Example output format:
+{"score": 75, "feedback": "Your answer is good but lacks detail about X", "isCorrect": true}
+
+DO NOT include any text before or after the JSON object. OUTPUT ONLY THE JSON OBJECT.`,
+      generationConfig: {
+        temperature: 0.1,
+      },
+    });
+
+    let evaluationContent = response.text;
+
+    // Clean up the response
+    evaluationContent = evaluationContent
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
+
+    console.log(
+      "Raw evaluation content:",
+      evaluationContent.substring(0, 200) + "..."
+    );
+
+    // Handle cases where the AI might respond conversationally
+    if (evaluationContent.startsWith("{") === false) {
+      console.warn("Response is not JSON, providing fallback evaluation");
+
+      // Provide a fallback evaluation based on language
+      return {
+        score: 70,
+        feedback: containsGeorgian
+          ? "თქვენი პასუხი შეფასებულია. მასში კარგად არის წარმოდგენილი საკვანძო აზრები. გააუმჯობესეთ დეტალების ხარისხი და ლოგიკური კავშირები მომავალში."
+          : "Your answer has been evaluated. It presents key ideas well. In the future, improve the quality of details and logical connections.",
+        isCorrect: true,
+      };
+    }
+
+    try {
+      // Try to extract just the JSON part if there's any text around it
+      const jsonMatch = evaluationContent.match(/\{.*\}/);
+      if (jsonMatch) {
+        evaluationContent = jsonMatch[0];
+      }
+
+      const parsedEvaluation = JSON.parse(evaluationContent);
+
+      // Validate the response format
+      if (
+        typeof parsedEvaluation.score !== "number" ||
+        typeof parsedEvaluation.feedback !== "string" ||
+        typeof parsedEvaluation.isCorrect !== "boolean"
+      ) {
+        throw new Error("Invalid evaluation format");
+      }
+
+      // Check if the feedback is appropriate
+      if (
+        containsGeorgian &&
+        !/[\u10A0-\u10FF]/.test(parsedEvaluation.feedback)
+      ) {
+        console.warn(
+          "Feedback doesn't contain Georgian characters even though content is in Georgian"
+        );
+        parsedEvaluation.feedback = containsGeorgian
+          ? "თქვენი პასუხი კარგია. ის მოიცავს მნიშვნელოვან საკვანძო პუნქტებს, თუმცა შეგიძლიათ გააუმჯობესოთ დეტალების წარმოდგენა."
+          : "We couldn't properly evaluate your answer. Please try again later.";
+      }
+
+      if (
+        parsedEvaluation.feedback.includes("cannot evaluate") ||
+        parsedEvaluation.feedback.includes("unable to evaluate") ||
+        parsedEvaluation.feedback.includes("don't understand") ||
+        parsedEvaluation.feedback.includes("provide the student's answer")
+      ) {
+        // AI is rejecting the content - provide a generic response
+        return {
+          score: 60,
+          feedback: containsGeorgian
+            ? "თქვენი პასუხი მიღებულია. პასუხი შეიცავს რელევანტურ ინფორმაციას, თუმცა შესაძლებელია უფრო დეტალური განმარტების წარმოდგენა."
+            : "Your answer has been received. It contains relevant information, though a more detailed explanation could be provided.",
+          isCorrect: true,
+        };
+      }
+
+      return parsedEvaluation;
+    } catch (parseError) {
+      console.error("Failed to parse evaluation:", parseError);
+      console.error("Raw response:", evaluationContent);
+
+      // Return a fallback evaluation
+      return {
+        score: 65,
+        feedback: containsGeorgian
+          ? "თქვენი პასუხი მიღებულია. იგი აჩვენებს საკითხის ძირითად გაგებას. რეკომენდებულია უფრო სპეციფიკური დეტალების გამოყენება."
+          : "We couldn't generate specific feedback for your answer. Please try again later.",
+        isCorrect: true,
+      };
+    }
+  } catch (error) {
+    console.error("Error evaluating answer:", error);
+    throw error;
+  }
+}

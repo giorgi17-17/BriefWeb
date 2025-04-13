@@ -1,17 +1,18 @@
 import PropTypes from "prop-types";
-import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
 
 const QuizNavigation = ({
   currentQuestionIndex,
   totalQuestions,
   onNavigateQuestion,
   onSubmitQuiz,
+  onResetQuiz,
   loading,
   isLastQuestion,
   hasAnsweredCurrent,
   showResults,
 }) => {
-  if (showResults || totalQuestions === 0) return null;
+  if (totalQuestions === 0) return null;
 
   return (
     <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -32,7 +33,20 @@ const QuizNavigation = ({
         Question {currentQuestionIndex + 1} of {totalQuestions}
       </span>
 
-      {isLastQuestion ? (
+      {showResults ? (
+        <button
+          onClick={() => onNavigateQuestion(1)}
+          disabled={currentQuestionIndex === totalQuestions - 1 || loading}
+          className={`flex items-center p-2 rounded text-sm font-medium ${
+            currentQuestionIndex === totalQuestions - 1 || loading
+              ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          }`}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </button>
+      ) : isLastQuestion ? (
         <button
           onClick={onSubmitQuiz}
           disabled={loading || !hasAnsweredCurrent}
@@ -68,6 +82,7 @@ QuizNavigation.propTypes = {
   totalQuestions: PropTypes.number.isRequired,
   onNavigateQuestion: PropTypes.func.isRequired,
   onSubmitQuiz: PropTypes.func.isRequired,
+  onResetQuiz: PropTypes.func,
   loading: PropTypes.bool.isRequired,
   isLastQuestion: PropTypes.bool.isRequired,
   hasAnsweredCurrent: PropTypes.bool.isRequired,

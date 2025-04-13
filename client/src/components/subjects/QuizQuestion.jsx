@@ -9,8 +9,11 @@ const QuizQuestion = ({
   onSelectAnswer,
   onOpenEndedAnswer,
   showResults,
+  aiEvaluations,
 }) => {
   if (!question) return null;
+
+  const questionEvaluation = aiEvaluations?.[question.id];
 
   switch (question.question_type) {
     case "multiple_choice":
@@ -30,16 +33,20 @@ const QuizQuestion = ({
           userAnswer={userAnswer}
           onAnswerChange={onOpenEndedAnswer}
           showResults={showResults}
+          aiEvaluation={questionEvaluation}
         />
       );
 
     case "case_study":
+    case "case_study_moderate":
+    case "case_study_advanced":
       return (
         <CaseStudyQuestion
           question={question}
           userAnswer={userAnswer}
           onAnswerChange={onOpenEndedAnswer}
           showResults={showResults}
+          aiEvaluation={questionEvaluation}
         />
       );
 
@@ -65,6 +72,7 @@ QuizQuestion.propTypes = {
   onSelectAnswer: PropTypes.func.isRequired,
   onOpenEndedAnswer: PropTypes.func.isRequired,
   showResults: PropTypes.bool.isRequired,
+  aiEvaluations: PropTypes.object,
 };
 
 export default QuizQuestion;

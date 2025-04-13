@@ -219,4 +219,40 @@ async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
   }
 }
 
-export { handleProcessBrief, handleProcessPdf, handleProcessQuiz };
+async function evaluateAnswer(questionText, modelAnswer, userAnswer) {
+  try {
+    if (!questionText || !modelAnswer || userAnswer === undefined) {
+      throw new Error(
+        "Missing required parameters: questionText, modelAnswer, or userAnswer"
+      );
+    }
+
+    console.log("Sending answer evaluation request");
+
+    // Use the API client with fixed endpoint
+    const response = await apiClient.post(`${API_URL}/api/evaluate-answer`, {
+      questionText,
+      modelAnswer,
+      userAnswer,
+    });
+
+    // Check if response data exists
+    if (!response.data || !response.data.evaluation) {
+      throw new Error("No evaluation found in the response");
+    }
+
+    return response.data.evaluation;
+  } catch (error) {
+    console.error("Error in evaluateAnswer:", error);
+    // Enhanced error handling
+    const errorMessage = error.response?.data?.message || error.message;
+    throw new Error(`Failed to evaluate answer: ${errorMessage}`);
+  }
+}
+
+export {
+  handleProcessBrief,
+  handleProcessPdf,
+  handleProcessQuiz,
+  evaluateAnswer,
+};

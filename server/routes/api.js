@@ -9,6 +9,7 @@ import {
 } from "../controllers/documentController.js";
 import paymentRoutes from "./paymentRoutes.js";
 import userPlanRoutes from "./userPlanRoutes.js";
+import { evaluateOpenEndedAnswer } from "../services/aiService.js";
 
 const router = express.Router();
 
@@ -21,7 +22,11 @@ router.use("/user-plans", userPlanRoutes);
 router.post("/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
 
-  console.log("process-pdf endpoint called with:", { userId, lectureId, fileId });
+  console.log("process-pdf endpoint called with:", {
+    userId,
+    lectureId,
+    fileId,
+  });
 
   if (!userId || !lectureId || !fileId) {
     console.log("Missing required parameters");
@@ -35,7 +40,7 @@ router.post("/process-pdf", async (req, res) => {
     const flashcards = await processDocument(userId, lectureId, fileId);
     console.log("processDocument returned:", {
       isArray: Array.isArray(flashcards),
-      length: Array.isArray(flashcards) ? flashcards.length : 'not an array'
+      length: Array.isArray(flashcards) ? flashcards.length : "not an array",
     });
 
     // Return meaningful error response if flashcards weren't generated properly
@@ -305,6 +310,34 @@ router.post("/process-quiz", async (req, res) => {
           ],
         },
       ],
+    });
+  }
+});
+
+// New endpoint for evaluating open-ended answers
+router.post("/evaluate-answer", async (req, res) => {
+  const { questionText, modelAnswer, userAnswer } = req.body;
+
+  if (!questionText || !modelAnswer || userAnswer === undefined) {
+    return res.status(400).json({
+      error:
+        "Missing required parameters: questionText, modelAnswer, or userAnswer",
+    });
+  }
+
+  try {
+    const evaluation = await evaluateOpenEndedAnswer(
+      questionText,
+      modelAnswer,
+      userAnswer
+    );
+
+    res.status(200).json({ evaluation });
+  } catch (error) {
+    console.error("Error evaluating answer:", error);
+    res.status(500).json({
+      error: "Failed to evaluate the answer",
+      details: error.message,
     });
   }
 });
