@@ -487,7 +487,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <p className="mb-4 theme-text-secondary">
-                  Are you sure you want to delete "{deletingSubject.title}"?
+                  Are you sure you want to delete {deletingSubject.title}?
                   This action cannot be undone.
                 </p>
               )}

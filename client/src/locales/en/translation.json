@@ -20,6 +20,54 @@
     "confirm": "Confirm",
     "delete": "Delete"
   },
+  "profile": {
+    "title": "My Profile",
+    "description": "Manage your account settings and preferences",
+    "keywords": "profile, account, settings, preferences",
+    "logout": "Logout",
+    "profileInfo": "Profile Information",
+    "changePassword": "Change Password",
+    "savePassword": "Save Password",
+    "deleteAccount": "Delete Account",
+    "deleteWarning": "This action cannot be undone. All your data will be permanently deleted.",
+    "deleteAccountButton": "Delete Account",
+    "confirmDeletePrompt": "Are you sure you want to delete your account? This action cannot be undone.",
+    "typeEmailToConfirm": "Type your email to confirm",
+    "accountDeleted": "Your account has been successfully deleted.",
+    "accountDeletedPartially": "Your account has been partially deleted. Please contact support for complete deletion.",
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "darkModeEnabled": "Dark mode is currently enabled",
+    "darkModeDisabled": "Dark mode is currently disabled",
+    "language": "Language",
+    "tabs": {
+      "profile": "Profile",
+      "security": "Security",
+      "preferences": "Preferences"
+    },
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "memberSince": "Member Since",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password"
+    },
+    "errors": {
+      "currentPasswordRequired": "Current password is required",
+      "newPasswordRequired": "New password is required",
+      "passwordTooShort": "New password must be at least 6 characters",
+      "passwordsDoNotMatch": "Passwords do not match",
+      "incorrectCurrentPassword": "Current password is incorrect",
+      "passwordChangeFailed": "Failed to change password",
+      "logoutFailed": "Failed to log out",
+      "emailMismatch": "Email does not match your account email",
+      "deleteFailed": "Failed to delete account"
+    },
+    "success": {
+      "passwordChanged": "Password has been successfully changed"
+    }
+  },
   "landing": {
     "hero": {
       "tagline": "Built by students, for students 🎓",
