@@ -15,7 +15,7 @@ const UserPlanContext = createContext(null);
 const MAX_FREE_LECTURES_PER_SUBJECT = 5;
 
 // Create provider component
-export function UserPlanProvider({ children }) {  
+export function UserPlanProvider({ children }) {
   const [userPlan, setUserPlan] = useState({
     isLoading: true,
     planType: "free", // default to free

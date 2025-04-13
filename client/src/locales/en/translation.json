@@ -20,6 +20,46 @@
     "confirm": "Confirm",
     "delete": "Delete"
   },
+  "profile": {
+    "title": "Profile",
+    "memberSince": "Member since",
+    "signInMethod": "Sign-in method",
+    "preferences": "Preferences",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "language": "Language",
+    "selectLanguage": "Select your preferred language",
+    "accountManagement": "Account Management",
+    "changePassword": "Change Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "saveNewPassword": "Save New Password",
+    "changing": "Changing...",
+    "deleteAccount": "Delete Account",
+    "logout": "Logout",
+    "cancel": "Cancel",
+    "deleteAccountConfirmation": "Delete Account Confirmation",
+    "deleteAccountWarning": "This action is permanent. All your data will be deleted and cannot be recovered.",
+    "typeEmailToConfirm": "Type your email to confirm",
+    "deleting": "Deleting...",
+    "confirmDelete": "Confirm Delete",
+    "errors": {
+      "passwordsDoNotMatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 8 characters long",
+      "passwordChangeFailed": "Failed to change password",
+      "emailConfirmationFailed": "Please enter your email correctly to confirm deletion",
+      "accountDeletionFailed": "Failed to delete account",
+      "socialLoginPasswordChange": "Password cannot be changed for Google accounts. Please use Google's account settings.",
+      "weakPassword": "Please use a stronger password with a mix of letters, numbers, and symbols.",
+      "recentPassword": "Please use a password that you haven't used recently."
+    },
+    "success": {
+      "passwordChanged": "Password changed successfully"
+    }
+  },
   "landing": {
     "hero": {
       "tagline": "Built by students, for students 🎓",
