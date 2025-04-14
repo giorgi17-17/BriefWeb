@@ -13,8 +13,8 @@ const AuthCallback = () => {
     // Process the callback
     const handleAuthCallback = async () => {
       try {
-        // The hash contains the access token and other auth info
-        // Supabase will handle setting up the session automatically
+        // Process the OAuth response - this will automatically store the session in localStorage
+        // based on our Supabase client configuration
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -28,6 +28,13 @@ const AuthCallback = () => {
             "Auth successful, session found:",
             data.session.user.email
           );
+
+          // Ensure we have a refresh token for later use
+          if (data.session.refresh_token) {
+            console.log("Refresh token obtained and stored automatically");
+          } else {
+            console.warn("No refresh token found in session");
+          }
 
           // Check if this is a Google auth user and add to database if needed
           const user = data.session.user;
@@ -115,6 +122,10 @@ const AuthCallback = () => {
           }
 
           console.log("Redirecting to dashboard");
+          // Clean up the URL hash before redirecting
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.pathname);
+          }
           navigate("/dashboard");
         } else {
           console.log("No session found, redirecting to login");

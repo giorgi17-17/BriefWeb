@@ -6,40 +6,60 @@ import { AuthContext } from "./AuthContextValue";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        // Check if we need to add the user to our database on initial load
-        if (session.user.app_metadata?.provider === "google") {
-          console.log(
-            "Found Google user on initial session load, ensuring user is in database"
-          );
-          addUserToDatabase(session.user).catch((err) =>
-            console.error(
-              "Error adding Google user to database on initial load:",
-              err
-            )
-          );
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
+
+        if (initialSession) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+
+          // Check if we need to add the user to our database on initial load
+          if (initialSession.user.app_metadata?.provider === "google") {
+            console.log(
+              "Found Google user on initial session load, ensuring user is in database"
+            );
+            await addUserToDatabase(initialSession.user).catch((err) =>
+              console.error(
+                "Error adding Google user to database on initial load:",
+                err
+              )
+            );
+          }
         }
+      } catch (error) {
+        console.error("Error retrieving session:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, "User:", session?.user?.email);
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log(
+        "Auth state changed:",
+        event,
+        "User:",
+        currentSession?.user?.email
+      );
 
-      if (session?.user) {
-        setUser(session.user);
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
 
         // If this is a new sign in, check if we need to add the user to our database
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          const { user } = session;
+          const { user } = currentSession;
           console.log("User metadata:", user.app_metadata);
 
           // Check if this is a Google auth user
@@ -53,6 +73,7 @@ export function AuthProvider({ children }) {
           }
         }
       } else {
+        setSession(null);
         setUser(null);
       }
     });
@@ -217,7 +238,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      // Sign out from Supabase auth (this will clear the session from localStorage)
+      const { error } = await supabase.auth.signOut({ scope: "global" });
+
       if (error) {
         // If the error is about missing session, it's not really an error
         // The user is effectively already logged out
@@ -225,10 +248,15 @@ export function AuthProvider({ children }) {
           console.log("No active session found, user is already logged out");
           // Clear the user state explicitly
           setUser(null);
+          setSession(null);
           return;
         }
         throw error;
       }
+
+      // Explicitly clear states
+      setUser(null);
+      setSession(null);
     } catch (error) {
       console.error("Error signing out:", error);
       throw error;
@@ -237,6 +265,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    session,
     loading,
     signUp,
     signInWithEmail,

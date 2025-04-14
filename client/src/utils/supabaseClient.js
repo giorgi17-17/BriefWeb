@@ -7,8 +7,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-// Create the standard Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create the Supabase client with persistence enabled
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storageKey: "briefweb_auth_token",
+    storage: localStorage,
+    autoRefreshToken: true,
+  },
+});
 
 // Add v1 compatibility method for Google sign-in
 supabase.auth.signIn = async (params) => {

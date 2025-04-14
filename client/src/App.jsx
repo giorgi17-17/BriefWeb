@@ -23,6 +23,7 @@ import { PostHogProvider } from "posthog-js/react";
 import AuthCallback from "./pages/auth/callback";
 import { supabase } from "./utils/supabaseClient";
 import { UserPlanProvider } from "./contexts/UserPlanContext";
+import { checkAndRefreshSession } from "./utils/sessionRefresh";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -35,6 +36,27 @@ const posthogOptions = {
     }
   },
 };
+
+// Add before the ProtectedRoute function
+// Check for existing session when the app loads
+const checkInitialSession = async () => {
+  try {
+    console.log("Checking initial session on app load");
+    // This will refresh the token if it's about to expire
+    const session = await checkAndRefreshSession();
+    if (session) {
+      console.log(
+        "Found existing session on app load for:",
+        session.user.email
+      );
+    }
+  } catch (error) {
+    console.error("Error checking initial session:", error);
+  }
+};
+
+// On first app load, check for existing session
+checkInitialSession();
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
