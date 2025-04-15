@@ -35,6 +35,10 @@ const Pricing = () => {
           "landing.pricing.free.features.feature3",
           "Generate up to 20 flashcards"
         ),
+        getTranslatedText(
+          "landing.pricing.free.features.feature4",
+          "Basic note summarization"
+        ),
       ],
       cta: getTranslatedText("landing.pricing.free.cta", "Get Started"),
       popular: false,
@@ -105,7 +109,7 @@ const Pricing = () => {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`theme-card rounded-xl p-8 theme-border ${
+              className={`theme-card rounded-xl p-8 theme-border flex flex-col h-full ${
                 plan.popular ? "relative z-10 shadow-xl border-blue-500" : ""
               }`}
               itemScope
@@ -152,7 +156,7 @@ const Pricing = () => {
                 </div>
               </div>
 
-              <ul className="space-y-3 mb-8" itemProp="itemOffered">
+              <ul className="space-y-3 mb-8 flex-grow" itemProp="itemOffered">
                 {plan.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start">
                     <svg
@@ -184,7 +188,7 @@ const Pricing = () => {
                 className={`w-full rounded-lg px-4 py-2 text-sm font-medium ${
                   plan.popular
                     ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "theme-button-secondary"
+                    : "theme-button-secondary border border-white"
                 }`}
                 itemProp="potentialAction"
                 itemScope

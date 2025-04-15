@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [canAdd, setCanAdd] = useState(false);
   const [subjectCount, setSubjectCount] = useState(0);
+  const newSubjectInputRef = useRef(null);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -57,6 +58,13 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSubjects();
   }, [user, navigate]);
+
+  // Focus input when add modal opens
+  useEffect(() => {
+    if (isModalOpen && newSubjectInputRef.current) {
+      newSubjectInputRef.current.focus();
+    }
+  }, [isModalOpen]);
 
   const handleAddSubject = async () => {
     if (!newSubjectName.trim()) {
@@ -270,10 +278,9 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="mb-10 text-center">
-          <h1 className="text-3xl font-bold theme-text-primary">Dashboard</h1>
-          <p className="mt-2 theme-text-secondary">
-            Manage your subjects and learning materials
-          </p>
+          <h1 className="text-3xl font-bold theme-text-primary">
+            Your Learning Hub
+          </h1>
         </header>
 
         {error && (
@@ -394,9 +401,15 @@ export default function Dashboard() {
               </h2>
 
               <input
+                ref={newSubjectInputRef}
                 type="text"
                 value={newSubjectName}
                 onChange={(e) => setNewSubjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isSubmitting) {
+                    handleAddSubject();
+                  }
+                }}
                 placeholder="Enter subject name..."
                 className="w-full px-4 py-2 border theme-input rounded-md mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 disabled={isSubmitting}
@@ -442,6 +455,11 @@ export default function Dashboard() {
                     title: e.target.value,
                   })
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isSubmitting) {
+                    handleEditSubject();
+                  }
+                }}
                 placeholder="Enter subject name..."
                 className="w-full px-4 py-2 border rounded-md mb-4 theme-input bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 disabled={isSubmitting}
