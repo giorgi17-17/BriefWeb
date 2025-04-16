@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { evaluateAnswer } from "../../utils/api";
 import { Check, AlertCircle, Loader2, Star, LightbulbIcon } from "lucide-react";
 
@@ -10,6 +11,7 @@ const CaseStudyQuestion = ({
   showResults,
   aiEvaluation,
 }) => {
+  const { t } = useTranslation();
   const [manualAiEvaluation, setManualAiEvaluation] = useState(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationError, setEvaluationError] = useState(null);
@@ -129,7 +131,7 @@ const CaseStudyQuestion = ({
     <div className="space-y-4">
       <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg mb-4">
         <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-2">
-          Case Study
+          {t("quiz.questions.caseStudy")}
         </h3>
         <p className="text-gray-700 dark:text-gray-300">
           {question.case_description || question.question_text}
@@ -147,7 +149,7 @@ const CaseStudyQuestion = ({
               ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
               : "bg-white dark:bg-gray-900"
           }`}
-          placeholder="Type your analysis here..."
+          placeholder={t("quiz.questions.enterAnswer")}
           rows={6}
           value={userAnswer || ""}
           onChange={(e) => onAnswerChange(question.id, e.target.value)}
@@ -172,10 +174,10 @@ const CaseStudyQuestion = ({
             {isEvaluating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Evaluating...</span>
+                <span>{t("quiz.loading.evaluation")}</span>
               </>
             ) : (
-              <span>Get AI Feedback</span>
+              <span>{t("quiz.questions.feedback")}</span>
             )}
           </button>
         </div>
@@ -222,7 +224,7 @@ const CaseStudyQuestion = ({
             </div>
             <div>
               <h4 className="font-medium text-green-700 dark:text-green-400 mb-2">
-                Sample Analysis
+                {t("quiz.questions.modelAnswer")}
               </h4>
               <p className="text-gray-800 dark:text-gray-200">{modelAnswer}</p>
             </div>

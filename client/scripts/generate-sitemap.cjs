@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Base URL of your website
-const BASE_URL = "https://yourwebsite.com";
+const BASE_URL = "https://briefly.ge";
 
 // Supported languages
 const LANGUAGES = ["en", "ka"]; // English and Georgian (add more as needed)

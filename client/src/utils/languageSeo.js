@@ -12,11 +12,7 @@ const SUPPORTED_LANGUAGES = ["en", "ka"]; // English and Georgian (add more as n
  * @param {string} baseUrl - Base URL of the website
  * @returns {string} Canonical URL
  */
-export function getCanonicalUrl(
-  path,
-  lang,
-  baseUrl = "https://yourwebsite.com"
-) {
+export function getCanonicalUrl(path, lang, baseUrl = "https://briefly.ge") {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${baseUrl}/${lang}${cleanPath}`;
 }
@@ -33,7 +29,7 @@ export function getAlternateLanguages(
   path,
   currentLang,
   languages = SUPPORTED_LANGUAGES,
-  baseUrl = "https://yourwebsite.com"
+  baseUrl = "https://briefly.ge"
 ) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
 

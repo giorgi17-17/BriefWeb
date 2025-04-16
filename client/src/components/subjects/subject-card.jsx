@@ -1,7 +1,10 @@
 import PropTypes from "prop-types";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
+  const { t } = useTranslation();
+
   const getFontSize = (text) => {
     if (text.length > 30) return "text-sm";
     if (text.length > 20) return "text-base";
@@ -15,7 +18,7 @@ export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
           <button
             onClick={onEdit}
             className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-full transition-colors"
-            aria-label="Edit subject"
+            aria-label={t("subject.edit")}
           >
             <FiEdit2 size={16} />
           </button>
@@ -25,7 +28,7 @@ export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
             <button
               onClick={onDelete}
               className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-full transition-colors"
-              aria-label="Delete subject"
+              aria-label={t("subject.delete")}
             >
               <FiTrash2 size={16} />
             </button>
@@ -38,7 +41,6 @@ export const SubjectCard = ({ subject, onEdit, onDelete, isPremium }) => {
         >
           {subject.name}
         </h3>
-          
       </div>
     </div>
   );

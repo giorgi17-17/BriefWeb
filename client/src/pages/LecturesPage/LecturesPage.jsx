@@ -40,9 +40,7 @@ const LecturesPage = () => {
   // Extract the subject ID resolution logic to a reusable function
   const resolveSubjectId = async (idOrSlug) => {
     if (!idOrSlug) {
-      setError(
-        "Subject not found. Please go back to the home page and try again."
-      );
+      setError(t("lectures.notFound"));
       setIsLoading(false);
       return;
     }
@@ -66,18 +64,14 @@ const LecturesPage = () => {
 
       if (titleError) {
         console.error("Error finding subject by title:", titleError);
-        setError(
-          "Subject not found. Please go back to the home page and try again."
-        );
+        setError(t("lectures.notFound"));
         setIsLoading(false);
         return;
       }
 
       if (!titleData || titleData.length === 0) {
         console.error("No subject found for name:", idOrSlug);
-        setError(
-          "Subject not found. Please go back to the home page and try again."
-        );
+        setError(t("lectures.notFound"));
         setIsLoading(false);
         return;
       }
@@ -86,9 +80,7 @@ const LecturesPage = () => {
       setSubjectId(titleData[0].id);
     } catch (err) {
       console.error("Unexpected error resolving subject ID:", err);
-      setError(
-        "Subject not found. Please go back to the home page and try again."
-      );
+      setError(t("lectures.notFound"));
       setIsLoading(false);
     }
   };
@@ -130,7 +122,7 @@ const LecturesPage = () => {
 
         if (!subjectData) {
           console.error("No subject data found for ID:", subjectId);
-          setError("Subject not found.");
+          setError(t("lectures.notFound"));
           setIsLoading(false);
           return;
         }
@@ -153,7 +145,7 @@ const LecturesPage = () => {
 
         if (lecturesError) {
           console.error("Error fetching lectures:", lecturesError);
-          setError(lecturesError.message);
+          setError(t("lectures.error.loadingFailed"));
           setIsLoading(false);
           return;
         }
@@ -162,7 +154,7 @@ const LecturesPage = () => {
         setLectures(lecturesData || []);
       } catch (error) {
         console.error("Unexpected error:", error);
-        setError(error.message);
+        setError(t("lectures.error.loadingFailed"));
       } finally {
         setIsLoading(false);
       }
@@ -171,7 +163,7 @@ const LecturesPage = () => {
     if (subjectId) {
       fetchLecturesData();
     }
-  }, [user, navigate, subjectId]);
+  }, [user, navigate, subjectId, t]);
 
   // Check if user can add more lectures when lectures change
   useEffect(() => {
@@ -195,16 +187,14 @@ const LecturesPage = () => {
 
       // Check if the user can create another lecture
       if (!isPremium && lectures.length >= MAX_FREE_LECTURES_PER_SUBJECT) {
-        setError(
-          "Free plan users can create up to 5 lectures per subject. Upgrade to premium for unlimited lectures."
-        );
+        setError(t("lectures.upgradeMessage"));
         return;
       }
 
       // Use the current lectures length + 1 for the lecture title.
       const newLecture = {
         subject_id: subjectId,
-        title: `Lecture ${lectures.length + 1}`,
+        title: `${t("lectures.lectureDetails.lecture")} ${lectures.length + 1}`,
         date: new Date().toISOString(),
       };
 
@@ -220,7 +210,10 @@ const LecturesPage = () => {
         )
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error adding lecture:", error);
+        throw new Error(t("lectures.error.addingFailed"));
+      }
 
       // Append the new lecture at the end of the list.
       setLectures((prev) => [...prev, data]);
@@ -244,7 +237,7 @@ const LecturesPage = () => {
             {lecture.title}
           </h3>
           <p className="text-sm theme-text-tertiary mb-4">
-            {new Date(lecture.date).toLocaleDateString("en-US", {
+            {new Date(lecture.date).toLocaleDateString(currentLang || "en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -266,7 +259,7 @@ const LecturesPage = () => {
 
   const renderError = () => (
     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
-      <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+      <p className="text-red-600 dark:text-red-400">{error}</p>
     </div>
   );
 
@@ -347,7 +340,7 @@ const LecturesPage = () => {
               className="flex items-center theme-text-secondary hover:theme-text-primary font-medium mb-4 group"
             >
               <ChevronLeft className="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
-              Back to Subjects
+              {t("lectures.backToSubjects")}
             </button>
             <h1 className="text-3xl font-bold theme-text-primary">
               {subject?.title || t("common.loading")}
@@ -360,7 +353,7 @@ const LecturesPage = () => {
           <div className="theme-card rounded-xl shadow-sm theme-border overflow-hidden">
             <div className="p-6 theme-border border-b flex justify-between items-center">
               <h2 className="text-xl font-semibold theme-text-primary">
-                Lectures {!isLoading && `(${lectures.length})`}
+                {t("lectures.title")} {!isLoading && `(${lectures.length})`}
               </h2>
 
               {/* Add lecture button - integrated into the header card */}
@@ -370,7 +363,7 @@ const LecturesPage = () => {
                     <div className="bg-amber-50 text-amber-800 p-3 rounded-lg flex items-center mr-2">
                       <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                       <span className="text-sm">
-                        Lecture limit reached. Upgrade to premium.
+                        {t("lectures.limitReached")}
                       </span>
                     </div>
                   ) : (
@@ -381,7 +374,9 @@ const LecturesPage = () => {
                     >
                       <Plus className="w-5 h-5 mr-2" />
                       <span>
-                        {isAddingLecture ? "Adding..." : "Add Lecture"}
+                        {isAddingLecture
+                          ? t("lectures.adding")
+                          : t("lectures.addLecture")}
                       </span>
                     </button>
                   )}
@@ -398,7 +393,7 @@ const LecturesPage = () => {
                     <Plus className="w-12 h-12 mx-auto theme-text-tertiary" />
                   </div>
                   <p className="theme-text-tertiary text-lg mb-6">
-                    No lectures yet. Add your first lecture to get started.
+                    {t("lectures.noLectures")}
                   </p>
 
                   {/* Empty state - prominent add button */}
@@ -410,16 +405,13 @@ const LecturesPage = () => {
                     >
                       <Plus className="w-6 h-6 mr-2" />
                       <span className="text-lg font-medium">
-                        Create First Lecture
+                        {t("lectures.createFirst")}
                       </span>
                     </button>
                   ) : (
                     <div className="bg-amber-50 text-amber-800 p-4 rounded-lg max-w-md mx-auto">
                       <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-                      <p>
-                        Lecture limit reached. Upgrade to premium for unlimited
-                        lectures.
-                      </p>
+                      <p>{t("lectures.limitReached")}</p>
                     </div>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useQuiz } from "../../hooks/useQuiz";
 import { Loader2, History } from "lucide-react";
@@ -15,6 +16,7 @@ import QuizErrorDisplay from "./QuizErrorDisplay";
 import QuizHistory from "./QuizHistory";
 
 const Quiz = ({ selectedFile, user, lectureId }) => {
+  const { t } = useTranslation();
   const { isPremium } = useUserPlan();
   const [showOptions, setShowOptions] = useState(false);
 
@@ -123,7 +125,7 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
             className="flex items-center space-x-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             <History size={16} />
-            <span>Quiz History</span>
+            <span>{t("quiz.historyTitle")}</span>
           </button>
         </div>
       </div>
@@ -140,8 +142,8 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
               />
               <p className="text-gray-700 dark:text-gray-300 font-medium">
                 {selectedHistoryQuiz
-                  ? "Loading quiz submission..."
-                  : "Evaluating your answers..."}
+                  ? t("quiz.loading.submission")
+                  : t("quiz.loading.evaluation")}
               </p>
             </div>
           </div>
@@ -154,43 +156,13 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
           showOptions={showOptions}
         />
 
-        {quizQuestions.length > 0 ? (
-          <div className="space-y-8">
+        {/* Main quiz area - shows loading state if quiz is being loaded */}
+        {quiz && quizQuestions.length > 0 ? (
+          <div className="quiz-content">
+            {/* Conditional rendering for results or quiz questions */}
             {showResults ? (
               <>
-                {/* Header for historical quiz */}
-                {selectedHistoryQuiz && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-blue-800 dark:text-blue-300">
-                          {quiz?.name ? quiz.name : "Previous Quiz Submission"}
-                        </h3>
-                        <div className="flex flex-col space-y-1">
-                          <p className="text-sm text-blue-600 dark:text-blue-400">
-                            Completed on{" "}
-                            {new Date(
-                              selectedHistoryQuiz.completed_at
-                            ).toLocaleString()}
-                          </p>
-                          {quiz?.lecture_title && (
-                            <p className="text-xs text-blue-500 dark:text-blue-400">
-                              Lecture: {quiz.lecture_title}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={exitHistoryQuiz}
-                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-100 dark:bg-blue-800/50 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full transition-colors"
-                      >
-                        Exit Review
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Results page */}
+                {/* Quiz results */}
                 <QuizResults
                   score={score}
                   onResetQuiz={
@@ -204,7 +176,7 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
                 {openEndedQuestions.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
-                      AI Feedback on Your Answers
+                      {t("quiz.questions.feedback")}
                     </h3>
                     <div className="space-y-10">
                       {openEndedQuestions.map((question) => (

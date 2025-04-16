@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import FlashcardComponent from "./FlashcardComponent";
+import { useTranslation } from "react-i18next";
 
 const FlashcardsTab = ({
   files,
@@ -14,6 +15,8 @@ const FlashcardsTab = ({
   onFlashcardsModified,
   isMounted,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-4">
       {files.length > 0 ? (
@@ -29,8 +32,8 @@ const FlashcardsTab = ({
               disabled={isGenerating}
             >
               {isGenerating
-                ? "Generating Flashcards..."
-                : "Generate Flashcards"}
+                ? t("lectures.lectureDetails.flashcards.generating")
+                : t("lectures.lectureDetails.flashcards.generate")}
             </button>
           </div>
 
@@ -43,7 +46,10 @@ const FlashcardsTab = ({
             onFlashcardsUploaded={(updatedSet) => {
               if (!isMounted.current) return;
 
-              console.log("Flashcards uploaded successfully:", updatedSet.id);
+              console.log(
+                t("lectures.lectureDetails.flashcardsUploaded"),
+                updatedSet.id
+              );
               onFlashcardsUploaded(updatedSet);
             }}
             onFlashcardsModified={onFlashcardsModified}
@@ -51,7 +57,7 @@ const FlashcardsTab = ({
         </>
       ) : (
         <div className="text-center theme-text-secondary py-8">
-          Upload files first to generate flashcards.
+          {t("lectures.lectureDetails.flashcards.uploadFirst")}
         </div>
       )}
     </div>

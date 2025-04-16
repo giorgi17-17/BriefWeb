@@ -150,7 +150,7 @@ const Pricing = () => {
 
                   {plan.price !== "0" && (
                     <span className="text-sm theme-text-tertiary ml-1">
-                      / {plan.period}
+                       {plan.period}
                     </span>
                   )}
                 </div>

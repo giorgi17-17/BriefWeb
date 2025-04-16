@@ -7,12 +7,12 @@ export const seoTranslations = {
   // Home page (landing page)
   home: {
     title: {
-      en: "Brief - Educational Platform for Students",
-      ka: "Brief - საგანმანათლებლო პლატფორმა სტუდენტებისთვის",
+      en: "Briefly - Educational Platform for Students",
+      ka: "Briefly - საგანმანათლებლო პლატფორმა სტუდენტებისთვის",
     },
     description: {
-      en: "Brief is an interactive educational platform for students providing AI-powered flashcards, concise learning materials, quizzes and study resources to improve learning outcomes.",
-      ka: "Brief არის ინტერაქტიული საგანმანათლებლო პლატფორმა სტუდენტებისთვის, რომელიც უზრუნველყოფს AI-ზე დაფუძნებულ ფლეშ-ბარათებს, მოკლე სასწავლო მასალებს, ქვიზებს და სასწავლო რესურსებს სწავლის შედეგების გასაუმჯობესებლად.",
+      en: "Briefly is an interactive educational platform for students providing AI-powered flashcards, concise learning materials, quizzes and study resources to improve learning outcomes.",
+      ka: "Briefly არის ინტერაქტიული საგანმანათლებლო პლატფორმა სტუდენტებისთვის, რომელიც უზრუნველყოფს AI-ზე დაფუძნებულ ფლეშ-ბარათებს, მოკლე სასწავლო მასალებს, ქვიზებს და სასწავლო რესურსებს სწავლის შედეგების გასაუმჯობესებლად.",
     },
     keywords: {
       en: [
@@ -49,8 +49,8 @@ export const seoTranslations = {
   // Lectures page
   lectures: {
     title: {
-      en: "Lectures - Brief Educational Platform",
-      ka: "ლექციები - Brief საგანმანათლებლო პლატფორმა",
+      en: "Lectures - Briefly Educational Platform",
+      ka: "ლექციები - Briefly საგანმანათლებლო პლატფორმა",
     },
     description: {
       en: "Browse all lectures and educational resources. Access learning materials, notes, and course content.",
@@ -77,8 +77,8 @@ export const seoTranslations = {
   // Dashboard page (protected)
   dashboard: {
     title: {
-      en: "Dashboard - Brief Educational Platform",
-      ka: "პირადი გვერდი - Brief საგანმანათლებლო პლატფორმა",
+      en: "Dashboard - Briefly Educational Platform",
+      ka: "პირადი გვერდი - Briefly საგანმანათლებლო პლატფორმა",
     },
     description: {
       en: "Access your subjects, create flashcards and briefs using AI. Organize your educational materials.",
@@ -124,7 +124,7 @@ export function getLocalizedSeoField(page, field, lang, params = []) {
 
   // If it's a string and has parameters, format it
   if (typeof value === "string" && params.length > 0) {
-    params.forEach((param, index) => {
+    params.forEach((param) => {
       value = value.replace(`%s`, param);
     });
   }

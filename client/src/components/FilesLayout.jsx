@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 import { FiUpload, FiEye, FiDownload, FiTrash2 } from "react-icons/fi";
 import {
   BsFiletypePdf,
@@ -78,6 +79,7 @@ const FilesLayout = ({
   handleFileUpload = () => {},
   handleDeleteFile = () => {},
 }) => {
+  const { t } = useTranslation();
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -169,11 +171,12 @@ const FilesLayout = ({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="theme-bg-secondary theme-border rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
             <h3 className="text-lg font-semibold mb-4 theme-text-primary">
-              Delete File
+              {t("lectures.lectureDetails.files.deleteConfirmation.title")}
             </h3>
             <p className="theme-text-secondary mb-6">
-              Are you sure you want to delete &ldquo;{deleteConfirmation.name}
-              &rdquo;? This action cannot be undone.
+              {t("lectures.lectureDetails.files.deleteConfirmation.message", {
+                fileName: deleteConfirmation.name,
+              })}
             </p>
             <div className="flex justify-end space-x-4">
               <button
@@ -181,7 +184,7 @@ const FilesLayout = ({
                 className="px-4 py-2 theme-text-secondary hover:text-blue-500 transition-colors"
                 disabled={isDeleting}
               >
-                Cancel
+                {t("lectures.lectureDetails.files.deleteConfirmation.cancel")}
               </button>
               <button
                 onClick={processDelete}
@@ -212,10 +215,12 @@ const FilesLayout = ({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Deleting...
+                    {t(
+                      "lectures.lectureDetails.files.deleteConfirmation.deleting"
+                    )}
                   </>
                 ) : (
-                  "Delete"
+                  t("lectures.lectureDetails.files.deleteConfirmation.confirm")
                 )}
               </button>
             </div>
@@ -228,7 +233,11 @@ const FilesLayout = ({
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
             <label className="relative cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm">
               <FiUpload className={`${isUploading ? "animate-bounce" : ""}`} />
-              <span>{isUploading ? "Uploading..." : "Upload File"}</span>
+              <span>
+                {isUploading
+                  ? t("lectures.lectureDetails.files.uploading")
+                  : t("lectures.lectureDetails.files.uploadFile")}
+              </span>
               <input
                 type="file"
                 className="hidden"
@@ -238,7 +247,7 @@ const FilesLayout = ({
               />
             </label>
             <p className="text-sm theme-text-secondary flex items-center gap-2 flex-wrap">
-              <span>Supported formats:</span>
+              <span>{t("lectures.lectureDetails.files.supportedFormats")}</span>
               <span className="flex items-center gap-1">
                 <BsFiletypePdf className="text-red-500" />
                 <span className="hidden sm:inline">PDF</span>
@@ -271,7 +280,7 @@ const FilesLayout = ({
                       {file.name}
                     </h3>
                     <p className="text-sm theme-text-secondary">
-                      Uploaded on{" "}
+                      {t("lectures.lectureDetails.files.uploadedOn")}{" "}
                       {new Date(
                         file.uploaded_at || file.created_at || Date.now()
                       ).toLocaleDateString()}
@@ -282,24 +291,30 @@ const FilesLayout = ({
                   <button
                     onClick={() => previewFile(file)}
                     className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                    title="Preview"
-                    aria-label={`Preview ${file.name}`}
+                    title={t("lectures.lectureDetails.files.preview")}
+                    aria-label={`${t(
+                      "lectures.lectureDetails.files.preview"
+                    )} ${file.name}`}
                   >
                     <FiEye size={20} />
                   </button>
                   <button
                     onClick={() => handleDownload(file)}
                     className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                    title="Download"
-                    aria-label={`Download ${file.name}`}
+                    title={t("lectures.lectureDetails.files.download")}
+                    aria-label={`${t(
+                      "lectures.lectureDetails.files.download"
+                    )} ${file.name}`}
                   >
                     <FiDownload size={20} />
                   </button>
                   <button
                     onClick={() => confirmDelete(file)}
                     className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                    title="Delete"
-                    aria-label={`Delete ${file.name}`}
+                    title={t("lectures.lectureDetails.files.delete")}
+                    aria-label={`${t("lectures.lectureDetails.files.delete")} ${
+                      file.name
+                    }`}
                   >
                     <FiTrash2 size={20} />
                   </button>
@@ -309,7 +324,9 @@ const FilesLayout = ({
           </div>
         ) : (
           <div className="text-center py-12 theme-bg-secondary rounded-xl border-2 border-dashed theme-border-primary">
-            <p className="theme-text-secondary">No files uploaded yet</p>
+            <p className="theme-text-secondary">
+              {t("lectures.lectureDetails.files.noFiles")}
+            </p>
           </div>
         )}
       </div>

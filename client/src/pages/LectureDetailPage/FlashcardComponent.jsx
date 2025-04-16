@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { supabase } from "../../utils/supabaseClient";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const FlashcardComponent = ({
   flashcards,
@@ -12,6 +13,7 @@ const FlashcardComponent = ({
   activeSetIndex: externalActiveSetIndex,
   setActiveSetIndex: setExternalActiveSetIndex,
 }) => {
+  const { t } = useTranslation();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -139,7 +141,9 @@ const FlashcardComponent = ({
           .from("flashcard_sets")
           .insert({
             lecture_id: lectureId,
-            name: setToProcess.name || "New Flashcard Set",
+            name:
+              setToProcess.name ||
+              t("lectures.lectureDetails.flashcards.newSet"),
           })
           .select()
           .single();
@@ -217,7 +221,11 @@ const FlashcardComponent = ({
       } catch (error) {
         if (isMounted) {
           console.error(`Error processing flashcards: ${error.message}`);
-          setUploadError(`Failed to upload flashcards: ${error.message}`);
+          setUploadError(
+            t("lectures.lectureDetails.flashcards.uploadError", {
+              error: error.message,
+            })
+          );
         }
       }
     };
@@ -235,7 +243,7 @@ const FlashcardComponent = ({
     return () => {
       isMounted = false;
     };
-  }, [flashcards, lectureId, onFlashcardsUploaded]);
+  }, [flashcards, lectureId, onFlashcardsUploaded, t]);
 
   // Simplify handle set change - only update indices without scrolling
   const handleSetChange = (index) => {
@@ -293,7 +301,9 @@ const FlashcardComponent = ({
       setDeleteConfirmation(null);
     } catch (error) {
       console.error("Error deleting flashcard set:", error);
-      setUploadError(error.message || "Failed to delete flashcard set");
+      setUploadError(
+        error.message || t("lectures.lectureDetails.flashcards.deleteError")
+      );
       setDeleteConfirmation(null);
     }
   };
@@ -326,7 +336,9 @@ const FlashcardComponent = ({
       setEditingSetName("");
     } catch (error) {
       console.error("Error updating set name:", error);
-      setUploadError(error.message || "Failed to update set name");
+      setUploadError(
+        error.message || t("lectures.lectureDetails.flashcards.updateError")
+      );
     }
   };
 
@@ -334,7 +346,7 @@ const FlashcardComponent = ({
   if (!flashcardSets.length) {
     return (
       <div className="text-center theme-text-secondary">
-        No flashcard sets available
+        {t("lectures.lectureDetails.flashcards.noSets")}
       </div>
     );
   }
@@ -347,7 +359,7 @@ const FlashcardComponent = ({
   if (!currentCard) {
     return (
       <div className="text-center theme-text-secondary">
-        No cards in current set
+        {t("lectures.lectureDetails.flashcards.noCards")}
       </div>
     );
   }
@@ -359,24 +371,25 @@ const FlashcardComponent = ({
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1a1a22] rounded-lg shadow-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-bold mb-4 theme-text-primary">
-              Delete &quot;{deleteConfirmation.name}&quot;?
+              {t("lectures.lectureDetails.flashcards.deleteConfirmTitle", {
+                name: deleteConfirmation.name,
+              })}
             </h3>
             <p className="mb-6 theme-text-secondary">
-              This will permanently delete this flashcard set and all its cards.
-              This action cannot be undone.
+              {t("lectures.lectureDetails.flashcards.deleteConfirmMessage")}
             </p>
             <div className="flex justify-end space-x-3">
               <button
                 className="px-4 py-2 theme-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                 onClick={cancelDelete}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                 onClick={confirmDelete}
               >
-                Delete
+                {t("common.delete")}
               </button>
             </div>
           </div>
@@ -387,7 +400,9 @@ const FlashcardComponent = ({
       {flashcardSets.length > 0 && (
         <div className="mb-6 w-full">
           <h3 className="text-lg font-semibold mb-2 theme-text-primary">
-            {flashcardSets.length} Flashcard Sets
+            {t("lectures.lectureDetails.flashcards.setsCount", {
+              count: flashcardSets.length,
+            })}
           </h3>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -396,10 +411,11 @@ const FlashcardComponent = ({
             <span>
               {currentSet.isUploaded === false && (
                 <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                  Pending
+                  {t("lectures.lectureDetails.flashcards.pending")}
                 </span>
               )}
-              {flashcardSets[activeSetIndex]?.name || "Select flashcard set"}
+              {flashcardSets[activeSetIndex]?.name ||
+                t("lectures.lectureDetails.flashcards.selectSet")}
             </span>
             {dropdownOpen ? (
               <ChevronUp className="w-5 h-5" />
@@ -446,7 +462,7 @@ const FlashcardComponent = ({
                       <div className="flex items-center">
                         {set.isUploaded === false && (
                           <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                            Pending
+                            {t("lectures.lectureDetails.flashcards.pending")}
                           </span>
                         )}
                         <span className="theme-text-primary">{set.name}</span>
@@ -466,7 +482,7 @@ const FlashcardComponent = ({
                           className="text-blue-600 dark:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
                           onClick={() => handleEditSetName(set.id)}
                         >
-                          Save
+                          {t("common.save")}
                         </button>
                       ) : (
                         <button
@@ -476,7 +492,9 @@ const FlashcardComponent = ({
                             setEditingSetId(set.id);
                             setEditingSetName(set.name);
                           }}
-                          title="Edit set name"
+                          title={t(
+                            "lectures.lectureDetails.flashcards.editSetTitle"
+                          )}
                         >
                           <FiEdit2 className="w-4 h-4 theme-text-primary" />
                         </button>
@@ -489,7 +507,9 @@ const FlashcardComponent = ({
                           e.stopPropagation();
                           initiateDelete(set.id, set.name);
                         }}
-                        title="Delete set"
+                        title={t(
+                          "lectures.lectureDetails.flashcards.deleteSetTitle"
+                        )}
                       >
                         <FiTrash2 className="w-4 h-4 text-red-500" />
                       </button>
@@ -512,7 +532,7 @@ const FlashcardComponent = ({
           {/* Show pending notice for un-uploaded sets */}
           {currentSet.isUploaded === false && (
             <div className="absolute top-0 left-0 right-0 z-20 bg-blue-500 text-white text-center text-sm py-1 rounded-t-lg">
-              Pending Upload - Click cards to review
+              {t("lectures.lectureDetails.flashcards.pendingNotice")}
             </div>
           )}
 
@@ -529,7 +549,7 @@ const FlashcardComponent = ({
               onClick={() => setIsFlipped(true)}
             >
               <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
-                Question
+                {t("lectures.lectureDetails.flashcards.questionSide")}
               </div>
               <div className="flex items-center justify-center flex-grow p-2">
                 <div className="w-full h-full flex items-center justify-center">
@@ -541,7 +561,7 @@ const FlashcardComponent = ({
                 </div>
               </div>
               <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
-                Click to see answer
+                {t("lectures.lectureDetails.flashcards.clickForAnswer")}
               </div>
             </div>
 
@@ -552,7 +572,7 @@ const FlashcardComponent = ({
               onClick={() => setIsFlipped(false)}
             >
               <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
-                Answer
+                {t("lectures.lectureDetails.flashcards.answerSide")}
               </div>
               <div className="flex items-center justify-center flex-grow p-2">
                 <div className="w-full h-full flex items-center justify-center">
@@ -564,7 +584,7 @@ const FlashcardComponent = ({
                 </div>
               </div>
               <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
-                Click to see question
+                {t("lectures.lectureDetails.flashcards.clickForQuestion")}
               </div>
             </div>
           </div>
@@ -583,7 +603,7 @@ const FlashcardComponent = ({
           }}
           className="px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] theme-text-primary rounded theme-border transition-colors"
         >
-          Previous
+          {t("lectures.lectureDetails.flashcards.previous")}
         </button>
         <button
           onClick={() => {
@@ -594,13 +614,17 @@ const FlashcardComponent = ({
           }}
           className="px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] theme-text-primary rounded theme-border transition-colors"
         >
-          Next
+          {t("lectures.lectureDetails.flashcards.next")}
         </button>
       </div>
 
       <div className="mt-4 theme-text-secondary">
-        Card {activeCardIndex + 1} of {currentSet.cards.length}
-        {currentSet.isUploaded === false && " (Pending Upload)"}
+        {t("lectures.lectureDetails.flashcards.cardCount", {
+          current: activeCardIndex + 1,
+          total: currentSet.cards.length,
+        })}
+        {currentSet.isUploaded === false &&
+          ` (${t("lectures.lectureDetails.flashcards.pendingStatus")})`}
       </div>
 
       {uploadError && (

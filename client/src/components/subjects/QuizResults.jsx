@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 
 const QuizResults = ({
   score,
@@ -6,12 +7,16 @@ const QuizResults = ({
   showResults,
   isHistorical = false,
 }) => {
+  const { t } = useTranslation();
+
   if (!showResults) return null;
 
   return (
     <div className="text-center py-4 space-y-4">
       <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-        Quiz Results
+        {isHistorical
+          ? t("quiz.results.previousQuiz")
+          : t("quiz.results.yourScore")}
       </h3>
 
       <div className="flex flex-col items-center">
@@ -46,13 +51,14 @@ const QuizResults = ({
               textAnchor="middle"
               className="font-bold text-gray-800 dark:text-gray-200 text-[0.5em]"
             >
-              {score.percentage}%
+              {t("quiz.results.percentage", { score: score.percentage })}
             </text>
           </svg>
         </div>
 
         <div className="text-lg text-gray-700 dark:text-gray-300 mb-3">
-          You answered {score.correct} out of {score.total} questions correctly
+          {t("quiz.results.correct")} {score.correct} {t("quiz.results.of")}{" "}
+          {score.total}
         </div>
       </div>
 
@@ -65,7 +71,9 @@ const QuizResults = ({
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
         >
-          {isHistorical ? "Back to Current Quiz" : "Retake Quiz"}
+          {isHistorical
+            ? t("quiz.buttons.exitReview")
+            : t("quiz.results.tryAgain")}
         </button>
       </div>
     </div>

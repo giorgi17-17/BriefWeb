@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { evaluateAnswer } from "../../utils/api";
 import { Check, AlertCircle, Loader2, LightbulbIcon } from "lucide-react";
 
@@ -10,6 +11,7 @@ const OpenEndedQuestion = ({
   showResults,
   aiEvaluation,
 }) => {
+  const { t } = useTranslation();
   const [manualAiEvaluation, setManualAiEvaluation] = useState(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationError, setEvaluationError] = useState(null);
@@ -84,7 +86,7 @@ const OpenEndedQuestion = ({
               ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
               : "bg-white dark:bg-gray-900"
           }`}
-          placeholder="Type your answer here..."
+          placeholder={t("quiz.questions.enterAnswer")}
           rows={5}
           value={userAnswer || ""}
           onChange={(e) => onAnswerChange(question.id, e.target.value)}
@@ -109,10 +111,10 @@ const OpenEndedQuestion = ({
             {isEvaluating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Evaluating...</span>
+                <span>{t("quiz.loading.evaluation")}</span>
               </>
             ) : (
-              <span>Get AI Feedback</span>
+              <span>{t("quiz.questions.feedback")}</span>
             )}
           </button>
         </div>
@@ -148,7 +150,9 @@ const OpenEndedQuestion = ({
                     : "text-red-700 dark:text-red-400"
                 } flex items-center`}
               >
-                {evaluation.isCorrect ? "Correct" : "Needs Improvement"}{" "}
+                {evaluation.isCorrect
+                  ? t("quiz.results.correct")
+                  : t("quiz.questions.feedback")}{" "}
                 <span className="ml-2 text-sm font-normal">
                   ({evaluation.score}/100)
                 </span>
@@ -169,7 +173,7 @@ const OpenEndedQuestion = ({
             </div>
             <div>
               <h4 className="font-medium text-green-700 dark:text-green-400 mb-2">
-                Sample Answer
+                {t("quiz.questions.modelAnswer")}
               </h4>
               <p className="text-gray-800 dark:text-gray-200">{modelAnswer}</p>
             </div>

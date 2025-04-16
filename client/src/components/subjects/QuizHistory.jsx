@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeftIcon,
   Calendar,
@@ -14,9 +15,11 @@ export default function QuizHistory({
   onLoadQuiz,
   onClose,
 }) {
+  const { t, i18n } = useTranslation();
+
   // Format date for display
   const formatDate = (date) => {
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString(i18n.language === "ka" ? "ka-GE" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -25,7 +28,7 @@ export default function QuizHistory({
 
   // Format time for display
   const formatTime = (date) => {
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString(i18n.language === "ka" ? "ka-GE" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -52,7 +55,7 @@ export default function QuizHistory({
           <ArrowLeftIcon size={18} />
         </button>
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-          Quiz History
+          {t("quiz.history.title")}
         </h2>
       </div>
 
@@ -64,11 +67,10 @@ export default function QuizHistory({
         <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-6 rounded-lg text-center">
           <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">
-            No Quiz Attempts Yet
+            {t("quiz.history.noHistory")}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            You haven't taken any quizzes yet. Generate a quiz to see your
-            results here.
+            {t("quiz.noQuiz")}
           </p>
         </div>
       ) : (
@@ -87,7 +89,10 @@ export default function QuizHistory({
                   <div className="flex flex-col sm:flex-row sm:items-center mt-1 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center mb-1 sm:mb-0">
                       <Calendar className="w-4 h-4 mr-1.5" />
-                      <span>{formatDate(submission.completedAt)}</span>
+                      <span>
+                        {t("quiz.history.date")}{" "}
+                        {formatDate(submission.completedAt)}
+                      </span>
                     </div>
                     <div className="flex items-center sm:ml-3">
                       <Clock className="w-4 h-4 mr-1.5" />
@@ -107,11 +112,11 @@ export default function QuizHistory({
                     )}`}
                   >
                     <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                    {submission.score}%
+                    {t("quiz.history.score")} {submission.score}%
                   </span>
                   <div className="flex items-center mt-2 text-xs text-blue-600 dark:text-blue-400">
                     <BarChart3 className="w-3.5 h-3.5 mr-1" />
-                    <span>View Details</span>
+                    <span>{t("quiz.history.view")}</span>
                   </div>
                 </div>
               </div>

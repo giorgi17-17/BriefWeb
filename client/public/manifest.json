@@ -1,6 +1,6 @@
 {
-  "name": "Brief - Educational Platform for Students",
-  "short_name": "Brief",
+  "name": "Briefly - Educational Platform for Students",
+  "short_name": "Briefly",
   "description": "Educational platform for students providing concise learning materials and quizzes",
   "start_url": "/",
   "display": "standalone",

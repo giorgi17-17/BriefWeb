@@ -20,9 +20,19 @@ const SEO = ({
   const { i18n } = useTranslation();
   const currentLang = i18n.language;
 
-  // Base site title that will be appended to all page titles
-  const siteTitle = "Brief - Educational Platform for Students";
-  const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;
+  // Base site title
+  const siteName = "Briefly";
+  const siteTagline = "Educational Platform for Students";
+
+  // Create title with proper format to avoid duplication
+  let fullTitle;
+  if (title) {
+    // If page has its own title, append only the site name
+    fullTitle = `${title} | ${siteName}`;
+  } else {
+    // For homepage or pages without title, use complete format
+    fullTitle = `${siteName} - ${siteTagline}`;
+  }
 
   // Generate hreflang links if not provided
   const hreflangLinks =

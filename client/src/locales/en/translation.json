@@ -68,6 +68,45 @@
       "passwordChanged": "Password has been successfully changed"
     }
   },
+  "dashboard": {
+    "title": "Your Learning Hub",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "subjectCount": "You have created subjects",
+    "limitReached": "(Limit reached)",
+    "noSubjects": "No subjects yet. Create your first subject!",
+    "createSubject": "Create Subject",
+    "addNewSubject": "Add New Subject",
+    "subjectsUsed": "Subjects used",
+    "subjectLimitReached": "Subject limit reached",
+    "addSubjectModal": {
+      "title": "Add New Subject",
+      "placeholder": "Enter subject name...",
+      "cancel": "Cancel",
+      "add": "Add Subject",
+      "adding": "Adding..."
+    },
+    "editSubjectModal": {
+      "title": "Edit Subject",
+      "placeholder": "Enter new name...",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "saving": "Saving..."
+    },
+    "deleteSubjectModal": {
+      "title": "Delete Subject",
+      "confirmationMessage": "Are you sure you want to delete this subject?",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting..."
+    },
+    "upgradeMessage": "Please upgrade to delete subjects",
+    "upgrade": "Upgrade"
+  },
+  "subject": {
+    "edit": "Edit subject",
+    "delete": "Delete subject"
+  },
   "landing": {
     "hero": {
       "tagline": "Built by students, for students 🎓",
@@ -92,7 +131,7 @@
       }
     },
     "whyUs": {
-      "tagline": "THE BRIEF ADVANTAGE",
+      "tagline": "THE BRIEFly ADVANTAGE",
       "title": "Why Students Are Obsessed",
       "subtitle": "Created by students who understand the struggle, for students who deserve better.",
       "saveTime": {
@@ -110,8 +149,9 @@
       "joinOthers": "Join 10,000+ students already crushing their studies"
     },
     "pricing": {
-      "title": "Simple, Transparent Pricing",
-      "subtitle": "Choose the perfect plan for your study needs with no hidden fees",
+      "title": "Pricing",
+      "subtitle": "",
+      "period": "/month",
       "free": {
         "title": "Free",
         "subtitle": "Great place to get started",
@@ -148,7 +188,7 @@
       "button": "Get Started Now"
     },
     "newsletter": {
-      "title": "Stay Updated with Brief",
+      "title": "Stay Updated with Briefly",
       "subtitle": "Get the latest updates about new features and study tips delivered to your inbox",
       "placeholder": "Enter your email",
       "button": "Subscribe"
@@ -177,6 +217,158 @@
       "cookies": "Cookie Policy",
       "security": "Security"
     },
-    "copyright": "© {year} Brief. All rights reserved."
+    "copyright": "© 2025 Briefly. All rights reserved."
+  },
+  "lectures": {
+    "title": "Lectures",
+    "notFound": "Subject not found. Please go back to the home page and try again.",
+    "backToSubjects": "Back to Subjects",
+    "backToLectures": "Back to Lectures",
+    "lecturesCount": "Lectures",
+    "noLectures": "No lectures yet. Add your first lecture to get started.",
+    "addLecture": "Add Lecture",
+    "adding": "Adding...",
+    "createFirst": "Create First Lecture",
+    "limitReached": "Lecture limit reached. Upgrade to premium for unlimited lectures.",
+    "upgradeMessage": "Free plan users can create up to 5 lectures per subject. Upgrade to premium for unlimited lectures.",
+    "error": {
+      "loadingFailed": "Failed to load lectures. Please try again.",
+      "addingFailed": "Failed to add lecture. Please try again."
+    },
+    "lectureDetails": {
+      "title": "Lecture Details",
+      "date": "Date",
+      "materials": "Materials",
+      "flashcards": {
+        "title": "Flashcards",
+        "uploadSet": "Upload Flashcard Set",
+        "upload": "Upload",
+        "uploadingFlashcards": "Uploading flashcards...",
+        "modifySet": "Modify Flashcard Set",
+        "modifyingFlashcards": "Modifying flashcards...",
+        "modified": "Flashcards successfully modified!",
+        "uploading": "Uploading...",
+        "newSet": "New Set",
+        "saveToDatabase": "Save to Database",
+        "flipCard": "Flip Card",
+        "previous": "Previous",
+        "next": "Next",
+        "cardCount": "Card {{current}} of {{total}}",
+        "pendingStatus": "Pending upload",
+        "sets": "Sets",
+        "createSetPlaceholder": "Enter set name...",
+        "createSetButton": "Create Set",
+        "noFlashcards": "No flashcards yet. Upload files and generate flashcards.",
+        "uploadFiles": "Please upload files to generate flashcards",
+        "generateFlashcards": "Generate Flashcards",
+        "generating": "Generating flashcards...",
+        "question": "Question",
+        "answer": "Answer",
+        "invalidSetName": "Invalid set name",
+        "generate": "Generate Flashcards",
+        "uploadFirst": "Please upload files to generate flashcards",
+        "setsCount": "Sets: {{count}}",
+        "clickForAnswer": "Click to see answer",
+        "answerSide": "Answer side",
+        "questionSide": "Question side",
+        "clickForQuestion": "Click to see question",
+        "noSets": "No flashcard sets available",
+        "deleteSet": "Delete Set",
+        "deleteSetConfirm": "Are you sure you want to delete this set?",
+        "editSetName": "Edit Set Name",
+        "setDeleted": "Flashcard set deleted successfully",
+        "setRenamed": "Flashcard set renamed successfully",
+        "setNameRequired": "Set name is required",
+        "selectSet": "Select a flashcard set"
+      },
+      "notes": "Notes",
+      "lecture": "Lecture",
+      "seoDescription": "Study materials, flashcards, and resources for {{lectureTitle}}{{subjectTitle ? ' in ' + subjectTitle : ''}}.",
+      "structuredDataDescription": "Educational materials for {{lectureTitle}}{{subjectTitle ? ' in ' + subjectTitle : ''}}",
+      "studyMaterials": "study materials",
+      "resources": "educational resources",
+      "flashcardsUploaded": "Flashcards uploaded successfully:",
+      "files": {
+        "uploadFile": "Upload File",
+        "uploading": "Uploading...",
+        "supportedFormats": "Supported formats:",
+        "uploadedOn": "Uploaded on",
+        "preview": "Preview",
+        "download": "Download",
+        "delete": "Delete",
+        "noFiles": "No files uploaded yet",
+        "deleteConfirmation": {
+          "title": "Delete File",
+          "message": "Are you sure you want to delete \"{{fileName}}\"? This action cannot be undone.",
+          "cancel": "Cancel",
+          "confirm": "Delete",
+          "deleting": "Deleting..."
+        }
+      },
+      "tabs": {
+        "flashcards": "Flashcards",
+        "briefs": "Briefs",
+        "quiz": "Quiz",
+        "files": "Files"
+      }
+    },
+    "upgrade": "Upgrade to Premium"
+  },
+  "quiz": {
+    "title": "Practice Quiz",
+    "historyTitle": "Quiz History",
+    "loading": {
+      "submission": "Loading quiz submission...",
+      "evaluation": "Evaluating your answers..."
+    },
+    "buttons": {
+      "generate": "Generate Quiz",
+      "regenerate": "Regenerate Quiz",
+      "exitReview": "Exit Review",
+      "settings": "Settings"
+    },
+    "results": {
+      "previousQuiz": "Previous Quiz Submission",
+      "completedOn": "Completed on",
+      "lecture": "Lecture:",
+      "yourScore": "Your Score",
+      "correct": "Correct",
+      "of": "of",
+      "percentage": "{{score}}%",
+      "resetQuiz": "Reset Quiz",
+      "tryAgain": "Try Again",
+      "reviewAnswers": "Review Answers"
+    },
+    "navigation": {
+      "previous": "Previous",
+      "next": "Next",
+      "submit": "Submit Quiz"
+    },
+    "options": {
+      "title": "Quiz Options",
+      "multipleChoice": "Include Multiple Choice",
+      "openEnded": "Include Open-Ended",
+      "caseStudy": "Include Case Studies"
+    },
+    "questions": {
+      "multipleChoice": "Multiple Choice",
+      "openEnded": "Open Ended",
+      "caseStudy": "Case Study",
+      "youAnswered": "You answered",
+      "correctAnswer": "Correct answer",
+      "feedback": "Feedback",
+      "modelAnswer": "Model answer",
+      "yourAnswer": "Your answer",
+      "enterAnswer": "Enter your answer here..."
+    },
+    "history": {
+      "title": "Quiz History",
+      "noHistory": "No quiz history yet",
+      "score": "Score:",
+      "date": "Date:",
+      "view": "View"
+    },
+    "noQuiz": "No quiz has been generated yet",
+    "selectFile": "Please select a file to generate a quiz"
   }
 }

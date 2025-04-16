@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { ChevronLeft, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const QuizNavigation = ({
   currentQuestionIndex,
@@ -12,6 +13,8 @@ const QuizNavigation = ({
   hasAnsweredCurrent,
   showResults,
 }) => {
+  const { t } = useTranslation();
+
   if (totalQuestions === 0) return null;
 
   return (
@@ -26,7 +29,7 @@ const QuizNavigation = ({
         }`}
       >
         <ChevronLeft className="h-4 w-4 mr-1" />
-        Previous
+        {t("quiz.navigation.previous")}
       </button>
 
       <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -43,7 +46,7 @@ const QuizNavigation = ({
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}
         >
-          Next
+          {t("quiz.navigation.next")}
           <ChevronRight className="h-4 w-4 ml-1" />
         </button>
       ) : isLastQuestion ? (
@@ -56,7 +59,7 @@ const QuizNavigation = ({
               : "bg-blue-600 hover:bg-blue-700"
           } text-white transition-colors`}
         >
-          Submit Quiz
+          {t("quiz.navigation.submit")}
           <ArrowRight className="h-4 w-4 ml-1" />
         </button>
       ) : (
@@ -69,7 +72,7 @@ const QuizNavigation = ({
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}
         >
-          Next
+          {t("quiz.navigation.next")}
           <ChevronRight className="h-4 w-4 ml-1" />
         </button>
       )}

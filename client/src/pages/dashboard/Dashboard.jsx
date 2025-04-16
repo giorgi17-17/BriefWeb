@@ -5,6 +5,8 @@ import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
 import SEO from "../../components/SEO/SEO";
 import { useUserPlan } from "../../contexts/UserPlanContext";
+import { useTranslation } from "react-i18next";
+import { getLocalizedSeoField } from "../../utils/seoTranslations";
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +26,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isFree, isPremium, canCreateSubject, subjectLimit } = useUserPlan();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   // Fetch subjects from subjects table
   const fetchSubjects = async () => {
@@ -49,7 +53,7 @@ export default function Dashboard() {
       setCanAdd(canAddMore);
     } catch (error) {
       console.error("Error fetching subjects:", error);
-      setError("Failed to load subjects");
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -242,7 +246,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center theme-bg-primary">
-        <p className="text-xl theme-text-secondary">Loading...</p>
+        <p className="text-xl theme-text-secondary">{t("dashboard.loading")}</p>
       </div>
     );
   }
@@ -250,8 +254,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen theme-bg-primary">
       <SEO
-        title="Dashboard"
-        description="Access your subjects, create flashcards and briefs using AI. Organize your educational materials all in one place."
+        title={getLocalizedSeoField("dashboard", "title", currentLang)}
+        description={getLocalizedSeoField(
+          "dashboard",
+          "description",
+          currentLang
+        )}
         keywords={[
           "dashboard",
           "subjects",
@@ -267,10 +275,10 @@ export default function Dashboard() {
           description: "Access your educational materials and study resources",
           publisher: {
             "@type": "Organization",
-            name: "Brief",
+            name: "Briefly",
             logo: {
               "@type": "ImageObject",
-              url: "https://yourwebsite.com/icons/icon-512x512.png",
+              url: "https://briefly.ge/icons/icon-512x512.png",
             },
           },
         }}
@@ -279,7 +287,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="mb-10 text-center">
           <h1 className="text-3xl font-bold theme-text-primary">
-            Your Learning Hub
+            {t("dashboard.title")}
           </h1>
         </header>
 
@@ -294,12 +302,11 @@ export default function Dashboard() {
           {/* Subject limit indicator for free users */}
           {isFree && (
             <div className="mb-4 text-center text-sm text-gray-500 dark:text-gray-400">
-              You have created {subjectCount} of {subjectLimit} available
-              subjects
-              {!canAdd && (
+              {t("dashboard.subjectCount")} {subjectCount} / {subjectLimit}
+              {subjectCount >= subjectLimit && (
                 <span className="text-red-500 font-medium">
                   {" "}
-                  (Limit reached)
+                  {t("dashboard.limitReached")}
                 </span>
               )}
             </div>
@@ -307,9 +314,9 @@ export default function Dashboard() {
 
           {subjects.length === 0 ? (
             <div className="text-center py-8">
-              <p className="theme-text-tertiary mb-4">
-                No subjects yet. Create your first subject!
-              </p>
+              <h1 className="theme-text-tertiary mb-4">
+                {t("dashboard.noSubjects")}
+              </h1>
               <button
                 onClick={() => setIsModalOpen(true)}
                 disabled={!canAdd && isFree}
@@ -319,7 +326,7 @@ export default function Dashboard() {
                     : "theme-button-primary bg-blue-700 text-white"
                 }`}
               >
-                Create Subject
+                {t("dashboard.createSubject")}
               </button>
             </div>
           ) : (
@@ -348,7 +355,7 @@ export default function Dashboard() {
                     onDelete={(e) => {
                       e.stopPropagation();
                       if (!isPremium) {
-                        setError("Please upgrade to delete subjects");
+                        setError(t("dashboard.upgradeMessage"));
                         return;
                       }
                       setDeletingSubject({
@@ -376,16 +383,21 @@ export default function Dashboard() {
                   : "theme-button-primary bg-blue-700 text-white"
               }`}
             >
-              Add New Subject
+              {t("dashboard.addNewSubject")}
             </button>
 
             {/* Subject count indicator below button */}
             {isFree && (
               <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {canAdd ? (
-                  `${subjectCount}/${subjectLimit} subjects used`
+                  <>
+                    {t("dashboard.subjectsUsed")} {subjectCount} /{" "}
+                    {subjectLimit}
+                  </>
                 ) : (
-                  <span className="text-red-500">Subject limit reached</span>
+                  <span className="text-red-500">
+                    {t("dashboard.subjectLimitReached")}
+                  </span>
                 )}
               </div>
             )}
@@ -397,7 +409,7 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
             <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
               <h2 className="text-xl font-bold mb-4 theme-text-primary">
-                Add New Subject
+                {t("dashboard.addSubjectModal.title")}
               </h2>
 
               <input
@@ -410,7 +422,7 @@ export default function Dashboard() {
                     handleAddSubject();
                   }
                 }}
-                placeholder="Enter subject name..."
+                placeholder={t("dashboard.addSubjectModal.placeholder")}
                 className="w-full px-4 py-2 border theme-input rounded-md mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 disabled={isSubmitting}
               />
@@ -424,14 +436,16 @@ export default function Dashboard() {
                   className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  Cancel
+                  {t("dashboard.addSubjectModal.cancel")}
                 </button>
                 <button
                   onClick={handleAddSubject}
                   className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Adding..." : "Add Subject"}
+                  {isSubmitting
+                    ? t("dashboard.addSubjectModal.adding")
+                    : t("dashboard.addSubjectModal.add")}
                 </button>
               </div>
             </div>
@@ -443,7 +457,7 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
             <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
               <h2 className="text-xl font-bold mb-4 theme-text-primary">
-                Edit Subject
+                {t("dashboard.editSubjectModal.title")}
               </h2>
 
               <input
@@ -460,8 +474,8 @@ export default function Dashboard() {
                     handleEditSubject();
                   }
                 }}
-                placeholder="Enter subject name..."
-                className="w-full px-4 py-2 border rounded-md mb-4 theme-input bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                placeholder={t("dashboard.editSubjectModal.placeholder")}
+                className="w-full px-4 py-2 border theme-input rounded-md mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 disabled={isSubmitting}
               />
 
@@ -475,69 +489,81 @@ export default function Dashboard() {
                   className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  Cancel
+                  {t("dashboard.editSubjectModal.cancel")}
                 </button>
                 <button
                   onClick={handleEditSubject}
                   className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting
+                    ? t("dashboard.editSubjectModal.saving")
+                    : t("dashboard.editSubjectModal.save")}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete Subject Confirmation Modal */}
         {isDeleteModalOpen && deletingSubject && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-            <div className="theme-card rounded-lg p-6 max-w-md w-full">
-              <h2 className="text-xl font-semibold mb-4 theme-text-primary">
-                Delete Subject
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
+            <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
+              <h2 className="text-xl font-bold mb-4 theme-text-primary">
+                {t("dashboard.deleteSubjectModal.title")}
               </h2>
 
-              {!isPremium ? (
-                <div className="mb-4 text-gray-700 dark:text-gray-300">
-                  <p>
-                    Subject deletion is available after upgrading to premium.
-                  </p>
-                </div>
-              ) : (
-                <p className="mb-4 theme-text-secondary">
-                  Are you sure you want to delete {deletingSubject.title}? This
-                  action cannot be undone.
-                </p>
-              )}
+              <p className="mb-6 theme-text-secondary">
+                {t("dashboard.deleteSubjectModal.confirmationMessage")}{" "}
+                <strong>&ldquo;{deletingSubject.title}&rdquo;</strong>
+              </p>
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => {
                     setIsDeleteModalOpen(false);
                     setDeletingSubject(null);
+                    setError(null);
                   }}
-                  className="px-4 py-2 theme-button-secondary rounded"
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  Cancel
+                  {t("dashboard.deleteSubjectModal.cancel")}
                 </button>
+                <button
+                  onClick={handleDeleteSubject}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? t("dashboard.deleteSubjectModal.deleting")
+                    : t("dashboard.deleteSubjectModal.delete")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                {isPremium && (
-                  <button
-                    onClick={handleDeleteSubject}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Deleting..." : "Delete"}
-                  </button>
-                )}
-
+        {/* Upgrade Prompt */}
+        {error === t("dashboard.upgradeMessage") && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 theme-modal-backdrop">
+            <div className="theme-card p-6 rounded-lg w-96 max-w-[90%]">
+              <h2 className="text-xl font-bold mb-4 theme-text-primary">
+                {t("dashboard.upgradeMessage")}
+              </h2>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setError(null)}
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md mr-4"
+                >
+                  {t("common.cancel")}
+                </button>
                 {!isPremium && (
                   <button
                     onClick={upgradeToPremium}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
                   >
-                    Upgrade
+                    {t("dashboard.upgrade")}
                   </button>
                 )}
               </div>

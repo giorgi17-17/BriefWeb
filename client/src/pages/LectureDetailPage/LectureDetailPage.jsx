@@ -5,6 +5,7 @@ import FilesLayout from "../../components/FilesLayout";
 import Brief from "../../components/subjects/Brief";
 import QuizLayout from "../../components/subjects/QuizLayout";
 import SEO from "../../components/SEO/SEO";
+import { useTranslation } from "react-i18next";
 
 // Import our new components and hooks
 import LectureHeader from "./LectureHeader";
@@ -21,7 +22,11 @@ import {
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("Flashcards");
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
+  const [activeTab, setActiveTab] = useState(
+    t("lectures.lectureDetails.tabs.flashcards")
+  );
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeFlashcardSetIndex, setActiveFlashcardSetIndex] = useState(0);
   const { user } = useAuth();
@@ -119,34 +124,36 @@ const LectureDetailPage = () => {
     <div className="min-h-screen py-4 theme-bg-primary">
       <SEO
         title={`${lectureTitle}${subjectTitle ? ` - ${subjectTitle}` : ""}`}
-        description={`Study materials, flashcards, and resources for ${lectureTitle}${
-          subjectTitle ? ` in ${subjectTitle}` : ""
-        }.`}
+        description={`${t("lectures.lectureDetails.seoDescription", {
+          lectureTitle,
+          subjectTitle: subjectTitle || "",
+        })}`}
         keywords={[
           lectureTitle,
           subjectTitle,
-          "lecture",
-          "study materials",
-          "flashcards",
-          "educational resources",
+          t("lectures.lectureDetails.lecture"),
+          t("lectures.lectureDetails.studyMaterials"),
+          t("lectures.lectureDetails.flashcards"),
+          t("lectures.lectureDetails.resources"),
         ]}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "LearningResource",
           name: lectureTitle,
-          description: `Educational materials for ${lectureTitle}${
-            subjectTitle ? ` in ${subjectTitle}` : ""
-          }`,
+          description: `${t(
+            "lectures.lectureDetails.structuredDataDescription",
+            { lectureTitle, subjectTitle: subjectTitle || "" }
+          )}`,
           educationalLevel: "College",
-          learningResourceType: "Lecture",
+          learningResourceType: t("lectures.lectureDetails.lecture"),
           isPartOf: {
             "@type": "Course",
             name: subjectTitle,
           },
           provider: {
             "@type": "Organization",
-            name: "Brief",
-            sameAs: "https://yourwebsite.com",
+            name: "Briefly",
+            sameAs: "https://briefly.ge",
           },
         }}
       />
@@ -174,14 +181,14 @@ const LectureDetailPage = () => {
 
           {/* Tab Content */}
           <div className="p-4">
-            {activeTab === "files" ? (
+            {activeTab === t("lectures.lectureDetails.tabs.files") ? (
               <FilesLayout
                 files={files}
                 isUploading={isUploading}
                 handleFileUpload={handleFileUpload}
                 handleDeleteFile={handleDeleteFile}
               />
-            ) : activeTab === "Flashcards" ? (
+            ) : activeTab === t("lectures.lectureDetails.tabs.flashcards") ? (
               <FlashcardsTab
                 files={files}
                 selectedFile={selectedFile}
@@ -195,7 +202,7 @@ const LectureDetailPage = () => {
                   if (!isMounted.current) return;
 
                   console.log(
-                    "Flashcards uploaded successfully:",
+                    t("lectures.lectureDetails.flashcardsUploaded"),
                     updatedSet.id
                   );
 
@@ -216,13 +223,13 @@ const LectureDetailPage = () => {
                 onFlashcardsModified={handleFlashcardsModified}
                 isMounted={isMounted}
               />
-            ) : activeTab === "Briefs" ? (
+            ) : activeTab === t("lectures.lectureDetails.tabs.briefs") ? (
               <Brief
                 selectedFile={selectedFile}
                 user={user}
                 lectureId={lectureId}
               />
-            ) : activeTab === "Quiz" ? (
+            ) : activeTab === t("lectures.lectureDetails.tabs.quiz") ? (
               <QuizLayout
                 selectedFile={selectedFile}
                 user={user}

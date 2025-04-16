@@ -1,12 +1,15 @@
 import PropTypes from "prop-types";
+import { useTranslation } from "react-i18next";
 
 const QuizOptions = ({ quizOptions, onOptionChange, showOptions }) => {
+  const { t } = useTranslation();
+
   if (!showOptions) return null;
 
   return (
     <div className="p-4 mb-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
       <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
-        Quiz Options
+        {t("quiz.options.title")}
       </h3>
 
       <div className="space-y-3">
@@ -24,7 +27,7 @@ const QuizOptions = ({ quizOptions, onOptionChange, showOptions }) => {
             htmlFor="includeMultipleChoice"
             className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Include multiple choice questions
+            {t("quiz.options.multipleChoice")}
           </label>
         </div>
 
@@ -42,7 +45,7 @@ const QuizOptions = ({ quizOptions, onOptionChange, showOptions }) => {
             htmlFor="includeOpenEnded"
             className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Include open-ended questions
+            {t("quiz.options.openEnded")}
           </label>
         </div>
 
@@ -60,7 +63,7 @@ const QuizOptions = ({ quizOptions, onOptionChange, showOptions }) => {
             htmlFor="includeCaseStudies"
             className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Include case study questions
+            {t("quiz.options.caseStudy")}
           </label>
         </div>
       </div>
