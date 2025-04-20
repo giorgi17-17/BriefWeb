@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
@@ -23,7 +23,7 @@ import { PostHogProvider } from "posthog-js/react";
 import AuthCallback from "./pages/auth/callback";
 import { supabase } from "./utils/supabaseClient";
 import { UserPlanProvider } from "./contexts/UserPlanContext";
-import { checkAndRefreshSession } from "./utils/sessionRefresh";
+// import { checkAndRefreshSession } from "./utils/sessionRefresh";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -39,37 +39,40 @@ const posthogOptions = {
 
 // Add before the ProtectedRoute function
 // Check for existing session when the app loads
-const checkInitialSession = async () => {
-  try {
-    console.log("Checking initial session on app load");
-    // This will refresh the token if it's about to expire
-    const session = await checkAndRefreshSession();
-    if (session) {
-      console.log(
-        "Found existing session on app load for:",
-        session.user.email
-      );
-    }
-  } catch (error) {
-    console.error("Error checking initial session:", error);
-  }
-};
+// const checkInitialSession = async () => {
+//   try {
+//     console.log("Checking initial session on app load");
+//     // This will refresh the token if it's about to expire
+//     const session = await checkAndRefreshSession();
+//     if (session) {
+//       console.log(
+//         "Found existing session on app load for:",
+//         session.user.email
+//       );
+//     }
+//   } catch (error) {
+//     console.error("Error checking initial session:", error);
+//   }
+// };
 
 // On first app load, check for existing session
-checkInitialSession();
+// checkInitialSession();
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
 
   // Process the OAuth hash when landing on dashboard
   useEffect(() => {
     if (window.location.hash && window.location.hash.includes("access_token")) {
       // Process the OAuth redirect
+
       const processOAuthRedirect = async () => {
         console.log("Processing OAuth redirect on dashboard");
 
         try {
           // Get session from the hash - Supabase will automatically process the hash
+
           const { data, error } = await supabase.auth.getSession();
 
           if (error) {
@@ -77,112 +80,13 @@ function ProtectedRoute({ children }) {
           } else {
             console.log(
               "OAuth session established:",
+
               data.session ? "Yes" : "No"
             );
-
-            // Check if we need to add the user to our database
-            if (data.session?.user) {
-              const user = data.session.user;
-              console.log("User from OAuth redirect:", user.email);
-
-              if (user.app_metadata?.provider === "google") {
-                console.log(
-                  "Google user from redirect, ensuring user exists in database"
-                );
-                try {
-                  // Check if user already exists
-                  const { data: existingUser, error: fetchError } =
-                    await supabase
-                      .from("users")
-                      .select("user_id")
-                      .eq("user_id", user.id)
-                      .maybeSingle();
-
-                  if (fetchError) {
-                    console.error(
-                      "Error checking for existing user:",
-                      fetchError
-                    );
-                  } else if (!existingUser) {
-                    // Add user to database
-                    console.log("Adding Google user to database from redirect");
-                    const { error: insertError } = await supabase
-                      .from("users")
-                      .insert([
-                        {
-                          user_id: user.id,
-                          email: user.email,
-                          created_at: new Date().toISOString(),
-                        },
-                      ]);
-
-                    if (insertError) {
-                      console.error(
-                        "Error adding user from redirect:",
-                        insertError
-                      );
-                    } else {
-                      console.log(
-                        "Successfully added Google user from redirect"
-                      );
-                    }
-                  } else {
-                    console.log("Google user already exists in database");
-                  }
-
-                  // Now check if user exists in user_plans table
-                  const { data: existingPlan, error: planFetchError } =
-                    await supabase
-                      .from("user_plans")
-                      .select("*")
-                      .eq("user_id", user.id)
-                      .maybeSingle();
-
-                  if (planFetchError) {
-                    console.error(
-                      "Error checking for existing plan:",
-                      planFetchError
-                    );
-                  } else if (!existingPlan) {
-                    // Add user to user_plans table with free plan
-                    console.log(
-                      "Adding Google user to user_plans table from redirect"
-                    );
-                    const { error: planInsertError } = await supabase
-                      .from("user_plans")
-                      .insert([
-                        {
-                          user_id: user.id,
-                          plan_type: "free",
-                          subject_limit: 3,
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString(),
-                        },
-                      ]);
-
-                    if (planInsertError) {
-                      console.error(
-                        "Error adding user plan from redirect:",
-                        planInsertError
-                      );
-                    } else {
-                      console.log(
-                        "Successfully added Google user to user_plans table from redirect"
-                      );
-                    }
-                  } else {
-                    console.log(
-                      "Google user already exists in user_plans table"
-                    );
-                  }
-                } catch (err) {
-                  console.error("Error handling user from redirect:", err);
-                }
-              }
-            }
           }
 
           // Clean up the URL by removing the hash without page reload
+
           if (window.history && window.history.replaceState) {
             window.history.replaceState(null, null, window.location.pathname);
           }
@@ -207,7 +111,7 @@ function ProtectedRoute({ children }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return navigate("/login");
   }
 
   return children;
