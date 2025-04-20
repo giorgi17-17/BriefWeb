@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import PropTypes from "prop-types";
 
 const NewSubjectModal = ({ isOpen, onClose, onAddSubject }) => {
   const [name, setName] = useState("");
@@ -146,6 +147,12 @@ const NewSubjectModal = ({ isOpen, onClose, onAddSubject }) => {
       </div>
     </div>
   );
+};
+
+NewSubjectModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onAddSubject: PropTypes.func.isRequired,
 };
 
 export default NewSubjectModal;

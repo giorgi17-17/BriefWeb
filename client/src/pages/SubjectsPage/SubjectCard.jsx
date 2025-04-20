@@ -1,4 +1,5 @@
 import { Book } from "lucide-react";
+import PropTypes from "prop-types";
 
 const SubjectCard = ({ subject, onClick }) => {
   const { name, description, lectureCount } = subject;
@@ -49,6 +50,15 @@ const SubjectCard = ({ subject, onClick }) => {
       </div>
     </div>
   );
+};
+
+SubjectCard.propTypes = {
+  subject: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    lectureCount: PropTypes.number.isRequired,
+  }).isRequired,
+  onClick: PropTypes.func.isRequired,
 };
 
 export default SubjectCard;

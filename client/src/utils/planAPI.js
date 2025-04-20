@@ -26,26 +26,7 @@ export const getUserPlan = async (userId) => {
  * @param {string} userId - The user's ID
  * @returns {Promise<boolean>} - Whether the user can create a new subject
  */
-export const canCreateSubject = async (userId) => {
-  try {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/user-plans/can-create-subject`,
-      {
-        params: {
-          user_id: userId,
-        },
-      }
-    );
-    return response.data.can_create;
-  } catch (error) {
-    console.error("Error checking if user can create subject:", error);
-    // If we get a 403 error, the user has reached their limit
-    if (error.response && error.response.status === 403) {
-      return false;
-    }
-    throw error;
-  }
-};
+
 
 /**
  * Check if the user has a premium plan

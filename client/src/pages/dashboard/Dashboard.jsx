@@ -38,6 +38,8 @@ export default function Dashboard() {
 
     try {
       setError(null);
+      setIsLoading(true);
+
       const { data, error: supabaseError } = await supabase
         .from("subjects")
         .select(`id, title, created_at`)
@@ -63,6 +65,20 @@ export default function Dashboard() {
     fetchSubjects();
   }, [user, navigate]);
 
+  // Update canAdd whenever premium status changes
+  useEffect(() => {
+    async function updateCanAddStatus() {
+      if (isPremium) {
+        setCanAdd(true);
+      } else if (subjects.length > 0) {
+        const canAddMore = await canCreateSubject();
+        setCanAdd(canAddMore);
+      }
+    }
+
+    updateCanAddStatus();
+  }, [isPremium, isFree, subjectLimit, subjects.length, canCreateSubject]);
+
   // Focus input when add modal opens
   useEffect(() => {
     if (isModalOpen && newSubjectInputRef.current) {
@@ -77,10 +93,8 @@ export default function Dashboard() {
     }
 
     try {
-      // Verify user can create more subjects
-      const canAddMore = await canCreateSubject();
-
-      if (!canAddMore && isFree) {
+      // We already know if user can add more from state, no need to check again
+      if (!canAdd && isFree) {
         setError(
           "You have reached your subject limit. Please upgrade to create more subjects."
         );

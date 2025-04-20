@@ -4,7 +4,6 @@ import { supabase } from "../utils/supabaseClient";
 import { useAuth } from "../utils/authHooks";
 import {
   getUserPlan,
-  canCreateSubject as checkCanCreateSubject,
   isPremiumUser as checkIsPremiumUser,
 } from "../utils/planAPI";
 
@@ -15,7 +14,7 @@ const UserPlanContext = createContext(null);
 const MAX_FREE_LECTURES_PER_SUBJECT = 5;
 
 // Create provider component
-export function UserPlanProvider({ children }) {  
+export function UserPlanProvider({ children }) {
   const [userPlan, setUserPlan] = useState({
     isLoading: true,
     planType: "free", // default to free
@@ -95,7 +94,17 @@ export function UserPlanProvider({ children }) {
 
     if (userPlan.planType === "premium") return true;
 
-    if (userPlan.isLoading) return false;
+    // Wait for userPlan to finish loading before proceeding
+    if (userPlan.isLoading) {
+      // Wait small delay and check again if still loading
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (userPlan.isLoading) {
+        console.log(
+          "UserPlan still loading, defaulting to allowing subject creation"
+        );
+        return true; // Default to allowing creation while loading
+      }
+    }
 
     // Try direct Supabase check first
     try {
@@ -112,16 +121,8 @@ export function UserPlanProvider({ children }) {
       console.error("Error checking subjects directly:", directError);
     }
 
-    // If direct check fails, try API
-    try {
-      return await checkCanCreateSubject(user.id);
-    } catch (error) {
-      console.error(
-        "Error checking if user can create subject via API:",
-        error
-      );
-      return false;
-    }
+    // If direct check fails, default to allowing creation
+    return true;
   };
 
   // Check if user is premium

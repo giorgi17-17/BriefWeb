@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import PlanStatusBadge from "../PlanStatusBadge";
 import { useUserPlan } from "../../contexts/UserPlanContext";
-import { supabase } from "../../utils/supabaseClient";
 
 function Header() {
   const { user } = useAuth();
@@ -25,40 +24,7 @@ function Header() {
   }, [location.pathname]);
 
   // Function to upgrade to premium
-  const upgradeToPremium = async (e) => {
-    e.preventDefault();
-
-    try {
-      if (!user) return;
-
-      // Direct Supabase insert/update
-      const { error } = await supabase.from("user_plans").upsert({
-        user_id: user.id,
-        plan_type: "premium",
-        subject_limit: 999,
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-
-      // Track the upgrade event
-      try {
-        posthog.capture("premium_upgrade_clicked", {
-          location: "header",
-          current_path: location.pathname,
-          user_id: user?.id || "anonymous",
-        });
-      } catch (trackError) {
-        console.error("PostHog event error:", trackError);
-      }
-
-      // Success - refresh the page to update plan state
-      window.location.reload();
-    } catch (err) {
-      console.error("Error upgrading to premium:", err);
-      alert("Could not upgrade to premium. Please try again.");
-    }
-  };
+  
 
   const tryPro = (e) => {
     e.preventDefault();
@@ -163,11 +129,11 @@ function Header() {
                 {/* Upgrade to premium button for free users */}
                 {isFree && user && (
                   <button
-                    onClick={upgradeToPremium}
+                    onClick={tryPro}
                     className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-sm font-medium py-1.5 px-3 rounded-full transition-colors"
                   >
                     <Crown size={14} />
-                    <span>Upgrade</span>
+                    <span>Try Premium</span>
                   </button>
                 )}
 
@@ -217,11 +183,11 @@ function Header() {
               {/* Upgrade button in mobile header for logged-in free users */}
               {user && isFree && (
                 <button
-                  onClick={upgradeToPremium}
+                  onClick={tryPro}
                   className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-medium py-1 px-2 rounded-full"
                 >
                   <Crown size={12} />
-                  <span>Upgrade</span>
+                  <span>Try Premium</span>
                 </button>
               )}
 

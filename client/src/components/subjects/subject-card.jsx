@@ -56,8 +56,5 @@ SubjectCard.propTypes = {
   isPremium: PropTypes.bool,
 };
 
-SubjectCard.defaultProps = {
-  isPremium: false,
-};
 
 export default SubjectCard;
