@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { getLocalizedSeoField } from "../../utils/seoTranslations";
 import { getCanonicalUrl } from "../../utils/languageSeo";
 import { useUserPlan } from "../../contexts/UserPlanContext";
+import { usePostHog } from "posthog-js/react";
 
 // Helper to check if a string is a valid UUID
 const isUuid = (str) => {
@@ -36,6 +37,7 @@ const LecturesPage = () => {
   const { isPremium, canCreateLecture, MAX_FREE_LECTURES_PER_SUBJECT } =
     useUserPlan();
   const [canAdd, setCanAdd] = useState(true);
+  const posthog = usePostHog();
 
   // Extract the subject ID resolution logic to a reusable function
   const resolveSubjectId = async (idOrSlug) => {
@@ -213,6 +215,21 @@ const LecturesPage = () => {
       if (error) {
         console.error("Error adding lecture:", error);
         throw new Error(t("lectures.error.addingFailed"));
+      }
+
+      // Track lecture creation in PostHog
+      try {
+        posthog.capture("lecture_created", {
+          subject_id: subjectId,
+          subject_name: subject.title,
+          lecture_id: data.id,
+          lecture_title: data.title,
+          lecture_count: lectures.length + 1,
+          user_id: user.id,
+          user_plan: isPremium ? "premium" : "free",
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
       }
 
       // Append the new lecture at the end of the list.

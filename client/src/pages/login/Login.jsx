@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 
 const Login = () => {
   const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signInWithEmail, signInWithGoogle } = useAuth();
+  const posthog = usePostHog();
 
   // Check for redirect status in URL
   useEffect(() => {
@@ -31,6 +33,17 @@ const Login = () => {
 
     try {
       await signInWithEmail(email, password);
+
+      // Track successful email login
+      try {
+        posthog.capture("login_with_email", {
+          source: "login_page",
+          user_id: email,
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
+      }
+
       navigate("/dashboard");
     } catch (error) {
       console.error(error);
@@ -44,6 +57,17 @@ const Login = () => {
     try {
       setError(null);
       setIsGoogleRedirecting(true);
+
+      // Track Google sign-in attempt
+      try {
+        posthog.capture("login_with_google", {
+          source: "login_page",
+          user_id: "anonymous",
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
+      }
+
       await signInWithGoogle();
       // The redirect will be handled by Supabase OAuth flow
     } catch (error) {

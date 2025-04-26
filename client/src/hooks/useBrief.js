@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { handleProcessBrief } from "../utils/api";
+import { usePostHog } from "posthog-js/react";
 
 export function useBrief(lectureId, user) {
   const [brief, setBrief] = useState(null);
@@ -8,6 +9,7 @@ export function useBrief(lectureId, user) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [noBriefExists, setNoBriefExists] = useState(false);
+  const posthog = usePostHog();
 
   // Fetch brief data from the database
   const fetchBrief = async () => {
@@ -27,6 +29,13 @@ export function useBrief(lectureId, user) {
         }
         throw error;
       }
+
+      console.log("Brief fetched from database:", data);
+      console.log(
+        "Total pages value:",
+        data.total_pages,
+        typeof data.total_pages
+      );
 
       setBrief(data);
       setCurrentPage(data.current_page || 1);
@@ -109,6 +118,16 @@ export function useBrief(lectureId, user) {
 
       setBrief(result);
       setCurrentPage(1);
+
+      // Track brief generation with minimal properties
+      try {
+        posthog.capture("brief_generation", {
+          lecture_id: lectureId,
+          pages: briefData.totalPages,
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
+      }
     } catch (err) {
       console.error("Error generating brief:", err);
       setError("Failed to generate brief");

@@ -1,6 +1,7 @@
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useBrief } from "../../hooks/useBrief";
 import PropTypes from "prop-types";
+import { useEffect } from "react";
 
 // Import our new components
 import BriefHeader from "./BriefHeader";
@@ -24,6 +25,17 @@ const Brief = ({ selectedFile, user, lectureId }) => {
     generateBrief,
     handlePageChange,
   } = useBrief(lectureId, user);
+
+  useEffect(() => {
+    if (brief) {
+      console.log("Brief data:", {
+        totalPages: brief.total_pages,
+        currentPage,
+        summariesLength: brief.summaries ? brief.summaries.length : 0,
+        hasSummaries: !!brief.summaries,
+      });
+    }
+  }, [brief, currentPage]);
 
   // Handler for generate brief button
   const handleGenerateBrief = () => {
@@ -54,11 +66,23 @@ const Brief = ({ selectedFile, user, lectureId }) => {
         {brief ? (
           <div>
             {/* Pagination controls */}
-            <BriefPagination
-              currentPage={currentPage}
-              totalPages={brief.total_pages}
-              onPageChange={handlePageChange}
-            />
+            {console.log("Rendering BriefPagination with:", {
+              currentPage,
+              totalPages: brief.total_pages,
+            })}
+            {brief.total_pages > 1 ? (
+              <BriefPagination
+                currentPage={currentPage}
+                totalPages={brief.total_pages}
+                onPageChange={handlePageChange}
+              />
+            ) : (
+              <div className="mb-4 text-right">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Single page document
+                </span>
+              </div>
+            )}
             {/* Main content */}
             <BriefContent brief={brief} currentPage={currentPage} />
 
@@ -71,8 +95,6 @@ const Brief = ({ selectedFile, user, lectureId }) => {
             {brief.metadata?.important_details && (
               <ImportantDetails details={brief.metadata.important_details} />
             )}
-
-            
           </div>
         ) : (
           <BriefLoadingState

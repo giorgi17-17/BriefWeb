@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { handleProcessPdf } from "../utils/api";
+import { usePostHog } from "posthog-js/react";
 
 export function useFlashcardGeneration(
   user,
@@ -9,6 +10,7 @@ export function useFlashcardGeneration(
   setProcessedData
 ) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const posthog = usePostHog();
 
   const generateFlashcards = async (selectedFile, existingFlashcards = []) => {
     if (!isMounted.current || isGenerating) return;
@@ -106,6 +108,16 @@ export function useFlashcardGeneration(
 
       if (isMounted.current) {
         setProcessedData(processedDataObj);
+
+        // Track flashcard generation with minimal properties
+        try {
+          posthog.capture("flashcard_generation", {
+            lecture_id: lectureId,
+            count: data.length,
+          });
+        } catch (error) {
+          console.error("PostHog event error:", error);
+        }
       }
     } catch (err) {
       console.error("Error generating flashcards:", err);

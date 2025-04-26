@@ -7,6 +7,7 @@ import SEO from "../../components/SEO/SEO";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useTranslation } from "react-i18next";
 import { getLocalizedSeoField } from "../../utils/seoTranslations";
+import { usePostHog } from "posthog-js/react";
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const { isFree, isPremium, canCreateSubject, subjectLimit } = useUserPlan();
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language;
+  const posthog = usePostHog();
 
   // Fetch subjects from subjects table
   const fetchSubjects = async () => {
@@ -111,6 +113,18 @@ export default function Dashboard() {
       });
 
       if (supabaseError) throw supabaseError;
+
+      // Track subject creation in PostHog
+      try {
+        posthog.capture("subject_created", {
+          subject_name: newSubjectName.trim(),
+          user_id: user.id,
+          user_plan: isPremium ? "premium" : "free",
+          subject_count: subjectCount + 1,
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
+      }
 
       // Refetch subjects after adding a new one
       fetchSubjects();

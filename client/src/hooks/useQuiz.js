@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../utils/supabaseClient";
 import { handleProcessQuiz, evaluateAnswer } from "../utils/api";
+import { usePostHog } from "posthog-js/react";
 
 export function useQuiz(lectureId, user) {
   const [quiz, setQuiz] = useState(null);
@@ -27,6 +28,8 @@ export function useQuiz(lectureId, user) {
 
   // Track if component is mounted
   const isMounted = useRef(true);
+
+  const posthog = usePostHog();
 
   useEffect(() => {
     // Set mounted flag
@@ -516,6 +519,16 @@ export function useQuiz(lectureId, user) {
 
       // Now fetch the quiz data
       await fetchQuiz();
+
+      // Track quiz generation with minimal properties
+      try {
+        posthog.capture("quiz_generation", {
+          lecture_id: lectureId,
+          difficulty: quizOptions.difficulty,
+        });
+      } catch (error) {
+        console.error("PostHog event error:", error);
+      }
     } catch (err) {
       // If component unmounted during API call, exit early
       if (!isMounted.current) return;

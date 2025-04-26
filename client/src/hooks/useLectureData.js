@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../utils/supabaseClient";
+import { usePostHog } from "posthog-js/react";
 
 export function useLectureData(lectureId, userId) {
   const [files, setFiles] = useState([]);
@@ -14,6 +15,8 @@ export function useLectureData(lectureId, userId) {
   // Add refs to track pending operations
   const isMounted = useRef(true);
   const pendingRequests = useRef({});
+
+  const posthog = usePostHog();
 
   // Fetch initial lecture data
   const fetchLectureData = async () => {
@@ -160,6 +163,16 @@ export function useLectureData(lectureId, userId) {
 
       if (isMounted.current) {
         setFiles((prev) => [...prev, fileRecord]);
+
+        // Track successful file upload
+        try {
+          posthog.capture("file_upload", {
+            lecture_id: lectureId,
+            file_type: fileExt,
+          });
+        } catch (error) {
+          console.error("PostHog event error:", error);
+        }
       }
 
       return { isUploading: false };
