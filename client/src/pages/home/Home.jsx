@@ -35,15 +35,23 @@ export const Home = () => {
         name: "What is Brief?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Brief is an educational platform for students providing concise learning materials, quizzes, and study resources.",
+          text: "Brief is an AI-powered educational platform for students providing smart study tools, including AI flashcards, concise learning materials, quizzes, and effective study resources for personalized learning.",
         },
       },
       {
         "@type": "Question",
-        name: "How does Brief help students?",
+        name: "How does Brief help with studying?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Brief helps students by providing AI-generated flashcards, summarized lecture notes, and interactive quizzes to enhance learning efficiency.",
+          text: "Brief helps students by offering AI-generated flashcards, summarized lecture notes, and interactive quizzes to enhance learning efficiency. Our digital learning assistant transforms your study techniques and improves your studying experience through personalized AI education tools.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can Brief improve my study methods?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes, Brief uses educational AI to analyze your learning patterns and provide personalized study methods. Our smart learning tools help you study more efficiently, retain information better, and achieve higher grades through effective studying techniques.",
         },
       },
       {
@@ -51,7 +59,7 @@ export const Home = () => {
         name: "Is Brief available in multiple languages?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes, Brief is available in multiple languages including English and Georgian, with more languages coming soon.",
+          text: "Yes, Brief is available in multiple languages including English and Georgian, with more languages coming soon. This ensures our AI study assistant is accessible to students worldwide.",
         },
       },
     ],

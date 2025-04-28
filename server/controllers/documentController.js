@@ -120,7 +120,11 @@ export async function processDetailedContent(userId, lectureId, fileId) {
     // First, try parsing the document into pages/slides.
     let pages;
     try {
+      // Extract content by pages/slides
       pages = await extractContentByPagesOrSlides(userId, lectureId, fileId);
+      console.log(
+        `Successfully extracted ${pages.length} pages/slides from document`
+      );
     } catch (err) {
       console.warn(
         "extractContentByPagesOrSlides failed, falling back to extractTextFromFile. Error:",
@@ -128,7 +132,9 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       );
       const allText = await extractTextFromFile(userId, lectureId, fileId);
       if (allText && allText.trim()) {
+        // If we can't parse by pages, treat the entire document as a single page
         pages = [allText];
+        console.log("Fallback: Using entire document content as a single page");
       } else {
         throw new Error("No content found in document");
       }
@@ -140,6 +146,7 @@ export async function processDetailedContent(userId, lectureId, fileId) {
     }
 
     // Generate a summary for each page and extract just the summary text
+    console.log(`Generating summaries for ${pages.length} pages/slides...`);
     const summaries = await Promise.all(
       pages.map(async (pageText, index) => {
         if (!pageText.trim() || pageText.length < 10) {
@@ -148,12 +155,19 @@ export async function processDetailedContent(userId, lectureId, fileId) {
           );
           return null;
         }
+        console.log(
+          `Processing page/slide ${index + 1} with ${
+            pageText.length
+          } characters`
+        );
         const brief = await generateBrief(pageText);
         return brief.summary; // Just store the summary text
       })
     );
     const filteredSummaries = summaries.filter(Boolean);
-    console.log("Generated summaries:", filteredSummaries);
+    console.log(
+      `Generated ${filteredSummaries.length} valid summaries from ${pages.length} pages/slides`
+    );
 
     if (filteredSummaries.length === 0) {
       throw new Error("No valid summaries generated from the document");
@@ -218,7 +232,7 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       }
       result = insertedBrief;
     }
-    console.log("Brief result:", result);
+    console.log("Successfully saved brief with multiple page summaries");
     return result;
   } catch (error) {
     console.error("Error processing document:", error);

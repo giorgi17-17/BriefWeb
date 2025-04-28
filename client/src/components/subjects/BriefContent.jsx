@@ -18,7 +18,7 @@ const BriefContent = ({ brief, currentPage }) => {
 
 BriefContent.propTypes = {
   brief: PropTypes.object,
-  currentPage: PropTypes.number.isRequired
+  currentPage: PropTypes.number.isRequired,
 };
 
-export default BriefContent; 
+export default BriefContent;

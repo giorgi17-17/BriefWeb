@@ -110,43 +110,43 @@
   "landing": {
     "hero": {
       "tagline": "Built by students, for students 🎓",
-      "title": "Don't Struggle, Make It ",
-      "subtitle": "Your personal AI study assistant that transforms your study notes into flashcards and study briefs in seconds.",
+      "title": "Don't Struggle, Learn With Briefly",
+      "subtitle": "Your personal AI study tool that transforms your study notes into flashcards and study briefs in seconds for effective studying.",
       "startLearning": "Start Learning"
     },
     "howItWorks": {
       "title": "How It Works",
-      "subtitle": "Three simple steps to transform your study materials into effective learning tools.",
+      "subtitle": "Three simple steps to transform your study materials into AI-powered learning tools.",
       "upload": {
         "title": "Upload Your Notes",
         "description": "Simply upload your lecture notes or study materials. Works with PDFs, Word docs, text files and more."
       },
       "process": {
         "title": "AI Processing",
-        "description": "Our advanced AI analyzes your content and automatically generates comprehensive flashcards and study briefs."
+        "description": "Our advanced AI analyzes your content and automatically generates comprehensive flashcards and study briefs for personalized learning."
       },
       "learn": {
-        "title": "Start Learning",
-        "description": "Review and learn with your personalized study materials. Track your progress and master subjects efficiently."
+        "title": "Smart Studying",
+        "description": "Review and learn with your personalized study materials. Track your progress and master subjects efficiently with our educational AI."
       }
     },
     "whyUs": {
       "tagline": "THE BRIEFly ADVANTAGE",
       "title": "Why Students Are Obsessed",
-      "subtitle": "Created by students who understand the struggle, for students who deserve better.",
+      "subtitle": "Created by students who understand the study techniques needed, for students who deserve better learning efficiency.",
       "saveTime": {
         "title": "Save Massive Time",
-        "description": "Our AI-powered system transforms lengthy notes into concise, memorable study materials within minutes, freeing you to focus where it matters most."
+        "description": "Our AI-powered system transforms lengthy notes into concise, memorable study materials within minutes, freeing you to focus on effective studying methods."
       },
       "grades": {
         "title": "Level Up Your Grades",
-        "description": "Our organized study materials help boost retention and understanding, leading to improved exam performance and higher overall grades."
+        "description": "Our AI learning tools help boost retention and understanding, leading to improved exam performance and higher overall grades through smarter learning."
       },
       "smarter": {
         "title": "Study Smarter, Not Harder",
-        "description": "Our intelligent tools help you focus on what you need to learn, maximizing study efficiency and helping you master complex topics."
+        "description": "Our intelligent AI education tools help you focus on what you need to learn, maximizing study efficiency and helping you master complex topics with personalized learning."
       },
-      "joinOthers": "Join 10,000+ students already crushing their studies"
+      "joinOthers": "Join 10,000+ students already improving their studying with our digital learning assistant"
     },
     "pricing": {
       "title": "Pricing",

@@ -31,7 +31,7 @@ const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
         </button>
 
         <button
-          onClick={() => onPageChange(currentPage + 1)}
+          onClick={() => onPageChange(currentPage + 1)} 
           disabled={currentPage >= pages}
           className={`p-2 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500
             ${

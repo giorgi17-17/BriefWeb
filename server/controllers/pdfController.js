@@ -95,7 +95,9 @@ export async function processPDF(userId, lectureId, fileId) {
     // First, try parsing the PDF into pages.
     let pages;
     try {
+      // This function extracts text from each page of the PDF
       pages = await parsePagesByPDF(buffer);
+      console.log(`Successfully extracted ${pages.length} pages from PDF`);
     } catch (err) {
       console.warn(
         "parsePagesByPDF failed, falling back to parsePDF. Error:",
@@ -103,7 +105,9 @@ export async function processPDF(userId, lectureId, fileId) {
       );
       const allText = await parsePDF(buffer);
       if (allText && allText.trim()) {
+        // If we can't parse by pages, put all text in a single page
         pages = [allText];
+        console.log("Fallback: Using entire PDF content as a single page");
       } else {
         throw new Error("No content found in PDF");
       }
@@ -115,18 +119,24 @@ export async function processPDF(userId, lectureId, fileId) {
     }
 
     // Generate a summary for each page and extract just the summary text
+    console.log(`Generating summaries for ${pages.length} pages...`);
     const summaries = await Promise.all(
       pages.map(async (pageText, index) => {
         if (!pageText.trim() || pageText.length < 10) {
           console.log(`Skipping page ${index + 1} due to insufficient content`);
           return null;
         }
+        console.log(
+          `Processing page ${index + 1} with ${pageText.length} characters`
+        );
         const brief = await generateBrief(pageText);
         return brief.summary; // Just store the summary text
       })
     );
     const filteredSummaries = summaries.filter(Boolean);
-    console.log("Generated summaries:", filteredSummaries);
+    console.log(
+      `Generated ${filteredSummaries.length} valid summaries from ${pages.length} pages`
+    );
 
     if (filteredSummaries.length === 0) {
       throw new Error("No valid summaries generated from the PDF");
@@ -191,7 +201,7 @@ export async function processPDF(userId, lectureId, fileId) {
       }
       result = insertedBrief;
     }
-    console.log("ressssssssssss" + result);
+    console.log("Successfully saved brief with multiple page summaries");
     return result;
   } catch (error) {
     console.error("Error processing PDF:", error);
@@ -269,7 +279,7 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
       // Update the quiz set name
       const { error: updateError } = await supabaseClient
         .from("quiz_sets")
-        .update({ name: quizName,  })
+        .update({ name: quizName })
         .eq("id", quizSetId);
 
       if (updateError) {

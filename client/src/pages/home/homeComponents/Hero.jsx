@@ -31,6 +31,27 @@ const Hero = () => {
     navigate("/dashboard");
   };
 
+  // Split the title to style last word if in English
+  const titleText = t("landing.hero.title");
+  let titleContent;
+
+  if (isEnglish) {
+    const titleWords = titleText.split(" ");
+    const lastWord = titleWords.pop();
+    const titleWithoutLastWord = titleWords.join(" ");
+
+    titleContent = (
+      <>
+        {titleWithoutLastWord}{" "}
+        <span className="text-white bg-blue-700 dark:bg-blue-700 rounded-md px-2">
+          {lastWord}
+        </span>
+      </>
+    );
+  } else {
+    titleContent = titleText;
+  }
+
   return (
     <section
       className={`py-16 ${background("primary")}`}
@@ -46,12 +67,7 @@ const Hero = () => {
             className={`text-5xl font-bold mb-6 ${text("primary")}`}
             itemProp="name"
           >
-            {t("landing.hero.title")}{" "}
-            {isEnglish && (
-              <span className="text-white bg-blue-700 dark:bg-blue-700 rounded-md px-2">
-                Brief
-              </span>
-            )}
+            {titleContent}
           </h1>
           <p
             className={`text-xl mb-8 max-w-2xl mx-auto ${text("tertiary")}`}

@@ -44,35 +44,54 @@ export function parsePagesByPDF(buffer) {
     });
 
     pdfParser.on("pdfParser_dataReady", (pdfData) => {
-      // Log the entire PDF data for debugging
-      // console.log("Raw PDF Data:", JSON.stringify(pdfData, null, 2));
+      // Log basic PDF information
+      console.log(
+        `PDF parsing complete. Found ${pdfData?.Pages?.length || 0} pages.`
+      );
 
       // Use formImage.Pages if available; otherwise, fallback to pdfData.Pages
-      const pagesData = (pdfData?.formImage?.Pages || pdfData?.Pages) || [];
+      const pagesData = pdfData?.formImage?.Pages || pdfData?.Pages || [];
+
+      if (pagesData.length === 0) {
+        console.warn("Warning: No pages found in PDF data");
+        return reject(new Error("No pages found in PDF"));
+      }
+
       const pages = pagesData.map((page, index) => {
         let lastY = -1;
-        let pageText = '';
+        let pageText = "";
         let paragraphs = [];
-        let currentParagraph = '';
-        
+        let currentParagraph = "";
+
+        // Get all texts from the page
+        const texts = page.Texts || [];
+        if (texts.length === 0) {
+          console.warn(`Warning: No text elements found on page ${index + 1}`);
+        }
+
         // Sort texts by Y position to maintain reading order
-        const sortedTexts = (page.Texts || []).sort((a, b) => {
+        const sortedTexts = texts.sort((a, b) => {
           return (a.y || 0) - (b.y || 0);
         });
 
         sortedTexts.forEach((textItem) => {
           try {
+            if (!textItem.R || !textItem.R[0] || !textItem.R[0].T) {
+              console.warn(`Warning: Invalid text item on page ${index + 1}`);
+              return; // Skip this text item
+            }
+
             const text = decodeURIComponent(textItem.R[0].T);
-            
+
             // Start a new paragraph if Y position changes significantly
             if (lastY !== -1 && Math.abs(textItem.y - lastY) > 1) {
               if (currentParagraph.trim().length > 0) {
                 paragraphs.push(currentParagraph.trim());
-                currentParagraph = '';
+                currentParagraph = "";
               }
             }
-            
-            currentParagraph += text + ' ';
+
+            currentParagraph += text + " ";
             lastY = textItem.y;
           } catch (err) {
             console.warn(`Decoding error on Page ${index + 1}:`, err);
@@ -86,24 +105,25 @@ export function parsePagesByPDF(buffer) {
 
         // Join paragraphs with proper spacing
         pageText = paragraphs
-          .filter(p => p.length > 0)  // Remove empty paragraphs
-          .join('\n\n');
+          .filter((p) => p.length > 0) // Remove empty paragraphs
+          .join("\n\n");
 
         // Clean up the text
         pageText = pageText
-          .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
-          .replace(/\n\s+/g, '\n')  // Clean up spaces after line breaks
-          .replace(/[•\-–—]/g, '')  // Remove bullet points and dashes
+          .replace(/\s+/g, " ") // Replace multiple spaces with single space
+          .replace(/\n\s+/g, "\n") // Clean up spaces after line breaks
+          .replace(/[•\-–—]/g, "") // Remove bullet points and dashes
           .trim();
 
         console.log(`Page ${index + 1} content:`, {
           length: pageText.length,
-          preview: pageText.substring(0, 100),
-          paragraphs: paragraphs.length
+          preview:
+            pageText.substring(0, 100) + (pageText.length > 100 ? "..." : ""),
+          paragraphs: paragraphs.length,
         });
 
-        // Only return pages with meaningful content
-        if (pageText.length < 100 || !pageText.match(/[a-zA-Z]/)) {
+        // Only return pages with meaningful content - at least 50 characters and contains letters
+        if (pageText.length < 50 || !pageText.match(/[a-zA-Z]/)) {
           console.log(`Skipping Page ${index + 1} due to insufficient content`);
           return null;
         }
@@ -113,6 +133,10 @@ export function parsePagesByPDF(buffer) {
 
       // Filter out null pages and check if we have any valid content
       const validPages = pages.filter(Boolean);
+      console.log(
+        `PDF parsed successfully: ${validPages.length} valid pages out of ${pagesData.length} total pages`
+      );
+
       if (!validPages.length) {
         return reject(new Error("No valid content found in PDF"));
       }
