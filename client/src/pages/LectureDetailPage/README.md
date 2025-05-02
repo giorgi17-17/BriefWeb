@@ -3,7 +3,7 @@
 This directory contains the refactored components for the LectureDetailPage feature. The refactoring was done to improve maintainability by splitting a large monolithic component into smaller, focused components with single responsibilities.
 
 ## Component Structure
-
+..
 ### Main Component
 
 - `LectureDetailPage.jsx` - Container component that orchestrates the feature and manages high-level state.
