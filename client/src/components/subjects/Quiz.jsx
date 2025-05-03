@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useQuiz } from "../../hooks/useQuiz";
-import { Loader2, History } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Import our components
 import QuizHeader from "./QuizHeader";
@@ -117,16 +117,10 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
             onGenerateQuiz={handleGenerateQuiz}
             toggleOptionsPanel={toggleOptionsPanel}
             showOptions={showOptions}
+            toggleHistory={toggleHistory}
           />
 
-          {/* Quiz History button */}
-          <button
-            onClick={toggleHistory}
-            className="flex items-center space-x-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-          >
-            <History size={16} />
-            <span>{t("quiz.historyTitle")}</span>
-          </button>
+          
         </div>
       </div>
 

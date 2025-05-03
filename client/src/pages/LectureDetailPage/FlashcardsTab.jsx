@@ -21,21 +21,22 @@ const FlashcardsTab = ({
     <div className="space-y-4">
       {files.length > 0 ? (
         <>
-          <div className="flex justify-start items-center gap-4">
-            <button
-              onClick={handleGenerateFlashcards}
-              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium ${
-                isGenerating
-                  ? "bg-blue-600/50 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              } text-white transition-colors`}
-              disabled={isGenerating}
-            >
-              {isGenerating
-                ? t("lectures.lectureDetails.flashcards.generating")
-                : t("lectures.lectureDetails.flashcards.generate")}
-            </button>
-          </div>
+         <div className="flex justify-end items-center gap-4">
+  <button
+    onClick={handleGenerateFlashcards}
+    className={`flex items-center px-4 py-2 rounded-md text-sm font-medium ${
+      isGenerating
+        ? "bg-blue-600/50 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700"
+    } text-white transition-colors`}
+    disabled={isGenerating}
+  >
+    {isGenerating
+      ? t("lectures.lectureDetails.flashcards.generating")
+      : t("lectures.lectureDetails.flashcards.generate")}
+  </button>
+</div>
+
 
           <FlashcardComponent
             flashcards={flashcards}

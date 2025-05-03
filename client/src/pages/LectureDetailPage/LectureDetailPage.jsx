@@ -22,8 +22,7 @@ import {
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
-  const currentLang = i18n.language;
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(
     t("lectures.lectureDetails.tabs.flashcards")
   );
