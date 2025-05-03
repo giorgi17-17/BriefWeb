@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Footer from "../../components/layout/Footer";
 import Hero from "./homeComponents/Hero";
@@ -12,7 +11,7 @@ import { useLocation } from "react-router-dom";
 import { getCanonicalUrl } from "../../utils/languageSeo";
 
 export const Home = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language;
@@ -149,7 +148,7 @@ export const Home = () => {
       </div>
 
       {/* Final CTA Section */}
-      <div className="py-16 bg-black text-white">
+      {/* <div className="py-16 bg-black text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">{t("landing.cta.title")}</h2>
           <p className="text-lg mb-8 opacity-90">{t("landing.cta.subtitle")}</p>
@@ -160,7 +159,7 @@ export const Home = () => {
             {t("landing.cta.button")}
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Stay Updated Section */}
       <div className={`py-16 ${background("primary")}`}>

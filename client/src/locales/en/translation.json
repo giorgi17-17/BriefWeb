@@ -8,7 +8,7 @@
     "pricing": "Pricing",
     "login": "Login",
     "register": "Register",
-    "tryPro": "Try Pro",
+    "tryPro": "Try For Free",
     "dashboard": "Dashboard",
     "profile": "Profile"
   },
@@ -112,7 +112,8 @@
       "tagline": "Built by students, for students 🎓",
       "title": "Don't Struggle, Learn With Briefly",
       "subtitle": "Your personal AI study tool that transforms your study notes into flashcards and study briefs in seconds for effective studying.",
-      "startLearning": "Start Learning"
+      "startLearning": "Start Learning For Free",
+      "continueLearning": "Continue Learning"
     },
     "howItWorks": {
       "title": "How It Works",
@@ -164,7 +165,7 @@
           "Basic note summarization",
           "PDF file support up to 5MB"
         ],
-        "cta": "Get Started Now"
+        "cta": "Get Started For Free"
       },
       "pro": {
         "title": "Pro",
@@ -179,7 +180,7 @@
           "Advanced AI-powered summaries",
           "PDF file support up to 50MB"
         ],
-        "cta": "Start 7-Day Free Trial"
+        "cta": "Try Premium"
       }
     },
     "cta": {

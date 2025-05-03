@@ -2,8 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { background, text } from "../../../utils/themeUtils";
 import { usePostHog } from "posthog-js/react";
-
+import { useAuth } from "../../../utils/authHooks";
 const Hero = () => {
+  
+  const { user } = useAuth();
   const navigate = useNavigate();
   const posthog = usePostHog();
   const { t, i18n } = useTranslation();
@@ -28,7 +30,11 @@ const Hero = () => {
     }
 
     // Navigate to dashboard
-    navigate("/dashboard");
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/register");
+    }
   };
 
   // Split the title to style last word if in English
@@ -84,7 +90,8 @@ const Hero = () => {
               itemType="https://schema.org/StartAction"
             >
               <meta itemProp="name" content="Start Learning" />
-              {t("landing.hero.startLearning")}
+              {user ? <div>{t("landing.hero.continueLearning")}</div> : <div>{t("landing.hero.startLearning")}</div>}
+              {/* {t("landing.hero.startLearning")} */}
             </button>
           </div>
         </header>

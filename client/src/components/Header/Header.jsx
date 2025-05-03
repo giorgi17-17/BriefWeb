@@ -157,12 +157,7 @@ function Header() {
                       >
                         {t("nav.login")}
                       </Link>
-                      <Link
-                        to="/register"
-                        className="text-sm font-medium theme-text-secondary hover:theme-text-primary transition-colors"
-                      >
-                        {t("nav.register")}
-                      </Link>
+                      
                     </>
                   )}
                 <button
