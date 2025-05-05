@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
@@ -19,23 +19,23 @@ import PaymentFailurePage from "./pages/payments/PaymentFailurePage";
 import DesignSystem from "./components/design/DesignSystem";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useEffect } from "react";
-import { PostHogProvider } from "posthog-js/react";
+// import { PostHogProvider } from "posthog-js/react";
 import AuthCallback from "./pages/auth/callback";
-import { supabase } from "./utils/supabaseClient";
+// import { supabase } from "./utils/supabaseClient";
 import { UserPlanProvider } from "./contexts/UserPlanContext";
 // import { checkAndRefreshSession } from "./utils/sessionRefresh";
 
 // Configure PostHog options
-const posthogOptions = {
-  api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
-  capture_pageview: true,
-  debug: import.meta.env.DEV,
-  loaded: (posthog) => {
-    if (import.meta.env.DEV) {
-      console.log("PostHog initialized", posthog);
-    }
-  },
-};
+// const posthogOptions = {
+//   api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
+//   capture_pageview: true,
+//   debug: import.meta.env.DEV,
+//   loaded: (posthog) => {
+//     if (import.meta.env.DEV) {
+//       console.log("PostHog initialized", posthog);
+//     }
+//   },
+// };
 
 // Add before the ProtectedRoute function
 // Check for existing session when the app loads
@@ -60,42 +60,13 @@ const posthogOptions = {
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
 
-  // Process the OAuth hash when landing on dashboard
+  // Clear the URL hash when dashboard loads to clean up OAuth fragments
   useEffect(() => {
-    if (window.location.hash && window.location.hash.includes("access_token")) {
-      // Process the OAuth redirect
-
-      const processOAuthRedirect = async () => {
-        console.log("Processing OAuth redirect on dashboard");
-
-        try {
-          // Get session from the hash - Supabase will automatically process the hash
-
-          const { data, error } = await supabase.auth.getSession();
-
-          if (error) {
-            console.error("Error processing OAuth redirect:", error);
-          } else {
-            console.log(
-              "OAuth session established:",
-
-              data.session ? "Yes" : "No"
-            );
-          }
-
-          // Clean up the URL by removing the hash without page reload
-
-          if (window.history && window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.pathname);
-          }
-        } catch (err) {
-          console.error("Error handling OAuth redirect:", err);
-        }
-      };
-
-      processOAuthRedirect();
+    // If there's a hash in the URL (from OAuth callback), clean it up
+    if (window.location.hash) {
+      // Remove the hash without causing a page reload
+      history.replaceState(null, null, " ");
     }
   }, []);
 
@@ -111,7 +82,7 @@ function ProtectedRoute({ children }) {
   }
 
   if (!user) {
-    return navigate("/login");
+    return <Navigate to="/login" />;
   }
 
   return children;
@@ -126,10 +97,7 @@ function App() {
   return (
     <HelmetProvider>
       <ThemeProvider>
-        <PostHogProvider
-          apiKey={import.meta.env.VITE_POSTHOG_KEY}
-          options={posthogOptions}
-        >
+        
           <AuthProvider>
             <UserPlanProvider>
               <BrowserRouter>
@@ -200,7 +168,6 @@ function App() {
               </BrowserRouter>
             </UserPlanProvider>
           </AuthProvider>
-        </PostHogProvider>
       </ThemeProvider>
     </HelmetProvider>
   );
