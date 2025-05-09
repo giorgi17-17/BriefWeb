@@ -569,7 +569,8 @@ Text to analyze: ${extractedText}`,
     console.log("Quiz content preview:", quizContent.substring(0, 200) + "...");
 
     try {
-      // Clean up the response - strip code fences, markdowns
+      // Comprehensive pre-sanitization to remove all problematic characters before parsing
+      // First, clean up the response - strip code fences, markdowns
       quizContent = quizContent
         .replace(/```json\s*/g, "")
         .replace(/```\s*/g, "")
@@ -591,25 +592,29 @@ Text to analyze: ${extractedText}`,
         }
       }
 
-      // Sanitize the content - remove control characters and fix common issues
+      // Thorough sanitization - remove ALL control characters and fix common issues
       quizContent = quizContent
-        // Remove ASCII control characters
-        .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, "")
+        // Remove ALL control characters (including non-printable characters)
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
         // Fix common newline issues
         .replace(/\r\n/g, "\n")
-        // Replace smart quotes with straight quotes
+        // Replace all types of quotes with straight quotes
         .replace(/[""]/g, '"')
         .replace(/['']/g, "'")
+        // Remove any BOM or other invisible markers
+        .replace(/^\uFEFF/, "")
         // Fix backslash escaping
-        .replace(/\\\\/g, "\\")
-        // Handle escaping of quotes
-        .replace(
-          /(?<=": ")(?:[^"\\]|\\[^"])*?"/g,
-          (match) => match.slice(0, -1) + '\\"'
-        )
-        .replace(/(?<=": ")[^"]*?(?=")/g, (match) =>
-          match.replace(/(?<!\\)"/g, '\\"')
-        );
+        .replace(/\\\\/g, "\\");
+
+      // More aggressive escaping of quotes inside field values
+      quizContent = quizContent.replace(
+        /"([^"]*)":/g,
+        (match, p1) => `"${p1.replace(/"/g, '\\"')}":` // Escape quotes in property names
+      );
+      quizContent = quizContent.replace(
+        /: ?"([^"]*)"/g,
+        (match, p1) => `: "${p1.replace(/"/g, '\\"')}"` // Escape quotes in values
+      );
 
       // Try parsing the JSON
       let parsedQuiz;
@@ -634,24 +639,19 @@ Text to analyze: ${extractedText}`,
 
           // Handle specific error types
           if (initialParseError.message.includes("control character")) {
-            // For control character errors, replace a range around the error with sanitized content
-            const rangeStart = Math.max(0, errorPos - 10);
-            const rangeEnd = Math.min(quizContent.length, errorPos + 10);
-            const problematicSection = quizContent.substring(
-              rangeStart,
-              rangeEnd
-            );
-            const sanitizedSection = problematicSection
-              .replace(/[^\x20-\x7E]/g, "") // Keep only printable ASCII
-              .replace(/(?<!\\)"/g, '\\"'); // Escape unescaped quotes
+            // For control character errors, completely sanitize the entire JSON
+            quizContent = quizContent.replace(/[^\x20-\x7E]/g, "");
 
-            quizContent =
-              quizContent.substring(0, rangeStart) +
-              sanitizedSection +
-              quizContent.substring(rangeEnd);
-          } else if (afterError.startsWith('"') && beforeError.endsWith('"')) {
-            // Likely an unescaped quote - replace it
-            quizContent = beforeError + '\\"' + afterError.substring(1);
+            // Try one more time with a complete character-by-character rebuild
+            let cleanJSON = "";
+            for (let i = 0; i < quizContent.length; i++) {
+              const char = quizContent.charAt(i);
+              // Only include printable ASCII characters
+              if (/[\x20-\x7E]/.test(char)) {
+                cleanJSON += char;
+              }
+            }
+            quizContent = cleanJSON;
           } else if (initialParseError.message.includes("Expected")) {
             // Structure issues - try to correct JSON structure
             if (initialParseError.message.includes("Expected ','")) {
@@ -663,10 +663,11 @@ Text to analyze: ${extractedText}`,
             ) {
               quizContent = beforeError + '"fixed_property": null' + afterError;
             }
-          }
-
-          // Last resort - just remove the problematic character
-          if (initialParseError.message.includes("Unexpected")) {
+          } else if (afterError.startsWith('"') && beforeError.endsWith('"')) {
+            // Likely an unescaped quote - replace it
+            quizContent = beforeError + '\\"' + afterError.substring(1);
+          } else if (initialParseError.message.includes("Unexpected")) {
+            // Last resort - just remove the problematic character
             quizContent = beforeError + afterError.substring(1);
           }
 
