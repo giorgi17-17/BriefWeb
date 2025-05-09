@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { SubjectCard } from "../../components/subjects/subject-card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
@@ -10,20 +10,24 @@ import { getLocalizedSeoField } from "../../utils/seoTranslations";
 import { usePostHog } from "posthog-js/react";
 
 export default function Dashboard() {
+  // State management
+  const [subjects, setSubjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [subjectCount, setSubjectCount] = useState(0);
+  const [canAdd, setCanAdd] = useState(false);
+
+  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
   const [editingSubject, setEditingSubject] = useState(null);
   const [deletingSubject, setDeletingSubject] = useState(null);
-  const [subjects, setSubjects] = useState([]);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [canAdd, setCanAdd] = useState(false);
-  const [subjectCount, setSubjectCount] = useState(0);
-  const newSubjectInputRef = useRef(null);
 
+  const newSubjectInputRef = useRef(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isFree, isPremium, canCreateSubject, subjectLimit } = useUserPlan();
@@ -31,8 +35,8 @@ export default function Dashboard() {
   const currentLang = i18n.language;
   const posthog = usePostHog();
 
-  // Fetch subjects from subjects table
-  const fetchSubjects = async () => {
+  // Fetch subjects - using useCallback to prevent unnecessary recreation
+  const fetchSubjects = useCallback(async () => {
     if (!user) {
       navigate("/login");
       return;
@@ -61,11 +65,34 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, navigate, canCreateSubject]);
 
+  // Manual refresh function
+  const refreshDashboard = useCallback(() => {
+    console.log("Manual dashboard refresh requested");
+    setLoadingTimeout(false);
+    setIsLoading(true);
+    fetchSubjects();
+  }, [fetchSubjects]);
+
+  // Initial load and refresh when user changes
   useEffect(() => {
     fetchSubjects();
-  }, [user, navigate]);
+  }, [fetchSubjects]);
+
+  // Set a timer to show refresh button if loading takes too long
+  useEffect(() => {
+    let timer;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        console.log("Loading timeout reached");
+        if (isLoading) {
+          setLoadingTimeout(true);
+        }
+      }, 5000); // Show refresh option after 5 seconds
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // Update canAdd whenever premium status changes
   useEffect(() => {
@@ -88,6 +115,7 @@ export default function Dashboard() {
     }
   }, [isModalOpen]);
 
+  // Handle adding a new subject
   const handleAddSubject = async () => {
     if (!newSubjectName.trim()) {
       setError("Please enter a subject name");
@@ -95,7 +123,6 @@ export default function Dashboard() {
     }
 
     try {
-      // We already know if user can add more from state, no need to check again
       if (!canAdd && isFree) {
         setError(
           "You have reached your subject limit. Please upgrade to create more subjects."
@@ -106,7 +133,6 @@ export default function Dashboard() {
       setIsSubmitting(true);
       setError(null);
 
-      // Insert new subject into subjects table
       const { error: supabaseError } = await supabase.from("subjects").insert({
         user_id: user.id,
         title: newSubjectName.trim(),
@@ -127,7 +153,7 @@ export default function Dashboard() {
       }
 
       // Refetch subjects after adding a new one
-      fetchSubjects();
+      await fetchSubjects();
 
       // Reset form and close modal
       setNewSubjectName("");
@@ -140,6 +166,7 @@ export default function Dashboard() {
     }
   };
 
+  // Handle editing an existing subject
   const handleEditSubject = async () => {
     if (!editingSubject || !editingSubject.title.trim()) {
       setError("Subject name cannot be empty");
@@ -154,20 +181,14 @@ export default function Dashboard() {
     try {
       setIsSubmitting(true);
       setError(null);
-      console.log(editingSubject.title);
 
-      const { data, error: supabaseError } = await supabase
+      const { error: supabaseError } = await supabase
         .from("subjects")
         .update({ title: editingSubject.title.trim() })
         .eq("id", editingSubject.id)
         .eq("user_id", user.id);
 
       if (supabaseError) throw supabaseError;
-      if (!data || data.length === 0) {
-        console.log("data " + data);
-        console.log(supabaseError);
-        // throw new Error("No subject updated. Check your permissions.");
-      }
 
       await fetchSubjects();
       setEditingSubject(null);
@@ -180,6 +201,7 @@ export default function Dashboard() {
     }
   };
 
+  // Handle deleting a subject
   const handleDeleteSubject = async () => {
     if (!deletingSubject) return;
 
@@ -196,34 +218,13 @@ export default function Dashboard() {
         return;
       }
 
-      // Extensive logging
-      console.log("Current User:", user);
-      console.log("Deleting Subject:", deletingSubject);
-
-      // Validate user and subject
-      if (!user) {
-        throw new Error("No authenticated user found");
-      }
-
-      // Perform delete with detailed logging
-      const { data, error: supabaseError } = await supabase
+      const { error: supabaseError } = await supabase
         .from("subjects")
         .delete()
         .eq("id", deletingSubject.id)
         .eq("user_id", user.id);
 
-      // Log the result of the delete operation
-      console.log("Delete Operation Result:", {
-        data,
-        supabaseError,
-        subjectId: deletingSubject.id,
-        userId: user.id,
-      });
-
-      // Throw error if operation failed
       if (supabaseError) throw supabaseError;
-
-      // Check if any rows were actually deleted
 
       // Refetch subjects after deleting
       await fetchSubjects();
@@ -232,16 +233,14 @@ export default function Dashboard() {
       setDeletingSubject(null);
       setIsDeleteModalOpen(false);
     } catch (error) {
-      console.error("Detailed Error deleting subject:", {
-        message: error.message,
-        fullError: error,
-      });
+      console.error("Error deleting subject:", error);
       setError(error.message || "Failed to delete subject");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Navigate to subject details
   const handleSubjectClick = (subjectId, subjectName) => {
     const urlName = encodeURIComponent(
       subjectName.toLowerCase().replace(/ /g, "-")
@@ -249,7 +248,7 @@ export default function Dashboard() {
     navigate(`/subjects/${urlName}`, { state: { subjectId } });
   };
 
-  // Add a function to upgrade the user to premium
+  // Upgrade user to premium
   const upgradeToPremium = async () => {
     try {
       if (!user) return;
@@ -271,10 +270,28 @@ export default function Dashboard() {
     }
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center theme-bg-primary">
-        <p className="text-xl theme-text-secondary">{t("dashboard.loading")}</p>
+        <div className="flex flex-col items-center space-y-4">
+          <p className="text-xl theme-text-secondary">
+            {t("dashboard.loading")}
+          </p>
+          {loadingTimeout && (
+            <div className="flex flex-col items-center space-y-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Loading is taking longer than expected
+              </p>
+              <button
+                onClick={refreshDashboard}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+              >
+                Refresh Dashboard
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

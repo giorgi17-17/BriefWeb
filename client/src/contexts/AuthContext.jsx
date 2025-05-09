@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../utils/supabaseClient";
 import PropTypes from "prop-types";
 import { AuthContext } from "./AuthContextValue";
@@ -7,45 +7,219 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const isMounted = useRef(true);
+  const lastActiveTime = useRef(Date.now());
+  const sessionCheckTimeout = useRef(null);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
+  // Helper function to update auth state
+  const updateAuthState = useCallback((newSession) => {
+    if (!isMounted.current) return;
+
+    if (newSession) {
+      setSession(newSession);
+      setUser(newSession.user);
+      lastActiveTime.current = Date.now();
+    } else {
+      setSession(null);
+      setUser(null);
+    }
+  }, []);
+
+  // Unified error handling function
+  const handleAuthError = useCallback((operation, error) => {
+    console.error(`Error during ${operation}:`, error);
+    return { error };
+  }, []);
+
+  // Refresh session handler with retry
+  const refreshSession = useCallback(
+    async (retryCount = 0) => {
+      if (!isMounted.current) return null;
+
       try {
-        // Get initial session
-        const {
-          data: { session: initialSession },
-        } = await supabase.auth.getSession();
+        setLoading(true);
+        const { data, error } = await supabase.auth.getSession();
 
-        if (initialSession) {
-          setSession(initialSession);
-          setUser(initialSession.user);
+        if (error) {
+          console.warn(
+            `Session refresh error (attempt ${retryCount + 1}/3):`,
+            error
+          );
 
-          // Check if we need to add the user to our database on initial load
-          if (initialSession.user.app_metadata?.provider === "google") {
-            console.log(
-              "Found Google user on initial session load, ensuring user is in database"
+          // Retry up to 3 times with exponential backoff
+          if (retryCount < 2) {
+            await new Promise((r) =>
+              setTimeout(r, 1000 * Math.pow(2, retryCount))
             );
-            await addUserToDatabase(initialSession.user).catch((err) =>
-              console.error(
-                "Error adding Google user to database on initial load:",
-                err
-              )
-            );
+            return refreshSession(retryCount + 1);
           }
+          throw error;
         }
+
+        updateAuthState(data?.session);
+        return data?.session;
       } catch (error) {
-        console.error("Error retrieving session:", error);
+        handleAuthError("session refresh", error);
+        return null;
       } finally {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [updateAuthState, handleAuthError]
+  );
+
+  // Session check to handle timeouts
+  const checkSessionTimeout = useCallback(() => {
+    // If it's been more than 5 minutes since last activity, refresh the session
+    const inactiveTime = Date.now() - lastActiveTime.current;
+    if (inactiveTime > 5 * 60 * 1000) {
+      console.log("Session inactive for too long, refreshing");
+      refreshSession();
+    }
+
+    // Schedule next check
+    if (isMounted.current) {
+      sessionCheckTimeout.current = setTimeout(checkSessionTimeout, 60 * 1000);
+    }
+  }, [refreshSession]);
+
+  // Add user to database helper function
+  const addUserToDatabase = useCallback(
+    async (userData) => {
+      if (!userData?.id || !userData?.email) {
+        console.error("Invalid user data for database insert:", userData);
+        return { error: new Error("Invalid user data") };
+      }
+
+      try {
+        // Check if user already exists
+        const { data: existingUser, error: fetchError } = await supabase
+          .from("users")
+          .select("user_id")
+          .eq("user_id", userData.id)
+          .maybeSingle();
+
+        if (fetchError) throw fetchError;
+
+        // Insert user if not exists
+        if (!existingUser) {
+          const { error: insertError } = await supabase.from("users").insert([
+            {
+              user_id: userData.id,
+              email: userData.email,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+
+          if (insertError) throw insertError;
+
+          console.log("User added to database:", userData.email);
+        }
+
+        // Check if user plan exists
+        const { data: existingPlan, error: planFetchError } = await supabase
+          .from("user_plans")
+          .select("*")
+          .eq("user_id", userData.id)
+          .maybeSingle();
+
+        if (planFetchError && planFetchError.code !== "PGRST116")
+          throw planFetchError;
+
+        // Create user plan if not exists
+        if (!existingPlan) {
+          const { error: planInsertError } = await supabase
+            .from("user_plans")
+            .insert([
+              {
+                user_id: userData.id,
+                plan_type: "free",
+                subject_limit: 3,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ]);
+
+          if (planInsertError) throw planInsertError;
+
+          console.log("User plan created:", userData.email);
+        }
+
+        return { success: true };
+      } catch (error) {
+        return handleAuthError("adding user to database", error);
+      }
+    },
+    [handleAuthError]
+  );
+
+  // Handle visibility change to refresh auth
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Tab became visible, refreshing auth state");
+        lastActiveTime.current = Date.now();
+        refreshSession();
       }
     };
 
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refreshSession]);
+
+  // Start session timeout checker
+  useEffect(() => {
+    checkSessionTimeout();
+
+    return () => {
+      if (sessionCheckTimeout.current) {
+        clearTimeout(sessionCheckTimeout.current);
+      }
+    };
+  }, [checkSessionTimeout]);
+
+  // Initialize auth and listen for changes
+  useEffect(() => {
+    isMounted.current = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.warn("Error getting initial session:", error);
+          // Don't throw - just continue with no session
+        }
+
+        if (!isMounted.current) return;
+
+        if (data?.session) {
+          updateAuthState(data.session);
+
+          // Add Google user to database if needed
+          if (data.session.user.app_metadata?.provider === "google") {
+            addUserToDatabase(data.session.user);
+          }
+        }
+      } catch (error) {
+        handleAuthError("initialization", error);
+      } finally {
+        if (isMounted.current) setLoading(false);
+      }
+    };
+
+    // Start auth initialization
     initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if (!isMounted.current) return;
+
       console.log(
         "Auth state changed:",
         event,
@@ -53,174 +227,90 @@ export function AuthProvider({ children }) {
         currentSession?.user?.email
       );
 
-      if (currentSession) {
-        setSession(currentSession);
-        setUser(currentSession.user);
+      updateAuthState(currentSession);
 
-        // If this is a new sign in, check if we need to add the user to our database
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          const { user } = currentSession;
-          console.log("User metadata:", user.app_metadata);
+      // Handle new sign-ins
+      if (
+        currentSession &&
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
+      ) {
+        const { user } = currentSession;
 
-          // Check if this is a Google auth user
-          if (user.app_metadata?.provider === "google") {
-            console.log("Google user signed in, adding to database if needed");
-            try {
-              await addUserToDatabase(user);
-            } catch (error) {
-              console.error("Failed to add Google user to database:", error);
-            }
-          }
+        // Add Google users to database
+        if (user.app_metadata?.provider === "google") {
+          addUserToDatabase(user);
         }
-      } else {
-        setSession(null);
-        setUser(null);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Function to add a new user to the users table
-  const addUserToDatabase = async (user) => {
-    if (!user || !user.id || !user.email) {
-      console.error("Invalid user data for database insert:", user);
-      return;
-    }
-
-    console.log("Adding user to database:", user.email, user.id);
-
-    try {
-      // First check if user already exists in our users table
-      const { data: existingUser, error: fetchError } = await supabase
-        .from("users")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error("Error checking for existing user:", fetchError);
-        throw fetchError;
+    // Cleanup
+    return () => {
+      isMounted.current = false;
+      if (sessionCheckTimeout.current) {
+        clearTimeout(sessionCheckTimeout.current);
       }
+      subscription.unsubscribe();
+    };
+  }, [
+    updateAuthState,
+    addUserToDatabase,
+    handleAuthError,
+    checkSessionTimeout,
+  ]);
 
-      // Only add the user if they don't already exist in our users table
-      if (!existingUser) {
-        console.log("User doesn't exist in database, inserting now");
-        const { data: insertData, error: insertError } = await supabase
-          .from("users")
-          .insert([
-            {
-              user_id: user.id,
-              email: user.email,
-              created_at: new Date().toISOString(),
-            },
-          ])
-          .select();
+  // Authentication methods
+  const signUp = useCallback(
+    async (email, password) => {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
 
-        if (insertError) {
-          console.error("Database insert error:", insertError);
-          throw insertError;
+        if (error) {
+          // Handle specific error cases
+          if (error.message.includes("not authorized")) {
+            throw new Error(
+              "This email domain is not authorized. Please use a different email address or contact support."
+            );
+          }
+          throw error;
         }
 
-        console.log(
-          "New user added to users table:",
-          user.email,
-          "Response:",
-          insertData
-        );
-      } else {
-        console.log("User already exists in database:", user.email);
-      }
-
-      // Now check if user exists in user_plans table and add if needed
-      const { data: existingPlan, error: planFetchError } = await supabase
-        .from("user_plans")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (planFetchError) {
-        console.error("Error checking for existing plan:", planFetchError);
-      } else if (!existingPlan) {
-        // Add user to user_plans table with free plan
-        console.log("Adding user to user_plans table with free plan");
-        const { error: planInsertError } = await supabase
-          .from("user_plans")
-          .insert([
-            {
-              user_id: user.id,
-              plan_type: "free",
-              subject_limit: 3,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ]);
-
-        if (planInsertError) {
-          console.error("Error adding user plan:", planInsertError);
-        } else {
-          console.log(
-            "Successfully added user to user_plans table:",
-            user.email
-          );
+        // Add user to database
+        if (data?.user) {
+          await addUserToDatabase(data.user);
         }
-      } else {
-        console.log("User already exists in user_plans table:", user.email);
+
+        return { data };
+      } catch (error) {
+        return handleAuthError("signup", error);
       }
-    } catch (error) {
-      console.error("Error adding user to database:", error);
-      throw error;
-    }
-  };
+    },
+    [addUserToDatabase, handleAuthError]
+  );
 
-  const signUp = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+  const signInWithEmail = useCallback(
+    async (email, password) => {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        // Handle specific error cases
-        if (error.message.includes("not authorized")) {
-          throw new Error(
-            "This email domain is not authorized. Please use a different email address or contact support."
-          );
-        }
-        throw error;
+        if (error) throw error;
+        return { data };
+      } catch (error) {
+        return handleAuthError("email signin", error);
       }
+    },
+    [handleAuthError]
+  );
 
-      // Add user to the users table and user_plans table
-      if (data.user) {
-        await addUserToDatabase(data.user);
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Error signing up:", error);
-      throw error;
-    }
-  };
-
-  const signInWithEmail = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error signing in:", error);
-      throw error;
-    }
-  };
-
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -230,39 +320,34 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+      return { success: true };
     } catch (error) {
-      console.error("Error signing in with Google:", error);
-      throw error;
+      return handleAuthError("Google signin", error);
     }
-  };
+  }, [handleAuthError]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Sign out from Supabase auth (this will clear the session from localStorage)
       const { error } = await supabase.auth.signOut({ scope: "global" });
 
       if (error) {
-        // If the error is about missing session, it's not really an error
-        // The user is effectively already logged out
+        // Not a real error if session is already missing
         if (error.message.includes("Auth session missing")) {
-          console.log("No active session found, user is already logged out");
-          // Clear the user state explicitly
-          setUser(null);
-          setSession(null);
-          return;
+          console.log("No active session found, user already logged out");
+          updateAuthState(null);
+          return { success: true };
         }
         throw error;
       }
 
-      // Explicitly clear states
-      setUser(null);
-      setSession(null);
+      updateAuthState(null);
+      return { success: true };
     } catch (error) {
-      console.error("Error signing out:", error);
-      throw error;
+      return handleAuthError("logout", error);
     }
-  };
+  }, [updateAuthState, handleAuthError]);
 
+  // Create context value
   const value = {
     user,
     session,
@@ -271,6 +356,7 @@ export function AuthProvider({ children }) {
     signInWithEmail,
     signInWithGoogle,
     logout,
+    refreshSession,
   };
 
   return (
