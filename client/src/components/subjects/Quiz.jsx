@@ -103,7 +103,7 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
   );
 
   return (
-    <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 relative">
+    <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 relative">
       {/* Header with Generate button */}
       <div className="border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between">
@@ -119,8 +119,6 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
             showOptions={showOptions}
             toggleHistory={toggleHistory}
           />
-
-          
         </div>
       </div>
 
@@ -132,7 +130,7 @@ const Quiz = ({ selectedFile, user, lectureId }) => {
             <div className="flex flex-col items-center space-y-4">
               <Loader2
                 size={48}
-                className="animate-spin text-blue-600 dark:text-blue-400"
+                className="animate-spin text-gray-600 dark:text-gray-400"
               />
               <p className="text-gray-700 dark:text-gray-300 font-medium">
                 {selectedHistoryQuiz

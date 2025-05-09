@@ -7,7 +7,7 @@ const QuizOptions = ({ quizOptions, onOptionChange, showOptions }) => {
   if (!showOptions) return null;
 
   return (
-    <div className="p-4 mb-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="p-4 mb-4 rounded-lg border border-gray-200 dark:border-gray-700">
       <h3 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
         {t("quiz.options.title")}
       </h3>

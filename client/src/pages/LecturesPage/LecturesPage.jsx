@@ -386,7 +386,7 @@ const LecturesPage = () => {
                   ) : (
                     <button
                       onClick={addLecture}
-                      className="theme-button-primary flex items-center px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                      className="theme-button-primary flex items-center px-4 py-2 rounded-lg transition-all duration-300 border-2 border-blue-500"
                       disabled={isAddingLecture || !canAdd}
                     >
                       <Plus className="w-5 h-5 mr-2" />
@@ -417,7 +417,7 @@ const LecturesPage = () => {
                   {canAdd ? (
                     <button
                       onClick={addLecture}
-                      className="theme-button-primary flex items-center px-6 py-3 rounded-lg mx-auto transition-all duration-300 hover:scale-105"
+                      className="theme-button-primary flex items-center px-6 py-3 rounded-lg mx-auto transition-all duration-300 border-2 border-blue-500"
                       disabled={isAddingLecture}
                     >
                       <Plus className="w-6 h-6 mr-2" />

@@ -18,24 +18,24 @@ const QuizHeader = ({
   const { t } = useTranslation();
 
   return (
-    <div className="p-4 border-b border-gray-200 dark:border-gray-700 w-full">
+    <div className="p-4 w-full">
       <div className="flex justify-between items-center">
         {/* <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
           {t("quiz.title")}
         </h2> */}
-        
+
         {/* Left side - History button */}
         <div>
           {/* Quiz History button */}
           <button
             onClick={toggleHistory}
-            className="flex items-center space-x-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            className="flex items-center space-x-1.5 text-sm font-medium text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 px-3 py-1.5 rounded-full hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-colors"
           >
             <History size={16} />
             <span>{t("quiz.historyTitle")}</span>
           </button>
         </div>
-        
+
         {/* Right side - Settings and Generate buttons */}
         <div className="flex items-center space-x-2">
           {/* Settings button */}
@@ -43,14 +43,14 @@ const QuizHeader = ({
             onClick={toggleOptionsPanel}
             className={`p-2 rounded-md ${
               showOptions
-                ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                ? "bg-gray-50 text-gray-600 dark:bg-gray-900/20 dark:text-gray-400"
+                : "text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-400"
             }`}
             aria-label={t("quiz.buttons.settings")}
           >
             <Settings size={18} />
           </button>
-          
+
           {/* Only show generate button if no quiz exists yet OR user is premium */}
           {(noQuizExists || !quiz || isPremium) && (
             <button
@@ -77,7 +77,7 @@ const QuizHeader = ({
   );
 };
 
-QuizHeader.propTypes = {  
+QuizHeader.propTypes = {
   quiz: PropTypes.object,
   noQuizExists: PropTypes.bool.isRequired,
   isLoading: PropTypes.bool.isRequired,
@@ -91,4 +91,3 @@ QuizHeader.propTypes = {
 };
 
 export default QuizHeader;
-

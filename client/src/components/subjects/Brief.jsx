@@ -50,7 +50,7 @@ const Brief = ({ selectedFile, user, lectureId }) => {
   }
 
   return (
-    <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header with Generate button */}
       <BriefHeader
         brief={brief}
