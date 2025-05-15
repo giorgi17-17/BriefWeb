@@ -1,8 +1,8 @@
 import axios from "axios";
 import { BACKEND_URL } from "../helpers/helpers";
 
-// Use a fixed API URL for all endpoints - no dynamic detection
-const API_URL = "http://localhost:5000";
+// Use environment variable for API URL instead of hardcoded localhost
+const API_URL = BACKEND_URL || "http://localhost:5000";
 
 console.log("API Configuration:", {
   API_URL,
