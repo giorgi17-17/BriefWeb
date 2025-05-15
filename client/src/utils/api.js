@@ -1,8 +1,26 @@
 import axios from "axios";
 import { BACKEND_URL } from "../helpers/helpers";
 
-// Use environment variable for API URL instead of hardcoded localhost
-const API_URL = BACKEND_URL || "http://localhost:5000";
+// Base API URL with environment-specific handling
+const API_URL =
+  BACKEND_URL ||
+  (import.meta.env.MODE === "production"
+    ? "https://briefweb.onrender.com"
+    : "http://localhost:5000");
+
+// Create a function to handle path construction consistently
+const getApiPath = (endpoint) => {
+  // Ensure endpoint has proper formatting
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
+
+  // For production environment, try without /api prefix
+  if (import.meta.env.MODE === "production") {
+    return `${API_URL}${cleanEndpoint}`;
+  }
+
+  // For development, keep /api prefix
+  return `${API_URL}/api${cleanEndpoint}`;
+};
 
 console.log("API Configuration:", {
   API_URL,
@@ -26,8 +44,8 @@ const handleProcessPdf = async (userId, lectureId, fileId) => {
 
     console.log(`Sending PDF processing request for lecture ${lectureId}`);
 
-    // Use the API client with fixed endpoint
-    const response = await apiClient.post(`${API_URL}/api/process-pdf`, {
+    // Use the API client with updated path
+    const response = await apiClient.post(getApiPath("/process-pdf"), {
       userId,
       lectureId,
       fileId,
@@ -120,8 +138,8 @@ const handleProcessBrief = async (userId, lectureId, fileId) => {
 
     console.log(`Sending brief processing request for lecture ${lectureId}`);
 
-    // Use the API client with fixed endpoint
-    const response = await apiClient.post(`${API_URL}/api/detailed-brief`, {
+    // Use the API client with updated path
+    const response = await apiClient.post(getApiPath("/detailed-brief"), {
       userId,
       lectureId,
       fileId,
@@ -197,8 +215,8 @@ async function handleProcessQuiz(userId, lectureId, fileId, quizOptions = {}) {
 
     console.log(`Sending quiz processing request for lecture ${lectureIdStr}`);
 
-    // Use the API client with fixed endpoint
-    const response = await apiClient.post(`${API_URL}/api/process-quiz`, {
+    // Use the API client with updated path
+    const response = await apiClient.post(getApiPath("/process-quiz"), {
       userId: userIdStr,
       lectureId: lectureIdStr,
       fileId: fileIdStr,
@@ -229,8 +247,8 @@ async function evaluateAnswer(questionText, modelAnswer, userAnswer) {
 
     console.log("Sending answer evaluation request");
 
-    // Use the API client with fixed endpoint
-    const response = await apiClient.post(`${API_URL}/api/evaluate-answer`, {
+    // Use the API client with updated path
+    const response = await apiClient.post(getApiPath("/evaluate-answer"), {
       questionText,
       modelAnswer,
       userAnswer,
