@@ -14,7 +14,12 @@ const basePort = process.env.PORT || 5000;
 // Enable CORS for your frontend domain
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: [
+      "https://www.briefly.ge",
+      "https://briefly.ge",
+      process.env.CLIENT_URL,
+      "http://localhost:5173",
+    ].filter(Boolean),
     credentials: true,
   })
 );

@@ -13,12 +13,7 @@ const getApiPath = (endpoint) => {
   // Ensure endpoint has proper formatting
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : "/" + endpoint;
 
-  // For production environment, try without /api prefix
-  if (import.meta.env.MODE === "production") {
-    return `${API_URL}${cleanEndpoint}`;
-  }
-
-  // For development, keep /api prefix
+  // Always include /api prefix for all environments
   return `${API_URL}/api${cleanEndpoint}`;
 };
 
