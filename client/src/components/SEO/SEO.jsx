@@ -67,7 +67,7 @@ const SEO = ({
         rel="alternate"
         hrefLang="x-default"
         href={
-          hreflangLinks.find((link) => link.lang === "en")?.url ||
+          hreflangLinks.find((link) => link.lang === "ka")?.url ||
           hreflangLinks[0]?.url
         }
       />

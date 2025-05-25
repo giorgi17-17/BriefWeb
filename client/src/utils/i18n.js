@@ -15,7 +15,7 @@ i18n
   // Initialize i18next
   .init({
     debug: import.meta.env.DEV,
-    fallbackLng: "en",
+    fallbackLng: "ka",
     interpolation: {
       escapeValue: false, // React already escapes values
     },
@@ -28,7 +28,7 @@ i18n
       },
     },
     detection: {
-      order: ["localStorage", "navigator"],
+      order: ["localStorage"],
       lookupLocalStorage: "language",
       caches: ["localStorage"],
     },

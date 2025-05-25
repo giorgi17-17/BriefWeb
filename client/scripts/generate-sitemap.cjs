@@ -44,8 +44,9 @@ function generateSitemap() {
         xml += `    <xhtml:link rel="alternate" hreflang="${alternateLang}" href="${BASE_URL}${alternatePath}" />\n`;
       });
 
-      // Add x-default hreflang (usually points to English)
-      xml += `    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE_URL}${route.path}" />\n`;
+      // Add x-default hreflang (points to Georgian as default)
+      const defaultPath = `/ka${route.path}`;
+      xml += `    <xhtml:link rel="alternate" hreflang="x-default" href="${BASE_URL}${defaultPath}" />\n`;
 
       xml += "  </url>\n";
     });

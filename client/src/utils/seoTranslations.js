@@ -134,8 +134,8 @@ export const seoTranslations = {
  * @returns {string|string[]} Localized field value
  */
 export function getLocalizedSeoField(page, field, lang, params = []) {
-  // Default to English if translation doesn't exist
-  const defaultLang = "en";
+  // Default to Georgian if translation doesn't exist
+  const defaultLang = "ka";
 
   // Get the page translations
   const pageTranslations = seoTranslations[page] || seoTranslations.generic;

@@ -5,9 +5,9 @@ import { LANGUAGES } from "../utils/languageConfig";
 import { LanguageContext } from "./LanguageContextValue";
 
 export function LanguageProvider({ children }) {
-  // Get initial language from localStorage or default to English
+  // Get initial language from localStorage or default to Georgian
   const [currentLanguage, setCurrentLanguage] = useState(() => {
-    return localStorage.getItem("language") || "en";
+    return localStorage.getItem("language") || "ka";
   });
 
   // Change language function

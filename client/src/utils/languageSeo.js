@@ -46,7 +46,7 @@ export function getAlternateLanguages(
  * @returns {string} Localized description
  */
 export function getLocalizedDescription(translations, lang) {
-  return translations[lang] || translations["en"] || "";
+  return translations[lang] || translations["ka"] || "";
 }
 
 /**
@@ -61,7 +61,7 @@ export function getLocalizedStructuredData(
   localizedFields,
   lang
 ) {
-  const fields = localizedFields[lang] || localizedFields["en"] || {};
+  const fields = localizedFields[lang] || localizedFields["ka"] || {};
 
   return {
     ...baseStructuredData,
