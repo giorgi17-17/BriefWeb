@@ -20,6 +20,19 @@ import DesignSystem from "./components/design/DesignSystem";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthCallback from "./pages/auth/callback";
 import { UserPlanProvider, useUserPlan } from "./contexts/UserPlanContext";
+import { PostHogProvider } from "posthog-js/react";
+
+// Configure PostHog options
+const posthogOptions = {
+  api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
+  capture_pageview: true,
+  debug: import.meta.env.DEV,
+  loaded: (posthog) => {
+    if (import.meta.env.DEV) {
+      console.log("PostHog initialized", posthog);
+    }
+  },
+};
 
 // Add a helper function to check if the app is returning from another app
 function useAppVisibility() {
@@ -186,6 +199,10 @@ function App() {
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
+        <PostHogProvider
+          apiKey={import.meta.env.VITE_POSTHOG_KEY}
+          options={posthogOptions}
+        >
           <UserPlanProvider>
             <BrowserRouter>
               {/* Full-page background wrapper */}
@@ -253,7 +270,8 @@ function App() {
                 </div>
               </div>
             </BrowserRouter>
-          </UserPlanProvider>
+            </UserPlanProvider>
+          </PostHogProvider>
         </AuthProvider>
       </ThemeProvider>
     </HelmetProvider>
