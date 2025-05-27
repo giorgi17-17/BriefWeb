@@ -2,7 +2,7 @@ import { Book } from "lucide-react";
 import PropTypes from "prop-types";
 
 const SubjectCard = ({ subject, onClick }) => {
-  const { name, description, lectureCount } = subject;
+  const { title, description, lectureCount } = subject;
 
   const iconColors = [
     "text-blue-500",
@@ -13,9 +13,9 @@ const SubjectCard = ({ subject, onClick }) => {
     "text-indigo-500",
   ];
 
-  // Generate a stable color based on the subject name
+  // Generate a stable color based on the subject title
   const colorIndex =
-    subject.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+    subject.title.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
     iconColors.length;
 
   return (
@@ -31,7 +31,7 @@ const SubjectCard = ({ subject, onClick }) => {
             <Book className="h-5 w-5" />
           </div>
           <h2 className="font-semibold text-lg theme-text-primary line-clamp-1">
-            {name}
+            {title}
           </h2>
         </div>
         {description && (
@@ -54,7 +54,7 @@ const SubjectCard = ({ subject, onClick }) => {
 
 SubjectCard.propTypes = {
   subject: PropTypes.shape({
-    name: PropTypes.string.isRequired,
+    title: PropTypes.string.isRequired,
     description: PropTypes.string,
     lectureCount: PropTypes.number.isRequired,
   }).isRequired,

@@ -57,12 +57,33 @@ const LecturesPage = () => {
     // If not a UUID, try to find the subject by title
     console.log("Subject ID is not a UUID, searching by title:", idOrSlug);
     try {
-      // Search by title match
-      const { data: titleData, error: titleError } = await supabase
+      // Convert URL slug back to title format (replace dashes with spaces)
+      const searchTitle = idOrSlug.replace(/-/g, " ");
+      console.log("Converted slug to search title:", searchTitle);
+
+      // Search by exact title match first, then partial match as fallback
+      let titleData, titleError;
+
+      // Try exact match first
+      const exactMatch = await supabase
         .from("subjects")
         .select("id")
-        .ilike("title", `%${idOrSlug}%`)
+        .eq("title", searchTitle)
         .limit(1);
+
+      if (exactMatch.data && exactMatch.data.length > 0) {
+        titleData = exactMatch.data;
+        titleError = exactMatch.error;
+      } else {
+        // Fallback to partial match
+        const partialMatch = await supabase
+          .from("subjects")
+          .select("id")
+          .ilike("title", `%${searchTitle}%`)
+          .limit(1);
+        titleData = partialMatch.data;
+        titleError = partialMatch.error;
+      }
 
       if (titleError) {
         console.error("Error finding subject by title:", titleError);
@@ -241,29 +262,39 @@ const LecturesPage = () => {
     }
   };
 
-  const renderLectureCard = (lecture) => (
-    <Link
-      key={lecture.id}
-      to={`/subjects/${subjectId}/lectures/${lecture.id}`}
-      className="group relative theme-card rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
-    >
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-0 dark:from-gray-700 dark:to-gray-600 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative p-6">
-        <div className="flex flex-col h-full">
-          <h3 className="font-semibold text-lg theme-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {lecture.title}
-          </h3>
-          <p className="text-sm theme-text-tertiary mb-4">
-            {new Date(lecture.date).toLocaleDateString(currentLang || "en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
+  const renderLectureCard = (lecture) => {
+    // Create URL slug from subject title
+    const subjectSlug = subject?.title
+      ? encodeURIComponent(subject.title.toLowerCase().replace(/ /g, "-"))
+      : subjectId;
+
+    return (
+      <Link
+        key={lecture.id}
+        to={`/subjects/${subjectSlug}/lectures/${lecture.id}`}
+        className="group relative theme-card rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-0 dark:from-gray-700 dark:to-gray-600 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="relative p-6">
+          <div className="flex flex-col h-full">
+            <h3 className="font-semibold text-lg theme-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              {lecture.title}
+            </h3>
+            <p className="text-sm theme-text-tertiary mb-4">
+              {new Date(lecture.date).toLocaleDateString(
+                currentLang || "en-US",
+                {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }
+              )}
+            </p>
+          </div>
         </div>
-      </div>
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   const renderLoadingState = () => (
     <div className="py-12 text-center">

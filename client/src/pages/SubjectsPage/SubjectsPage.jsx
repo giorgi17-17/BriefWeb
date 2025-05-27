@@ -32,7 +32,7 @@ const SubjectsPage = () => {
           .from("subjects")
           .select("*, lectures(count)")
           .eq("user_id", user.id)
-          .order("name", { ascending: true });
+          .order("title", { ascending: true });
 
         if (error) throw error;
 
@@ -95,7 +95,7 @@ const SubjectsPage = () => {
   };
 
   const filteredSubjects = subjects.filter((subject) =>
-    subject.name.toLowerCase().includes(searchQuery.toLowerCase())
+    subject.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Render loading state

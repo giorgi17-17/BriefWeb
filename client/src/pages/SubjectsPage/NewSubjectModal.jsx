@@ -46,7 +46,7 @@ const NewSubjectModal = ({ isOpen, onClose, onAddSubject }) => {
     try {
       setIsSubmitting(true);
       const success = await onAddSubject({
-        name: name.trim(),
+        title: name.trim(),
         description: description.trim(),
       });
 
