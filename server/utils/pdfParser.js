@@ -67,6 +67,9 @@ export function parsePagesByPDF(buffer) {
         const texts = page.Texts || [];
         if (texts.length === 0) {
           console.warn(`Warning: No text elements found on page ${index + 1}`);
+          // Return empty string instead of null for pages with no text elements
+          // This allows the page to be processed and potentially contain images or other content
+          return "";
         }
 
         // Sort texts by Y position to maintain reading order
@@ -122,26 +125,57 @@ export function parsePagesByPDF(buffer) {
           paragraphs: paragraphs.length,
         });
 
-        // Only return pages with meaningful content - at least 50 characters and contains letters
-        if (pageText.length < 50 || !pageText.match(/[a-zA-Z]/)) {
-          console.log(`Skipping Page ${index + 1} due to insufficient content`);
-          return null;
+        // IMPROVED: Much more lenient page filtering
+        // Accept pages with any meaningful content instead of being overly restrictive
+        if (pageText.length === 0) {
+          console.log(`Page ${index + 1} is completely empty`);
+          return `Page ${
+            index + 1
+          } appears to contain non-text content (images, diagrams, or formatting elements).`;
+        }
+
+        // Check for any meaningful characters (letters, numbers, or common symbols)
+        // Support multiple languages including Georgian, Arabic, Chinese, etc.
+        const hasMeaningfulContent =
+          /[\w\u00C0-\u017F\u0400-\u04FF\u10A0-\u10FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/.test(
+            pageText
+          );
+
+        if (!hasMeaningfulContent && pageText.length < 20) {
+          console.log(
+            `Page ${index + 1} has minimal content, but including it anyway`
+          );
+          return `Page ${index + 1} contains limited text content: ${pageText}`;
         }
 
         return pageText;
       });
 
-      // Filter out null pages and check if we have any valid content
-      const validPages = pages.filter(Boolean);
+      // IMPROVED: Don't filter out any pages - include all pages even if they seem empty
+      // This ensures we process every page of the document
+      const allPages = pages.map((page, index) => {
+        if (page === null || page === undefined) {
+          return `Page ${
+            index + 1
+          } could not be processed due to formatting issues.`;
+        }
+        return page;
+      });
+
       console.log(
-        `PDF parsed successfully: ${validPages.length} valid pages out of ${pagesData.length} total pages`
+        `PDF parsed successfully: ${
+          allPages.length
+        } pages processed (including ${
+          allPages.length - pages.filter(Boolean).length
+        } pages with minimal content)`
       );
 
-      if (!validPages.length) {
-        return reject(new Error("No valid content found in PDF"));
+      // Always return all pages - never reject due to content issues
+      if (allPages.length === 0) {
+        return reject(new Error("PDF contains no pages"));
       }
 
-      resolve(validPages);
+      resolve(allPages);
     });
 
     pdfParser.parseBuffer(buffer);

@@ -283,9 +283,11 @@ export async function generateBrief(pageText) {
       model: geminiModel,
       contents: `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${textLanguage}. Do not use any other language regardless of what you think is appropriate.
 
-Summarize and explain the following text using these specific guidelines:
-          
-4️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
+You are processing one page of a multi-page document. Your task is to create a comprehensive, educational summary of THIS specific page's content. This summary will be part of a larger document brief where each page is processed individually.
+
+CORE REQUIREMENTS:
+
+1️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
    - You MUST respond ONLY in ${textLanguage}
    - If the input text is in Georgian, you MUST write ONLY in Georgian
    - If the input text is in English, you MUST write ONLY in English
@@ -293,56 +295,57 @@ Summarize and explain the following text using these specific guidelines:
    - Maintain consistent terminology with the source material
    - This is the MOST IMPORTANT requirement and overrides all others
 
-5️⃣ **CONTENT EXCLUSIONS - VERY IMPORTANT**:
-   - DO NOT include ANY information about course syllabus, grading policies, or evaluation criteria
-   - DO NOT include information about course logistics (schedule, deadlines, attendance)
-   - DO NOT include information about lecturers or professors and their credentials or personal information
-   - DO NOT summarize sections about "course objectives" or "learning outcomes"
-   - DO NOT describe grading percentages or course requirements
-   - DO NOT summarize information about study materials or requirements
-   - Focus ONLY on actual subject matter content and knowledge
-
-1️⃣ **Direct Explanation Style - CRITICAL**:
-   - Start DIRECTLY with the explanation of concepts - DO NOT begin with phrases like:
-     * "The text discusses..."
-     * "This page explains..."
-     * "The content covers..."
-     * "This section focuses on..."
-   - Jump immediately into explaining the key points and concepts
+2️⃣ **DIRECT EXPLANATION STYLE**:
+   - Start DIRECTLY with the explanation of concepts
+   - DO NOT begin with meta-phrases like "This page discusses...", "The content covers...", "This section focuses on..."
    - Write in an educational, informative style as if teaching the material directly
    - Use active voice and present tense
    - Explain the subject matter directly without referring to "the text" or "the document"
 
-2️⃣ **Explanation Depth**: 
-   - Don't just restate or rewrite the content
-   - Explain key concepts with deeper insight
-   - Break down complex ideas into simpler terms
-   - Use examples or analogies when helpful
-   - Make abstract concepts concrete and relatable
-   - Focus on "why" and "how" explanations, not just "what"
+3️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
+   - Process ALL content on this page, regardless of type
+   - If the page contains course information (syllabus, grading, logistics), summarize it clearly and concisely
+   - If the page contains instructor information, provide a brief professional summary
+   - If the page contains study materials or requirements, explain what they are and their purpose
+   - If the page contains subject matter content, explain the concepts thoroughly
+   - If the page contains questions, provide context and explain what topics they address
+   - NEVER tell the user to "move to the next page" or skip content
 
-3️⃣ **Structure and Format**:
+4️⃣ **EDUCATIONAL DEPTH**:
+   - Don't just restate content - explain it with educational insight
+   - Break down complex ideas into understandable terms
+   - Provide context for why information is important
+   - Connect concepts to broader learning objectives when possible
+   - Make abstract concepts concrete and relatable
+
+5️⃣ **STRUCTURE AND FORMAT**:
    - Use clear paragraphs with logical flow
    - DO NOT use asterisks (*) for emphasis or headings
    - DO NOT use markdown formatting
    - Use proper sentence structure and paragraphs
-   - For headings or important terms, simply use appropriate capitalization
-   - Keep explanations concise but comprehensive
+   - For important terms, use appropriate capitalization
+   - Keep explanations comprehensive yet concise
 
-6️⃣ **Special Cases**:
-   - If the text contains class rules or evaluation system, respond EXACTLY with:
-     "This page contains class general rules and evaluation system. Please move to the next page."
-   - If the page has only questions without answers, provide explanatory context for those questions
-   - If the page primarily contains information about lecturers, professors, or administrative staff, respond EXACTLY with:
-     "This page contains information about course instructors. Please move to the next page."
-   - If the page primarily contains information about study materials or requirements, respond EXACTLY with:
-     "This page contains information about study materials. Please move to the next page."
+6️⃣ **HANDLING DIFFERENT CONTENT TYPES**:
+   - **Administrative content**: Summarize policies, procedures, and requirements clearly
+   - **Instructor information**: Provide relevant professional background and contact details
+   - **Course structure**: Explain how the course is organized and what students can expect
+   - **Subject matter**: Provide deep, educational explanations of concepts
+   - **Assessment information**: Explain evaluation methods and their educational purpose
+   - **Study materials**: Describe resources and how they support learning
 
-The summary should be educational, insightful, and easy to understand - imagine you're explaining to a student who needs to truly grasp the concepts, not just memorize them.
+7️⃣ **QUALITY STANDARDS**:
+   - Every page must receive a meaningful, substantial summary
+   - Minimum 100 words for pages with substantial content
+   - If a page has minimal content, explain what little is there and its context
+   - Focus on educational value and student understanding
+   - Ensure the summary helps students learn and understand the material
 
-Remember once more - your response MUST be in ${textLanguage} ONLY.
+Remember: You are creating ONE page summary in a multi-page document. Make this page's summary comprehensive, educational, and valuable for student learning. The user will navigate through all pages to get the complete document understanding.
 
-Here is the text to summarize and explain:
+Your response MUST be in ${textLanguage} ONLY.
+
+Here is the page content to summarize and explain:
             ${pageText}`,
       generationConfig: {
         temperature: 0.4,

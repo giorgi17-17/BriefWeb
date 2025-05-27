@@ -117,66 +117,169 @@ export async function processDetailedContent(userId, lectureId, fileId) {
     const buffer = Buffer.from(await fileData.arrayBuffer());
     const fileExt = fileId.split(".").pop().toLowerCase();
 
-    // First, try parsing the document into pages/slides.
-    let pages;
+    // IMPROVED: More robust page extraction with better error handling
+    let pages = [];
+    let extractionMethod = "unknown";
+
     try {
       // Extract content by pages/slides
       pages = await extractContentByPagesOrSlides(userId, lectureId, fileId);
+      extractionMethod = "page-by-page";
       console.log(
-        `Successfully extracted ${pages.length} pages/slides from document`
+        `Successfully extracted ${pages.length} pages/slides from document using page-by-page method`
       );
     } catch (err) {
       console.warn(
-        "extractContentByPagesOrSlides failed, falling back to extractTextFromFile. Error:",
+        "extractContentByPagesOrSlides failed, attempting alternative extraction methods. Error:",
         err
       );
-      const allText = await extractTextFromFile(userId, lectureId, fileId);
-      if (allText && allText.trim()) {
-        // If we can't parse by pages, treat the entire document as a single page
-        pages = [allText];
-        console.log("Fallback: Using entire document content as a single page");
-      } else {
-        throw new Error("No content found in document");
+
+      // Try alternative extraction methods before falling back to single page
+      try {
+        const allText = await extractTextFromFile(userId, lectureId, fileId);
+        if (allText && allText.trim()) {
+          // IMPROVED: Try to intelligently split large documents into logical sections
+          const textLength = allText.length;
+          console.log(`Extracted text length: ${textLength} characters`);
+
+          if (textLength > 5000) {
+            // For large documents, try to split by common section markers
+            const sectionMarkers = [
+              /\n\s*(?:Chapter|Section|Part|Unit)\s+\d+/gi,
+              /\n\s*\d+\.\s+[A-Z][^.]*\n/g,
+              /\n\s*[A-Z][A-Z\s]{10,}\n/g, // All caps headings
+              /\n\s*\*{3,}.*\*{3,}\n/g, // Asterisk separators
+              /\n\s*={3,}\n/g, // Equal sign separators
+              /\n\s*-{3,}\n/g, // Dash separators
+            ];
+
+            let sections = [allText];
+            for (const marker of sectionMarkers) {
+              const splits = allText.split(marker);
+              if (splits.length > 1 && splits.length <= 20) {
+                // Reasonable number of sections
+                sections = splits.filter(
+                  (section) => section.trim().length > 100
+                );
+                console.log(
+                  `Split document into ${sections.length} sections using pattern matching`
+                );
+                break;
+              }
+            }
+
+            if (sections.length > 1) {
+              pages = sections;
+              extractionMethod = "intelligent-splitting";
+            } else {
+              // If no good splits found, divide by approximate page size
+              const avgPageSize = Math.max(1000, Math.floor(textLength / 10)); // Aim for ~10 pages max
+              pages = [];
+              for (let i = 0; i < textLength; i += avgPageSize) {
+                const pageText = allText.substring(i, i + avgPageSize);
+                if (pageText.trim().length > 50) {
+                  pages.push(pageText.trim());
+                }
+              }
+              extractionMethod = "size-based-splitting";
+              console.log(
+                `Split document into ${pages.length} pages using size-based splitting`
+              );
+            }
+          } else {
+            // For smaller documents, treat as single page but still process it
+            pages = [allText];
+            extractionMethod = "single-page-fallback";
+            console.log(
+              "Using entire document content as a single page (small document)"
+            );
+          }
+        } else {
+          throw new Error("No content found in document");
+        }
+      } catch (textExtractionError) {
+        console.error("All extraction methods failed:", textExtractionError);
+        throw new Error("Could not extract any content from document");
       }
     }
 
-    // Ensure we have non-empty pages.
-    if (!pages || pages.length === 0 || pages.every((page) => !page.trim())) {
+    // IMPROVED: More lenient page validation
+    if (!pages || pages.length === 0) {
       throw new Error("No content found in document");
     }
 
-    // Generate a summary for each page and extract just the summary text
-    console.log(`Generating summaries for ${pages.length} pages/slides...`);
-    const summaries = await Promise.all(
-      pages.map(async (pageText, index) => {
-        if (!pageText.trim() || pageText.length < 10) {
-          console.log(
-            `Skipping page/slide ${index + 1} due to insufficient content`
-          );
-          return null;
-        }
-        console.log(
-          `Processing page/slide ${index + 1} with ${
-            pageText.length
-          } characters`
-        );
-        const brief = await generateBrief(pageText);
-        return brief.summary; // Just store the summary text
-      })
-    );
-    const filteredSummaries = summaries.filter(Boolean);
+    // Filter out completely empty pages but be more lenient
+    const validPages = pages.filter((page) => {
+      if (!page || typeof page !== "string") return false;
+      const trimmedPage = page.trim();
+      return trimmedPage.length > 0; // Accept any non-empty content
+    });
+
+    if (validPages.length === 0) {
+      throw new Error("No valid content found in document after filtering");
+    }
+
     console.log(
-      `Generated ${filteredSummaries.length} valid summaries from ${pages.length} pages/slides`
+      `Processing ${validPages.length} pages using ${extractionMethod} method`
     );
 
+    // Generate a summary for each page and extract just the summary text
+    console.log(
+      `Generating summaries for ${validPages.length} pages/slides...`
+    );
+    const summaries = await Promise.all(
+      validPages.map(async (pageText, index) => {
+        // IMPROVED: More lenient content validation
+        const trimmedText = pageText.trim();
+        if (trimmedText.length === 0) {
+          console.log(`Skipping page/slide ${index + 1} - completely empty`);
+          return null;
+        }
+
+        // Accept pages with any content, even very short ones
+        console.log(
+          `Processing page/slide ${index + 1} with ${
+            trimmedText.length
+          } characters`
+        );
+
+        try {
+          const brief = await generateBrief(trimmedText);
+          return brief.summary; // Just store the summary text
+        } catch (briefError) {
+          console.warn(
+            `Failed to generate brief for page ${index + 1}:`,
+            briefError
+          );
+          // Return a fallback summary instead of null
+          return `Page ${
+            index + 1
+          }: Content could not be processed by AI. Raw content: ${trimmedText.substring(
+            0,
+            200
+          )}${trimmedText.length > 200 ? "..." : ""}`;
+        }
+      })
+    );
+
+    const filteredSummaries = summaries.filter(Boolean);
+    console.log(
+      `Generated ${filteredSummaries.length} valid summaries from ${validPages.length} pages/slides`
+    );
+
+    // IMPROVED: Ensure we always have at least one summary
     if (filteredSummaries.length === 0) {
-      throw new Error("No valid summaries generated from the document");
+      console.warn("No summaries were generated, creating fallback summary");
+      filteredSummaries.push(
+        "This document could not be processed properly. Please try uploading a different format or contact support."
+      );
     }
 
     // Log the brief object before saving
     console.log("Brief object to save:", {
       total_pages: filteredSummaries.length,
       summaries: filteredSummaries,
+      extraction_method: extractionMethod,
     });
 
     // Build the brief object matching the frontend's expected format
@@ -188,6 +291,9 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       metadata: {
         generatedAt: new Date().toISOString(),
         documentTitle: fileId,
+        extractionMethod: extractionMethod,
+        originalPageCount: pages.length,
+        processedPageCount: validPages.length,
         mainThemes: [],
         key_concepts: [],
         important_details: [],
@@ -232,7 +338,9 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       }
       result = insertedBrief;
     }
-    console.log("Successfully saved brief with multiple page summaries");
+    console.log(
+      `Successfully saved brief with ${filteredSummaries.length} page summaries using ${extractionMethod} method`
+    );
     return result;
   } catch (error) {
     console.error("Error processing document:", error);
