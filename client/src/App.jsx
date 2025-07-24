@@ -13,9 +13,6 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import { Home } from "./pages/home/Home";
 import Profile from "./pages/profile/Profile";
 import { Error } from "./pages/error/Error";
-import PaymentsPage from "./pages/payments/PaymentsPage";
-import PaymentSuccessPage from "./pages/payments/PaymentSuccessPage";
-import PaymentFailurePage from "./pages/payments/PaymentFailurePage";
 import DesignSystem from "./components/design/DesignSystem";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthCallback from "./pages/auth/callback";
@@ -199,77 +196,69 @@ function App() {
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
-        <PostHogProvider
-          apiKey={import.meta.env.VITE_POSTHOG_KEY}
-          options={posthogOptions}
-        >
-          <UserPlanProvider>
-            <BrowserRouter>
-              {/* Full-page background wrapper */}
-              <div className="min-h-screen w-full theme-bg-primary">
-                <Header />
-                <div className="container mx-auto px-4 py-8">
-                  <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/auth/callback" element={<AuthCallback />} />
-                    <Route path="/payments" element={<PaymentsPage />} />
-                    <Route
-                      path="/payment-success"
-                      element={<PaymentSuccessPage />}
-                    />
-                    <Route
-                      path="/payment-failure"
-                      element={<PaymentFailurePage />}
-                    />
-                    <Route path="/" element={<Home />} />
-                    <Route path="/design-system" element={<DesignSystem />} />
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <ProtectedRoute>
-                          <Dashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/lectures"
-                      element={
-                        <ProtectedRoute>
-                          <LecturesPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/subjects/:name"
-                      element={
-                        <ProtectedRoute>
-                          <LecturesPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/subjects/:name/lectures/:lectureId"
-                      element={
-                        <ProtectedRoute>
-                          <LectureDetailPage />
-                        </ProtectedRoute>
-                      }
-                    />
+          <PostHogProvider
+            apiKey={import.meta.env.VITE_POSTHOG_KEY}
+            options={posthogOptions}
+          >
+            <UserPlanProvider>
+              <BrowserRouter>
+                {/* Full-page background wrapper */}
+                <div className="min-h-screen w-full theme-bg-primary">
+                  <Header />
+                  <div className="container mx-auto px-4 py-8">
+                    <Routes>
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
+                     
+                      <Route path="/" element={<Home />} />
+                      <Route path="/design-system" element={<DesignSystem />} />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/lectures"
+                        element={
+                          <ProtectedRoute>
+                            <LecturesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/subjects/:name"
+                        element={
+                          <ProtectedRoute>
+                            <LecturesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/subjects/:name/lectures/:lectureId"
+                        element={
+                          <ProtectedRoute>
+                            <LectureDetailPage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    <Route path="*" element={<Error />} />
-                  </Routes>
+                      <Route path="*" element={<Error />} />
+                    </Routes>
+                  </div>
                 </div>
-              </div>
-            </BrowserRouter>
+              </BrowserRouter>
             </UserPlanProvider>
           </PostHogProvider>
         </AuthProvider>
