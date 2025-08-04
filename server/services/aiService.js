@@ -1,6 +1,64 @@
 import { geminiAI, geminiModel } from "../config/gemini.js";
 import uniqid from "uniqid";
 
+// Token usage monitoring and optimization
+function estimateTokenUsage(text, promptTemplate = "") {
+  // Rough estimation: 1 token ≈ 4 characters for English, 2 characters for Georgian
+  const containsGeorgian = /[\u10A0-\u10FF]/.test(text);
+  const charToTokenRatio = containsGeorgian ? 2 : 4;
+
+  const textTokens = Math.ceil(text.length / charToTokenRatio);
+  const promptTokens = Math.ceil(promptTemplate.length / charToTokenRatio);
+
+  // Estimate response tokens (typically 1/3 of input for summaries)
+  const estimatedResponseTokens = Math.ceil(textTokens * 0.3);
+
+  const totalTokens = textTokens + promptTokens + estimatedResponseTokens;
+
+  console.log(`Token estimation:`, {
+    textLength: text.length,
+    textTokens,
+    promptTokens,
+    estimatedResponseTokens,
+    totalTokens,
+    language: containsGeorgian ? "Georgian" : "English",
+  });
+
+  return {
+    textTokens,
+    promptTokens,
+    estimatedResponseTokens,
+    totalTokens,
+    costEstimate: (totalTokens / 1000) * 0.0005, // Rough cost estimate in USD
+  };
+}
+
+// Configuration for optimization strategy
+const OPTIMIZATION_CONFIG = {
+  // Always use multi-page optimization (even for single pages)
+  MIN_PAGES_FOR_OPTIMIZATION: 1,
+  // Maximum total content size for single call (in characters)
+  MAX_CONTENT_SIZE_FOR_SINGLE_CALL: 50000,
+  // Maximum number of pages for single call
+  MAX_PAGES_FOR_SINGLE_CALL: 20,
+  // Enable token monitoring
+  ENABLE_TOKEN_MONITORING: true,
+};
+
+function shouldUseMultiPageOptimization(pages) {
+  const validPages = pages.filter((page) => page.trim().length > 0);
+  const totalContentSize = validPages.reduce(
+    (sum, page) => sum + page.length,
+    0
+  );
+
+  return (
+    validPages.length >= OPTIMIZATION_CONFIG.MIN_PAGES_FOR_OPTIMIZATION &&
+    totalContentSize <= OPTIMIZATION_CONFIG.MAX_CONTENT_SIZE_FOR_SINGLE_CALL &&
+    validPages.length <= OPTIMIZATION_CONFIG.MAX_PAGES_FOR_SINGLE_CALL
+  );
+}
+
 export async function generateFlashcards(extractedText) {
   try {
     console.log("Generating flashcards with Gemini API...");
@@ -59,7 +117,7 @@ Requirements:
    - Include only the most important examples if needed
 
 5️⃣ **Content and Structure Requirements**:
-   - Generate 20-25 high-quality, focused flashcards
+   - Generate 25-35 high-quality, focused flashcards
    - Each flashcard must have "question" and "answer" fields
    - Ensure proper JSON formatting with no trailing commas
    - Return ONLY valid JSON - no explanatory text, markdown, or other formatting
@@ -194,258 +252,6 @@ Text to analyze: ${extractedText}`,
   }
 }
 
-// export async function generateBrief(extractedText) {
-//   try {
-//     console.log("Generating brief...");
-//     const response = await geminiModel.chat.completions.create({
-//       model: "gpt-4o-mini",
-//       messages: [
-//         {
-//           role: "system",
-//           content:
-//             "You are an expert educational content creator specializing in concise, informative briefs. Return ONLY raw JSON without any markdown formatting, code blocks, or additional text.",
-//         },
-//         {
-//           role: "user",
-//           content: `Generate a comprehensive brief from the following text. Return ONLY a JSON object without any markdown formatting or explanation.
-
-//           Required format:
-//           {
-//             "key_concepts": ["List 5-7 key concepts from the text"],
-//             "summary": "Write a clear, concise 2-3 paragraph summary of the main points",
-//             "important_details": ["List 5-7 important supporting details or examples"]
-//           }
-
-//           Text to analyze: ${extractedText}`,
-//         },
-//       ],
-//     });
-
-//     let briefContent = response.choices[0].message.content;
-
-//     try {
-//       // Remove markdown code fences if present
-//       briefContent = briefContent
-//         .replace(/```json\n?/g, "")
-//         .replace(/```\n?/g, "");
-
-//       // Trim whitespace
-//       briefContent = briefContent.trim();
-
-//       const parsedBrief = JSON.parse(briefContent);
-
-//       // Validate the structure
-//       if (
-//         !parsedBrief.key_concepts ||
-//         !Array.isArray(parsedBrief.key_concepts) ||
-//         !parsedBrief.summary ||
-//         typeof parsedBrief.summary !== "string" ||
-//         !parsedBrief.important_details ||
-//         !Array.isArray(parsedBrief.important_details)
-//       ) {
-//         throw new Error("Invalid brief format");
-//       }
-
-//       if (response.usage) {
-//         console.log("Token Usage:", {
-//           promptTokens: response.usage.prompt_tokens,
-//           completionTokens: response.usage.completion_tokens,
-//           totalTokens: response.usage.total_tokens,
-//         });
-//       }
-
-//       return parsedBrief;
-//     } catch (parseError) {
-//       console.error("Raw response:", briefContent);
-//       console.error("Parse error:", parseError);
-//       throw new Error(`Failed to parse GPT response: ${parseError.message}`);
-//     }
-//   } catch (error) {
-//     console.error("Error generating brief:", error);
-//     throw error;
-//   }
-// }
-
-// services/aiService.js
-
-export async function generateBrief(pageText) {
-  console.log("page text", pageText);
-  try {
-    console.log("Generating brief with text length:", pageText.length);
-
-    // Detect if the text is in Georgian by checking for Georgian Unicode character ranges
-    const containsGeorgian = /[\u10A0-\u10FF]/.test(pageText);
-    const textLanguage = containsGeorgian ? "Georgian" : "English";
-
-    console.log(`Detected language is ${textLanguage}`);
-
-    const response = await geminiAI.models.generateContent({
-      model: geminiModel,
-      contents: `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${textLanguage}. Do not use any other language regardless of what you think is appropriate.
-
-You are processing one page of a multi-page document. Your task is to create a comprehensive, educational summary of THIS specific page's content. This summary will be part of a larger document brief where each page is processed individually.
-
-CORE REQUIREMENTS:
-
-1️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
-   - You MUST respond ONLY in ${textLanguage}
-   - If the input text is in Georgian, you MUST write ONLY in Georgian
-   - If the input text is in English, you MUST write ONLY in English
-   - DO NOT translate between languages under any circumstances
-   - Maintain consistent terminology with the source material
-   - This is the MOST IMPORTANT requirement and overrides all others
-
-2️⃣ **DIRECT EXPLANATION STYLE**:
-   - Start DIRECTLY with the explanation of concepts
-   - DO NOT begin with meta-phrases like "This page discusses...", "The content covers...", "This section focuses on..."
-   - Write in an educational, informative style as if teaching the material directly
-   - Use active voice and present tense
-   - Explain the subject matter directly without referring to "the text" or "the document"
-
-3️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
-   - Process ALL content on this page, regardless of type
-   - If the page contains course information (syllabus, grading, logistics), summarize it clearly and concisely
-   - If the page contains instructor information, provide a brief professional summary
-   - If the page contains study materials or requirements, explain what they are and their purpose
-   - If the page contains subject matter content, explain the concepts thoroughly
-   - If the page contains questions, provide context and explain what topics they address
-   - NEVER tell the user to "move to the next page" or skip content
-
-4️⃣ **EDUCATIONAL DEPTH**:
-   - Don't just restate content - explain it with educational insight
-   - Break down complex ideas into understandable terms
-   - Provide context for why information is important
-   - Connect concepts to broader learning objectives when possible
-   - Make abstract concepts concrete and relatable
-
-5️⃣ **STRUCTURE AND FORMAT**:
-   - Use clear paragraphs with logical flow
-   - DO NOT use asterisks (*) for emphasis or headings
-   - DO NOT use markdown formatting
-   - Use proper sentence structure and paragraphs
-   - For important terms, use appropriate capitalization
-   - Keep explanations comprehensive yet concise
-
-6️⃣ **HANDLING DIFFERENT CONTENT TYPES**:
-   - **Administrative content**: Summarize policies, procedures, and requirements clearly
-   - **Instructor information**: Provide relevant professional background and contact details
-   - **Course structure**: Explain how the course is organized and what students can expect
-   - **Subject matter**: Provide deep, educational explanations of concepts
-   - **Assessment information**: Explain evaluation methods and their educational purpose
-   - **Study materials**: Describe resources and how they support learning
-
-7️⃣ **QUALITY STANDARDS**:
-   - Every page must receive a meaningful, substantial summary
-   - Minimum 100 words for pages with substantial content
-   - If a page has minimal content, explain what little is there and its context
-   - Focus on educational value and student understanding
-   - Ensure the summary helps students learn and understand the material
-
-Remember: You are creating ONE page summary in a multi-page document. Make this page's summary comprehensive, educational, and valuable for student learning. The user will navigate through all pages to get the complete document understanding.
-
-Your response MUST be in ${textLanguage} ONLY.
-
-Here is the page content to summarize and explain:
-            ${pageText}`,
-      generationConfig: {
-        temperature: 0.4,
-      },
-    });
-
-    // Get the raw summary from the AI response
-    const summary = response.text;
-    console.log("Received AI response:", summary);
-
-    // Verify the language of the response if possible
-    const responseContainsGeorgian = /[\u10A0-\u10FF]/.test(summary);
-    console.log(
-      `Response contains Georgian characters: ${responseContainsGeorgian}`
-    );
-
-    if (containsGeorgian && !responseContainsGeorgian) {
-      console.warn(
-        "WARNING: Input was in Georgian but response doesn't contain Georgian characters!"
-      );
-    } else if (!containsGeorgian && responseContainsGeorgian) {
-      console.warn(
-        "WARNING: Input was not in Georgian but response contains Georgian characters!"
-      );
-    }
-
-    // Clean up the summary text
-    const cleanedSummary = summary
-      .replace(
-        /^(It seems that |I apologize, but |The text discusses |This page explains |The content covers |This section focuses on )/,
-        ""
-      ) // Remove common AI prefixes
-      .replace(/\n+/g, " ") // Replace multiple newlines with space
-      .replace(/\*\*?([^*]+)\*\*?/g, "$1") // Remove any remaining asterisks for emphasis
-      .trim();
-
-    if (!cleanedSummary || cleanedSummary.includes("no content provided")) {
-      throw new Error("Invalid or empty content for summarization");
-    }
-
-    // Create a structured brief object
-    const brief = {
-      key_concepts: [], // We'll leave this empty as we're focusing on the summary
-      summary: cleanedSummary,
-      important_details: [], // We'll leave this empty as we're focusing on the summary
-    };
-
-    console.log("Generated brief:", brief);
-    if (response.promptFeedback) {
-      console.log("Prompt Feedback:", response.promptFeedback);
-    }
-    return brief;
-  } catch (error) {
-    console.error("Error generating brief:", error);
-    console.error("Error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-    });
-    throw new Error(`Failed to generate brief: ${error.message}`);
-  }
-}
-
-// export async function generateDocumentOverview(allPageBriefs) {
-//   try {
-//     console.log("Generating document overview...");
-
-//     // Create safe, condensed briefs.
-//     const condensedBriefs = allPageBriefs.map((brief) => ({
-//       pageNumber: brief.pageNumber,
-//       mainTopics: brief.mainTopics.slice(0, 3), // Limit the size of the array.
-//       summary: brief.summary.substring(0, 500), // Limit the text length.
-//     }));
-
-//     // Stringify with sanitization.
-//     const safeBriefs = JSON.stringify(condensedBriefs)
-//       .replace(/[\u0000-\u001F]/g, "")
-//       .substring(0, 8000); // Stay within token limits.
-
-//     const response = await geminiModel.chat.completions.create({
-//       model: "gpt-4",
-//       response_format: { type: "json_object" },
-//       messages: [
-//         {
-//           role: "system",
-//           content: "You are an expert information synthesizer. Respond in VALID JSON only.",
-//         },
-//         {
-//           role: "user",
-//           content: `Create a document overview from these page analyses: ${safeBriefs}`,
-//         },
-//       ],
-//     });
-//     // Use the validation helper (assumed to be defined elsewhere).
-//     return validateJSON(response.choices[0].message.content);
-//   } catch (error) {
-//     console.error("Error generating overview:", error);
-//     throw new Error(`Document overview failed: ${error.message}`);
-//   }
-// }
 
 export async function generateQuiz(extractedText, quizOptions = {}) {
   try {
@@ -1061,5 +867,242 @@ DO NOT include any text before or after the JSON object. OUTPUT ONLY THE JSON OB
   } catch (error) {
     console.error("Error evaluating answer:", error);
     throw error;
+  }
+}
+
+export async function generateMultiPageBrief(allPages) {
+  console.log("Generating multi-page brief with optimized token usage...");
+  console.log(`Processing ${allPages.length} pages in a single AI call`);
+
+  try {
+    // Combine all pages into a single text with clear separators
+    const combinedText = allPages
+      .map((pageText, index) => {
+        const cleanedPage = pageText.trim();
+        if (!cleanedPage) return null;
+        return `=== PAGE ${index + 1} ===\n${cleanedPage}\n`;
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    console.log(`Combined text length: ${combinedText.length} characters`);
+
+    // Detect language from the first non-empty page
+    const firstPage = allPages.find((page) => page.trim().length > 0) || "";
+    const containsGeorgian = /[\u10A0-\u10FF]/.test(firstPage);
+    const textLanguage = containsGeorgian ? "Georgian" : "English";
+
+    // Monitor token usage before making the API call
+    const promptTemplate = `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${textLanguage}...`; // Simplified for estimation
+    const tokenEstimate = estimateTokenUsage(combinedText, promptTemplate);
+
+    console.log(
+      `🚀 OPTIMIZATION: Processing ${allPages.length} pages in single call instead of ${allPages.length} separate calls`
+    );
+    console.log(
+      `💰 Estimated cost: $${tokenEstimate.costEstimate.toFixed(4)} (vs ~$${(
+        tokenEstimate.costEstimate * allPages.length
+      ).toFixed(4)} with individual calls)`
+    );
+    console.log(
+      `📊 Token savings: ~${Math.round(
+        (allPages.length - 1) * 100
+      )}% reduction in API calls`
+    );
+
+    console.log(`Detected language is ${textLanguage}`);
+
+    const response = await geminiAI.models.generateContent({
+      model: geminiModel,
+      contents: `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${textLanguage}. Do not use any other language regardless of what you think is appropriate.
+
+You are processing multiple pages of a document. Your task is to create comprehensive, educational summaries for EACH page's content. Each summary should be approximately 500 words to provide thorough coverage and educational depth. This will be part of a larger document brief where each page is processed comprehensively.
+
+CORE REQUIREMENTS:
+
+1️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
+   - You MUST respond ONLY in ${textLanguage}
+   - If the input text is in Georgian, you MUST write ONLY in Georgian
+   - If the input text is in English, you MUST write ONLY in English
+   - DO NOT translate between languages under any circumstances
+   - Maintain consistent terminology with the source material
+   - This is the MOST IMPORTANT requirement and overrides all others
+
+2️⃣ **RESPONSE FORMAT - CRITICAL**:
+   You MUST respond in this EXACT JSON format:
+   {
+     "pageSummaries": [
+       {
+         "pageNumber": 1,
+         "summary": "Comprehensive educational summary of page 1 content..."
+       },
+       {
+         "pageNumber": 2,
+         "summary": "Comprehensive educational summary of page 2 content..."
+       }
+     ]
+   }
+
+3️⃣ **DIRECT EXPLANATION STYLE**:
+   - Start DIRECTLY with the explanation of concepts
+   - DO NOT begin with meta-phrases like "This page discusses...", "The content covers...", "This section focuses on..."
+   - Write in an educational, informative style as if teaching the material directly
+   - Use active voice and present tense
+   - Explain the subject matter directly without referring to "the text" or "the document"
+
+4️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
+   - Process ALL content on each page, regardless of type, with extensive detail
+   - If the page contains course information (syllabus, grading, logistics), provide comprehensive explanations of policies, procedures, and their educational rationale
+   - If the page contains instructor information, provide detailed professional background, expertise areas, and how their experience benefits students
+   - If the page contains study materials or requirements, explain in detail what they are, their purpose, how to use them effectively, and their educational value
+   - If the page contains subject matter content, provide thorough explanations of concepts, their significance, applications, and relationships to other topics
+   - If the page contains questions, provide detailed context, explain what topics they address, and offer insights into the learning objectives they serve
+   - NEVER tell the user to "move to the next page" or skip content
+   - Expand on every piece of information with educational context and detailed explanations
+
+5️⃣ **EDUCATIONAL DEPTH**:
+   - Don't just restate content - explain it with comprehensive educational insight
+   - Break down complex ideas into understandable terms with detailed explanations
+   - Provide extensive context for why information is important and how it fits into the broader subject
+   - Connect concepts to broader learning objectives and real-world applications
+   - Make abstract concepts concrete and relatable with examples and analogies
+   - Include detailed explanations of key terms, concepts, and their relationships
+   - Provide step-by-step explanations for complex processes or ideas
+   - Add educational commentary that helps students understand the significance and implications
+
+6️⃣ **STRUCTURE AND FORMAT**:
+   - Use clear paragraphs with logical flow
+   - DO NOT use asterisks (*) for emphasis or headings
+   - DO NOT use markdown formatting
+   - Use proper sentence structure and paragraphs
+   - For important terms, use appropriate capitalization
+   - Keep explanations comprehensive yet concise
+
+7️⃣ **HANDLING DIFFERENT CONTENT TYPES**:
+   - **Administrative content**: Summarize policies, procedures, and requirements clearly
+   - **Instructor information**: Provide relevant professional background and contact details
+   - **Course structure**: Explain how the course is organized and what students can expect
+   - **Subject matter**: Provide deep, educational explanations of concepts
+   - **Assessment information**: Explain evaluation methods and their educational purpose
+   - **Study materials**: Describe resources and how they support learning
+
+8️⃣ **QUALITY STANDARDS**:
+   - Every page must receive a meaningful, substantial summary
+   - Target approximately 500 words per page summary for comprehensive coverage
+   - Minimum 300 words for pages with substantial content
+   - If a page has minimal content, expand on what little is there with educational context and explanations
+   - Focus on educational value and student understanding
+   - Ensure the summary helps students learn and understand the material
+   - Provide detailed explanations, examples, and educational insights
+   - Include relevant context and connections to broader concepts
+
+Remember: You are creating summaries for ALL pages in a single response. Make each page's summary comprehensive, educational, and valuable for student learning. The user will navigate through all pages to get the complete document understanding.
+
+Your response MUST be in ${textLanguage} ONLY and in VALID JSON format.
+
+Document content with page separators:
+${combinedText}`,
+      generationConfig: {
+        temperature: 0.4,
+      },
+    });
+
+    console.log("Received AI response for multi-page brief");
+
+    let responseText = response.text;
+    console.log("Raw response length:", responseText.length);
+
+    // Try to parse the JSON response
+    let parsedResponse;
+    try {
+      // Clean up the response to extract JSON
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResponse = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("No JSON found in response");
+      }
+    } catch (parseError) {
+      console.error("Failed to parse JSON response:", parseError);
+      console.log("Raw response:", responseText);
+
+      // Fallback: create summaries manually from the response
+      const fallbackSummaries = allPages
+        .map((pageText, index) => {
+          const cleanedPage = pageText.trim();
+          if (!cleanedPage) return null;
+          return {
+            pageNumber: index + 1,
+            summary: `Page ${index + 1}: ${cleanedPage.substring(0, 200)}${
+              cleanedPage.length > 200 ? "..." : ""
+            }`,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        pageSummaries: fallbackSummaries,
+        error: "Failed to parse AI response, using fallback summaries",
+      };
+    }
+
+    // Validate the parsed response
+    if (
+      !parsedResponse.pageSummaries ||
+      !Array.isArray(parsedResponse.pageSummaries)
+    ) {
+      throw new Error("Invalid response format: missing pageSummaries array");
+    }
+
+    // Ensure we have summaries for all pages
+    const expectedPageCount = allPages.filter(
+      (page) => page.trim().length > 0
+    ).length;
+    const actualPageCount = parsedResponse.pageSummaries.length;
+
+    if (actualPageCount < expectedPageCount) {
+      console.warn(
+        `Expected ${expectedPageCount} page summaries, got ${actualPageCount}`
+      );
+
+      // Add fallback summaries for missing pages
+      for (let i = actualPageCount; i < expectedPageCount; i++) {
+        const pageText = allPages[i].trim();
+        if (pageText) {
+          parsedResponse.pageSummaries.push({
+            pageNumber: i + 1,
+            summary: `Page ${i + 1}: ${pageText.substring(0, 200)}${
+              pageText.length > 200 ? "..." : ""
+            }`,
+          });
+        }
+      }
+    }
+
+    console.log(
+      `Successfully generated ${parsedResponse.pageSummaries.length} page summaries`
+    );
+    return parsedResponse;
+  } catch (error) {
+    console.error("Error generating multi-page brief:", error);
+
+    // Create fallback summaries
+    const fallbackSummaries = allPages
+      .map((pageText, index) => {
+        const cleanedPage = pageText.trim();
+        if (!cleanedPage) return null;
+        return {
+          pageNumber: index + 1,
+          summary: `Page ${index + 1}: ${cleanedPage.substring(0, 200)}${
+            cleanedPage.length > 200 ? "..." : ""
+          }`,
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      pageSummaries: fallbackSummaries,
+      error: `Failed to generate brief: ${error.message}`,
+    };
   }
 }

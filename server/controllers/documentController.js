@@ -1,8 +1,9 @@
 import {
-  generateBrief,
+  generateMultiPageBrief,
   generateFlashcards,
   generateQuiz,
 } from "../services/aiService.js";
+
 import {
   extractTextFromFile,
   extractContentByPagesOrSlides,
@@ -18,6 +19,13 @@ import { supabaseClient } from "../config/supabaseClient.js";
  */
 export async function processDocument(userId, lectureId, fileId) {
   try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
+
     console.log("Processing document:", { userId, lectureId, fileId });
 
     const extractedText = await extractTextFromFile(userId, lectureId, fileId);
@@ -60,6 +68,13 @@ export async function processDocument(userId, lectureId, fileId) {
  */
 export async function processBrief(userId, lectureId, fileId) {
   try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
+
     console.log("Processing document:", { userId, lectureId, fileId });
 
     const extractedText = await extractTextFromFile(userId, lectureId, fileId);
@@ -68,7 +83,25 @@ export async function processBrief(userId, lectureId, fileId) {
     }
 
     console.log("Successfully extracted text, generating brief...");
-    return await generateBrief(extractedText);
+
+    // Use generateMultiPageBrief for single page processing
+    const result = await generateMultiPageBrief([extractedText]);
+
+    // Return the first (and only) summary in the expected format
+    if (
+      result &&
+      result.pageSummaries &&
+      result.pageSummaries.length > 0 &&
+      result.pageSummaries[0].summary
+    ) {
+      return {
+        summary: result.pageSummaries[0].summary,
+        key_concepts: [],
+        important_details: [],
+      };
+    } else {
+      throw new Error("Failed to generate brief summary");
+    }
   } catch (error) {
     console.error("Error processing brief:", error);
     throw error;
@@ -84,6 +117,13 @@ export async function processBrief(userId, lectureId, fileId) {
  */
 export async function testContentExtraction(userId, lectureId, fileId) {
   try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
+
     return await extractContentByPagesOrSlides(userId, lectureId, fileId);
   } catch (error) {
     console.error("Error in test content extraction:", error);
@@ -100,6 +140,13 @@ export async function testContentExtraction(userId, lectureId, fileId) {
  */
 export async function processDetailedContent(userId, lectureId, fileId) {
   try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
+
     // Build the file path as stored in Supabase.
     const filePath = `${userId}/${lectureId}/${fileId}`;
 
@@ -113,9 +160,8 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       throw new Error("No file data received from Supabase");
     }
 
-    // Convert file to buffer.
+    // Convert file to buffer (needed for processing)
     const buffer = Buffer.from(await fileData.arrayBuffer());
-    const fileExt = fileId.split(".").pop().toLowerCase();
 
     // IMPROVED: More robust page extraction with better error handling
     let pages = [];
@@ -159,12 +205,14 @@ export async function processDetailedContent(userId, lectureId, fileId) {
               if (splits.length > 1 && splits.length <= 20) {
                 // Reasonable number of sections
                 sections = splits.filter(
-                  (section) => section.trim().length > 100
+                  (section) => section && section.trim().length > 100
                 );
-                console.log(
-                  `Split document into ${sections.length} sections using pattern matching`
-                );
-                break;
+                if (sections.length > 0) {
+                  console.log(
+                    `Split document into ${sections.length} sections using pattern matching`
+                  );
+                  break;
+                }
               }
             }
 
@@ -177,9 +225,14 @@ export async function processDetailedContent(userId, lectureId, fileId) {
               pages = [];
               for (let i = 0; i < textLength; i += avgPageSize) {
                 const pageText = allText.substring(i, i + avgPageSize);
-                if (pageText.trim().length > 50) {
+                if (pageText && pageText.trim().length > 50) {
                   pages.push(pageText.trim());
                 }
+              }
+
+              // Safety check: if no pages were created, use the original text
+              if (pages.length === 0) {
+                pages = [allText];
               }
               extractionMethod = "size-based-splitting";
               console.log(
@@ -223,46 +276,79 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       `Processing ${validPages.length} pages using ${extractionMethod} method`
     );
 
-    // Generate a summary for each page and extract just the summary text
+    // OPTIMIZED: Always use multi-page optimization for all documents
     console.log(
-      `Generating summaries for ${validPages.length} pages/slides...`
-    );
-    const summaries = await Promise.all(
-      validPages.map(async (pageText, index) => {
-        // IMPROVED: More lenient content validation
-        const trimmedText = pageText.trim();
-        if (trimmedText.length === 0) {
-          console.log(`Skipping page/slide ${index + 1} - completely empty`);
-          return null;
-        }
-
-        // Accept pages with any content, even very short ones
-        console.log(
-          `Processing page/slide ${index + 1} with ${
-            trimmedText.length
-          } characters`
-        );
-
-        try {
-          const brief = await generateBrief(trimmedText);
-          return brief.summary; // Just store the summary text
-        } catch (briefError) {
-          console.warn(
-            `Failed to generate brief for page ${index + 1}:`,
-            briefError
-          );
-          // Return a fallback summary instead of null
-          return `Page ${
-            index + 1
-          }: Content could not be processed by AI. Raw content: ${trimmedText.substring(
-            0,
-            200
-          )}${trimmedText.length > 200 ? "..." : ""}`;
-        }
-      })
+      `🚀 GENERATING SUMMARIES: Processing ${validPages.length} pages/slides using optimized single AI call...`
     );
 
-    const filteredSummaries = summaries.filter(Boolean);
+    let filteredSummaries = []; // Declare filteredSummaries in the outer scope
+
+    let multiPageResult;
+    try {
+      multiPageResult = await generateMultiPageBrief(validPages);
+      console.log("Multi-page brief generation completed successfully");
+    } catch (error) {
+      console.error(
+        "Multi-page brief generation failed, falling back to individual processing:",
+        error
+      );
+
+      // Fallback to individual processing if the optimized method fails
+      const summaries = await Promise.all(
+        validPages.map(async (pageText, index) => {
+          const trimmedText = pageText.trim();
+          if (trimmedText.length === 0) {
+            return null;
+          }
+
+          try {
+            // Use generateMultiPageBrief for single page processing
+            const result = await generateMultiPageBrief([trimmedText]);
+            if (
+              result &&
+              result.pageSummaries &&
+              result.pageSummaries.length > 0 &&
+              result.pageSummaries[0].summary
+            ) {
+              return result.pageSummaries[0].summary;
+            } else {
+              throw new Error(
+                "Invalid result structure from generateMultiPageBrief"
+              );
+            }
+          } catch (briefError) {
+            console.warn(
+              `Failed to generate brief for page ${index + 1}:`,
+              briefError
+            );
+            return `Page ${
+              index + 1
+            }: Content could not be processed by AI. Raw content: ${trimmedText.substring(
+              0,
+              200
+            )}${trimmedText.length > 200 ? "..." : ""}`;
+          }
+        })
+      );
+
+      const fallbackSummaries = summaries.filter(Boolean);
+      multiPageResult = {
+        pageSummaries: fallbackSummaries.map((summary, index) => ({
+          pageNumber: index + 1,
+          summary: summary,
+        })),
+        error: "Used fallback processing due to multi-page generation failure",
+      };
+    }
+
+    // Extract summaries from the multi-page result
+    if (!multiPageResult || !multiPageResult.pageSummaries) {
+      throw new Error("Invalid multi-page result structure");
+    }
+
+    const summaries = multiPageResult.pageSummaries.map((item) => item.summary);
+    filteredSummaries = summaries.filter(Boolean);
+
     console.log(
       `Generated ${filteredSummaries.length} valid summaries from ${validPages.length} pages/slides`
     );
@@ -358,6 +444,13 @@ export async function processDetailedContent(userId, lectureId, fileId) {
  */
 export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
   try {
+    // Validate input parameters
+    if (!userId || !lectureId || !fileId) {
+      throw new Error(
+        "Missing required parameters: userId, lectureId, or fileId"
+      );
+    }
+
     // Build the file path
     const filePath = `${userId}/${lectureId}/${fileId}`;
     console.log(`Processing quiz for file: ${filePath}`);
@@ -460,6 +553,12 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
 
     // Insert questions
     for (const question of result.questions) {
+      // Validate question structure
+      if (!question || !question.type || !question.question) {
+        console.warn("Skipping invalid question:", question);
+        continue;
+      }
+
       // Insert the question
       const { data: questionData, error: questionError } = await supabaseClient
         .from("quiz_questions")
@@ -467,7 +566,7 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
           quiz_set_id: quizSetId,
           question_text:
             question.type === "case_study"
-              ? `${question.scenario}\n\n${question.question}`
+              ? `${question.scenario || ""}\n\n${question.question}`
               : question.question,
           question_type: question.type,
           created_at: new Date().toISOString(),
@@ -481,7 +580,20 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
 
       // Insert options/answers
       if (question.type === "multiple_choice") {
+        if (!question.options || !Array.isArray(question.options)) {
+          console.warn(
+            "Skipping multiple choice question with invalid options:",
+            question
+          );
+          continue;
+        }
+
         for (const option of question.options) {
+          if (!option || !option.text || typeof option.correct !== "boolean") {
+            console.warn("Skipping invalid option:", option);
+            continue;
+          }
+
           const { error: optionError } = await supabaseClient
             .from("quiz_options")
             .insert({
@@ -496,6 +608,11 @@ export async function processQuiz(userId, lectureId, fileId, quizOptions = {}) {
         }
       } else {
         // For open-ended and case study questions, store the sample answer as a correct option
+        if (!question.sampleAnswer) {
+          console.warn("Skipping question without sample answer:", question);
+          continue;
+        }
+
         const { error: answerError } = await supabaseClient
           .from("quiz_options")
           .insert({
