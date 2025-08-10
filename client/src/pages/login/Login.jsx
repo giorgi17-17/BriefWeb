@@ -79,7 +79,7 @@ const Login = () => {
   // If we're in the Google redirecting state, show a loading message
   if (isGoogleRedirecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b0b0b] text-gray-900 dark:text-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
