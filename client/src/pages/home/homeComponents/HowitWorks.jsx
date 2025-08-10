@@ -56,7 +56,7 @@ const HowitWorks = () => {
 
   return (
     <section
-      className={`py-10 md:py-16 ${background("primary")}`}
+      className={`mt-12 md:mt-20 py-10 md:py-16 ${background("primary")}`}
       itemScope
       itemType="https://schema.org/HowTo"
       id="how-it-works"
