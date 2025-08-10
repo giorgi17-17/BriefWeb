@@ -74,7 +74,7 @@ const Hero = () => {
           />
 
           <header className="relative text-center max-w-5xl mx-auto px-4 sm:px-6 flex flex-col items-center space-y-10 md:space-y-16">
-            <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-white backdrop-blur-sm bg-white/70 dark:bg-white/10 ring-1 ring-black/5 dark:ring-white/10">
+            <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-gray-900 dark:text-white backdrop-blur-sm bg-gray-100 dark:bg-white/10 ring-1 ring-black/5 dark:ring-white/10">
               <span className="inline-block " />
               {t("landing.hero.tagline")}
             </div>

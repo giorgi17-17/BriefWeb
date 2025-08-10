@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { useState, useEffect, useRef } from "react";
 import LoginPage from "./pages/login/Login";
@@ -190,6 +196,78 @@ ProtectedRoute.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
+function RouterContainer() {
+  const location = useLocation();
+  const isAuthRoute =
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/register") ||
+    location.pathname.startsWith("/auth/callback");
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main
+        className={
+          isAuthRoute
+            ? "flex-1 w-full min-h-[calc(100svh-4rem)] grid place-items-center p-0 m-0 overflow-hidden"
+            : "container mx-auto px-4 py-8 flex-1"
+        }
+      >
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+
+          <Route path="/" element={<Home />} />
+          <Route path="/design-system" element={<DesignSystem />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lectures"
+            element={
+              <ProtectedRoute>
+                <LecturesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subjects/:name"
+            element={
+              <ProtectedRoute>
+                <LecturesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subjects/:name/lectures/:lectureId"
+            element={
+              <ProtectedRoute>
+                <LectureDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="*" element={<Error />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function App() {
   // No redirection logic in the App component
   return (
@@ -204,59 +282,7 @@ function App() {
               <BrowserRouter>
                 {/* Full-page background wrapper */}
                 <div className="min-h-screen w-full theme-bg-primary">
-                  <Header />
-                  <div className="container mx-auto px-4 py-8">
-                    <Routes>
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/register" element={<RegisterPage />} />
-                      <Route path="/auth/callback" element={<AuthCallback />} />
-                     
-                      <Route path="/" element={<Home />} />
-                      <Route path="/design-system" element={<DesignSystem />} />
-                      <Route
-                        path="/dashboard"
-                        element={
-                          <ProtectedRoute>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/profile"
-                        element={
-                          <ProtectedRoute>
-                            <Profile />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/lectures"
-                        element={
-                          <ProtectedRoute>
-                            <LecturesPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/subjects/:name"
-                        element={
-                          <ProtectedRoute>
-                            <LecturesPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/subjects/:name/lectures/:lectureId"
-                        element={
-                          <ProtectedRoute>
-                            <LectureDetailPage />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      <Route path="*" element={<Error />} />
-                    </Routes>
-                  </div>
+                  <RouterContainer />
                 </div>
               </BrowserRouter>
             </UserPlanProvider>
