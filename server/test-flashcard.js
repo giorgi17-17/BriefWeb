@@ -1,6 +1,6 @@
 import { openai } from "./config/openai.js";
 import uniqid from "uniqid";
-import { generateFlashcards } from "./services/aiService.js";
+import { generateFlashcards } from "./services/ai/aiService.js";
 
 // Mock the OpenAI API to return a problematic JSON response
 openai.chat.completions.create = async () => {

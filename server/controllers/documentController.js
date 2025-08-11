@@ -2,7 +2,7 @@ import {
   generateMultiPageBrief,
   generateFlashcards,
   generateQuiz,
-} from "../services/aiService.js";
+} from "../services/ai/aiService.js";
 
 import {
   extractTextFromFile,

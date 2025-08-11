@@ -1,0 +1,41 @@
+{
+  "dailyUsage": {
+    "2025-08-11": {
+      "requests": 1,
+      "tokens": 8918,
+      "cost": 0
+    }
+  },
+  "hourlyUsage": {
+    "2025-08-11-03": {
+      "requests": 1,
+      "tokens": 8918,
+      "cost": 0
+    }
+  },
+  "totalRequests": 1,
+  "totalTokens": 8918,
+  "services": {
+    "flashcard": {
+      "requests": 0,
+      "tokens": 0,
+      "totalCost": 0
+    },
+    "quiz": {
+      "requests": 0,
+      "tokens": 0,
+      "totalCost": 0
+    },
+    "brief": {
+      "requests": 1,
+      "tokens": 8918,
+      "totalCost": 0
+    },
+    "evaluation": {
+      "requests": 0,
+      "tokens": 0,
+      "totalCost": 0
+    }
+  },
+  "lastReset": "2025-08-11T23:12:20.726Z"
+}

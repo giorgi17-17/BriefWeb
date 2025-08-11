@@ -9,7 +9,7 @@ import {
 } from "../controllers/documentController.js";
 import paymentRoutes from "./paymentRoutes.js";
 import userPlanRoutes from "./userPlanRoutes.js";
-import { evaluateOpenEndedAnswer } from "../services/aiService.js";
+import { evaluateOpenEndedAnswer } from "../services/ai/aiService.js";
 
 const router = express.Router();
 

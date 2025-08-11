@@ -1,4 +1,4 @@
-import { generateFlashcards } from "./services/aiService.js";
+import { generateFlashcards } from "./services/ai/aiService.js";
 
 // Sample text for testing
 const sampleText = `
