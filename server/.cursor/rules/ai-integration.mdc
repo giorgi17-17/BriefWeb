@@ -1,0 +1,258 @@
+---
+globs: server/services/aiService.js,server/config/openai.js,server/config/gemini.js
+description: AI service integration patterns and optimization strategies
+---
+
+# AI Service Integration
+
+Guidelines for integrating with OpenAI and Google Gemini AI services, based on [services/aiService.js](mdc:server/services/aiService.js).
+
+## Multi-Provider Strategy
+
+### Service Configuration
+
+- **Primary**: Google Gemini for cost efficiency
+- **Fallback**: OpenAI GPT for reliability
+- **Configs**: Separate files for each provider in [config/](mdc:server/config/)
+
+```javascript
+// config/gemini.js
+import { GoogleGenerativeAI } from "@google/genai";
+export const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+export const geminiModel = geminiAI.getGenerativeModel({ model: "gemini-pro" });
+
+// config/openai.js
+import OpenAI from "openai";
+export const openaiClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+```
+
+## Token Usage Optimization
+
+### Intelligent Content Processing
+
+```javascript
+// Always estimate token usage before processing
+function estimateTokenUsage(text, promptTemplate = "") {
+  const containsGeorgian = /[\u10A0-\u10FF]/.test(text);
+  const charToTokenRatio = containsGeorgian ? 2 : 4;
+
+  const textTokens = Math.ceil(text.length / charToTokenRatio);
+  const totalTokens = textTokens + promptTokens + estimatedResponseTokens;
+
+  return {
+    totalTokens,
+    costEstimate: (totalTokens / 1000) * 0.0005,
+  };
+}
+```
+
+### Multi-Page Optimization Strategy
+
+```javascript
+const OPTIMIZATION_CONFIG = {
+  MIN_PAGES_FOR_OPTIMIZATION: 1,
+  MAX_CONTENT_SIZE_FOR_SINGLE_CALL: 50000,
+  MAX_PAGES_FOR_SINGLE_CALL: 20,
+  ENABLE_TOKEN_MONITORING: true,
+};
+
+function shouldUseMultiPageOptimization(pages) {
+  const totalContentSize = pages.reduce((sum, page) => sum + page.length, 0);
+
+  return (
+    pages.length >= OPTIMIZATION_CONFIG.MIN_PAGES_FOR_OPTIMIZATION &&
+    (totalContentSize > OPTIMIZATION_CONFIG.MAX_CONTENT_SIZE_FOR_SINGLE_CALL ||
+      pages.length > OPTIMIZATION_CONFIG.MAX_PAGES_FOR_SINGLE_CALL)
+  );
+}
+```
+
+## Content Processing Patterns
+
+### Batch Processing for Large Documents
+
+```javascript
+// Process pages in chunks to stay within token limits
+async function processInChunks(pages, chunkSize = 5) {
+  const chunks = [];
+  for (let i = 0; i < pages.length; i += chunkSize) {
+    const chunk = pages.slice(i, i + chunkSize);
+    const processedChunk = await processChunk(chunk);
+    chunks.push(processedChunk);
+  }
+  return mergeChunks(chunks);
+}
+```
+
+### Individual Page Processing
+
+```javascript
+// For detailed analysis, process pages individually
+async function processPageIndividually(page, pageNumber) {
+  const prompt = `Analyze page ${pageNumber}:\n\n${page}`;
+  return await callAIService(prompt);
+}
+```
+
+## Prompt Engineering
+
+### Consistent Prompt Templates
+
+```javascript
+const PROMPTS = {
+  FLASHCARDS: `Create educational flashcards from this content...`,
+  BRIEF_SUMMARY: `Generate a comprehensive brief summary...`,
+  QUIZ_GENERATION: `Create quiz questions with options...`,
+  PAGE_SUMMARY: `Summarize this specific page content...`,
+};
+```
+
+### Language Detection and Adaptation
+
+```javascript
+function adaptPromptForLanguage(content, basePrompt) {
+  const isGeorgian = /[\u10A0-\u10FF]/.test(content);
+
+  if (isGeorgian) {
+    return basePrompt + "\n\nRespond in Georgian language.";
+  }
+  return basePrompt;
+}
+```
+
+## Response Processing
+
+### Robust JSON Parsing
+
+```javascript
+function parseAIResponse(response) {
+  try {
+    return JSON.parse(response);
+  } catch (error) {
+    // Multi-stage repair process
+    const repaired = repairJsonResponse(response);
+    try {
+      return JSON.parse(repaired);
+    } catch (secondError) {
+      // Fallback to pattern extraction
+      return extractContentWithPatterns(response);
+    }
+  }
+}
+```
+
+### Content Validation
+
+```javascript
+function validateFlashcards(flashcards) {
+  if (!Array.isArray(flashcards)) {
+    throw new Error("Flashcards must be an array");
+  }
+
+  return flashcards.map((card) => ({
+    id: card.id || uniqid(),
+    question: card.question || "Invalid question",
+    answer: card.answer || "Invalid answer",
+  }));
+}
+```
+
+## Error Handling Specific to AI
+
+### Rate Limiting and Retries
+
+```javascript
+async function callAIWithRetry(prompt, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await callAIService(prompt);
+    } catch (error) {
+      if (error.code === "rate_limit_exceeded" && attempt < maxRetries) {
+        await sleep(1000 * Math.pow(2, attempt)); // Exponential backoff
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+```
+
+### Content Safety and Filtering
+
+```javascript
+function sanitizeAIResponse(response) {
+  // Remove potentially harmful content
+  // Validate educational appropriateness
+  // Ensure content matches expected format
+  return cleanResponse;
+}
+```
+
+## Performance Monitoring
+
+### Response Time Tracking
+
+```javascript
+async function monitoredAICall(prompt, operation) {
+  const startTime = Date.now();
+  const tokenEstimate = estimateTokenUsage(prompt);
+
+  try {
+    const result = await callAIService(prompt);
+    const duration = Date.now() - startTime;
+
+    console.log(`AI call completed:`, {
+      operation,
+      duration: `${duration}ms`,
+      estimatedTokens: tokenEstimate.totalTokens,
+      costEstimate: tokenEstimate.costEstimate,
+    });
+
+    return result;
+  } catch (error) {
+    console.error(`AI call failed:`, {
+      operation,
+      duration: `${Date.now() - startTime}ms`,
+      error: error.message,
+    });
+    throw error;
+  }
+}
+```
+
+### Usage Analytics
+
+```javascript
+// Track AI usage patterns for optimization
+function logAIUsage(operation, tokenCount, cost, duration) {
+  console.log("AI Usage:", {
+    timestamp: new Date().toISOString(),
+    operation,
+    tokenCount,
+    estimatedCost: cost,
+    duration,
+    provider: "gemini", // or "openai"
+  });
+}
+```
+
+## Quality Assurance
+
+### Response Validation Pipeline
+
+```javascript
+async function validateAIResponse(response, expectedFormat) {
+  // 1. Parse and repair JSON
+  const parsed = parseAIResponse(response);
+
+  // 2. Validate structure
+  const validated = validateStructure(parsed, expectedFormat);
+
+  // 3. Ensure educational quality
+  const qualityChecked = ensureEducationalQuality(validated);
+
+  return qualityChecked;
+}
+```

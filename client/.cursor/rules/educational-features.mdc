@@ -1,0 +1,74 @@
+---
+globs: **/pages/LectureDetailPage/*.jsx,**/components/subjects/*.jsx,**/hooks/useBrief.js,**/hooks/useQuiz.js
+---
+
+# Educational Features and Content Management
+
+## Core Educational Components
+
+### Lecture System
+
+- **Lecture Detail**: [LectureDetailPage.jsx](mdc:src/pages/LectureDetailPage/LectureDetailPage.jsx) - Main lecture view with tabs
+- **Brief Content**: [Brief.jsx](mdc:src/components/subjects/Brief.jsx) - AI-generated study briefs
+- **Quiz System**: [Quiz.jsx](mdc:src/components/subjects/Quiz.jsx) - Interactive quizzes
+- **Flashcards**: [FlashcardsTab.jsx](mdc:src/pages/LectureDetailPage/FlashcardsTab.jsx) - Spaced repetition cards
+
+### Content Generation Hooks
+
+- **Brief Generation**: [useBrief.js](mdc:src/hooks/useBrief.js) - AI brief creation from documents
+- **Quiz Generation**: [useQuiz.js](mdc:src/hooks/useQuiz.js) - Interactive quiz creation
+- **Flashcard Generation**: [useFlashcardGeneration.js](mdc:src/hooks/useFlashcardGeneration.js) - Flashcard generation
+
+## File Processing
+
+- **File Selector**: [FileSelector.jsx](mdc:src/components/FileSelector.jsx) - File upload interface
+- **File Handlers**: [fileHandlers.js](mdc:src/utils/fileHandlers.js) - File processing utilities
+- **Supported Formats**: PDF, DOCX, PPTX processing on backend
+
+## Question Types
+
+The quiz system supports multiple question types:
+
+```jsx
+// Multiple Choice Questions
+<MultipleChoiceQuestion
+  question={question}
+  options={options}
+  onAnswer={handleAnswer}
+/>
+
+// Open-Ended Questions
+<OpenEndedQuestion
+  question={question}
+  onAnswer={handleAnswer}
+/>
+
+// Case Study Questions
+<CaseStudyQuestion
+  scenario={scenario}
+  question={question}
+  onAnswer={handleAnswer}
+/>
+```
+
+## Learning Analytics
+
+- **Quiz Results**: [QuizResults.jsx](mdc:src/components/subjects/QuizResults.jsx) - Performance tracking
+- **Quiz History**: [QuizHistory.jsx](mdc:src/components/subjects/QuizHistory.jsx) - Learning progress
+- **Performance Data**: Track completion rates, scores, and learning patterns
+
+## Content Structure
+
+- **Subjects**: Top-level learning categories
+- **Lectures**: Individual lessons within subjects
+- **Briefs**: AI-generated summaries of lecture content
+- **Quizzes**: Assessments based on lecture material
+- **Flashcards**: Spaced repetition study aids
+
+## AI Integration Guidelines
+
+- Use loading states during AI content generation
+- Implement error handling for AI service failures
+- Provide fallback content when AI generation fails
+- Show progress indicators for long-running operations
+- Cache generated content to avoid regeneration

@@ -1,0 +1,39 @@
+---
+alwaysApply: true
+---
+
+# BriefWeb React Project Structure
+
+This is a React + Vite application with the following key architecture:
+
+## Core Structure
+
+- **Main Entry**: [src/main.jsx](mdc:src/main.jsx) - React app initialization with providers
+- **App Component**: [src/App.jsx](mdc:src/App.jsx) - Router setup and provider wrappers
+- **Config**: [vite.config.js](mdc:vite.config.js) - Vite configuration with @ alias for src/
+
+## Directory Organization
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Base UI components (Button, etc.)
+│   ├── layout/         # Layout components (Header, Footer, etc.)
+│   ├── subjects/       # Subject-specific components
+│   └── [feature]/      # Feature-specific components
+├── pages/              # Route components
+├── contexts/           # React contexts for global state
+├── hooks/              # Custom React hooks
+├── utils/              # Utility functions and configurations
+├── locales/            # i18n translation files
+└── assets/             # Static assets
+```
+
+## Key Conventions
+
+- Use `src/` prefix for all imports with @ alias configured
+- Components should be in PascalCase files with matching export names
+- Each feature should have its own directory under components/
+- Context files follow pattern: `[Name]Context.jsx` and `[Name]ContextValue.js`
+- Pages are organized by route structure in pages/ directory
+- Use functional components with hooks exclusively

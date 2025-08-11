@@ -1,0 +1,53 @@
+---
+globs: *.jsx,*.js
+---
+
+# React Component Development Guidelines
+
+## Component Structure
+
+Follow this order in component files:
+
+1. Imports (React, external libs, internal components, utils)
+2. Component definition with propTypes
+3. Subcomponents (if any)
+4. Helper functions
+5. Default export
+
+## React Patterns
+
+- **Functional Components Only**: Use function declarations, not arrow functions for main components
+- **Hooks**: Prefer useState, useEffect, useCallback, useMemo for state management
+- **Custom Hooks**: Extract reusable logic into custom hooks in `src/hooks/`
+- **PropTypes**: Always include PropTypes for type checking
+- **Context**: Use React Context pattern like [AuthContext.jsx](mdc:src/contexts/AuthContext.jsx)
+
+## Component Examples
+
+```jsx
+// Good: Function declaration with PropTypes
+function MyComponent({ title, onSubmit }) {
+  const [loading, setLoading] = useState(false);
+
+  return <div>{title}</div>;
+}
+
+MyComponent.propTypes = {
+  title: PropTypes.string.isRequired,
+  onSubmit: PropTypes.func,
+};
+```
+
+## State Management
+
+- **Local State**: useState for component-specific state
+- **Global State**: React Context for shared state (auth, theme, language)
+- **Server State**: Custom hooks for API calls (see [useBrief.js](mdc:src/hooks/useBrief.js))
+- **Form State**: Controlled components with useState
+
+## Performance
+
+- Use `useCallback` for event handlers passed to child components
+- Use `useMemo` for expensive calculations
+- Implement error boundaries for robust error handling
+- Use React.Suspense for code splitting and loading states

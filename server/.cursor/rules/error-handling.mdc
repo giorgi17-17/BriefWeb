@@ -1,0 +1,225 @@
+---
+globs: server/**/*.js
+description: Comprehensive error handling and system robustness patterns
+---
+
+# Error Handling & Robustness
+
+This system implements multi-layer error handling for maximum reliability. Follow these patterns based on [README.md](mdc:server/README.md) robustness strategies.
+
+## Core Principles
+
+### Never Fail Silently
+
+- Always provide meaningful fallback responses
+- Log errors comprehensively for debugging
+- Return structured data that matches expected formats
+- Guide users toward resolution
+
+### Graceful Degradation
+
+```javascript
+// Instead of throwing errors, provide fallbacks
+if (!result || !Array.isArray(result) || result.length === 0) {
+  return res.status(422).json({
+    error: "Could not generate content from document",
+    data: fallbackData, // Always provide usable fallback
+  });
+}
+```
+
+## AI Response Error Handling
+
+### JSON Parsing Robustness
+
+The system handles multiple JSON formatting issues:
+
+```javascript
+// Multi-stage JSON repair process
+function repairJsonResponse(text) {
+  // 1. Fix missing commas between properties
+  // 2. Handle unescaped quotes in text
+  // 3. Fix possessive apostrophes
+  // 4. Repair object arrays
+  // 5. Extract content from malformed responses
+}
+```
+
+### Common AI Response Issues
+
+- Missing commas between JSON properties
+- Unescaped quotes: `"John's "best practice" approach"`
+- Possessive apostrophes: `company's`
+- Non-JSON Question/Answer patterns
+- Incomplete or truncated responses
+
+### Fallback Content Extraction
+
+When JSON parsing fails completely:
+
+```javascript
+// Extract content using pattern matching
+const questionAnswerPattern =
+  /Question:\s*(.*?)\s*Answer:\s*(.*?)(?=Question:|$)/gs;
+// Transform to expected format even without valid JSON
+```
+
+## Service Layer Error Handling
+
+### File Processing Errors
+
+```javascript
+try {
+  const content = await extractTextFromFile(userId, lectureId, fileId);
+  if (!content) {
+    throw new Error("No readable content found in document");
+  }
+} catch (error) {
+  console.error("File processing error:", error);
+  // Return helpful guidance instead of failing
+  return {
+    error: "Document processing failed",
+    guidance: "Please check file format and try again",
+  };
+}
+```
+
+### External Service Integration
+
+```javascript
+// AI service calls with timeout and fallbacks
+try {
+  const result = await Promise.race([
+    aiService.processContent(content),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), 30000)
+    ),
+  ]);
+} catch (error) {
+  // Provide meaningful fallback instead of failure
+  return generateFallbackContent(content);
+}
+```
+
+## Database Error Handling
+
+### Supabase Integration
+
+```javascript
+try {
+  const { data, error } = await supabaseClient.from("table").insert(records);
+
+  if (error) {
+    console.error("Database error:", error);
+    // Handle specific error types
+    if (error.code === "23505") {
+      // Duplicate key error
+      return handleDuplicateRecord(records);
+    }
+    throw new Error(`Database operation failed: ${error.message}`);
+  }
+} catch (error) {
+  // Always log and provide context
+  console.error("Database operation error:", error);
+  throw new Error("Failed to save data to database");
+}
+```
+
+## Response Structure Standards
+
+### Error Response Format
+
+```javascript
+{
+  "error": "User-friendly error message",
+  "details": "Technical details for debugging",
+  "fallback_data": "Always provide usable content",
+  "guidance": "What user should try next"
+}
+```
+
+### Success Response Validation
+
+```javascript
+// Always validate response structure before sending
+function validateResponse(data, expectedStructure) {
+  if (!data || typeof data !== "object") {
+    return createFallbackResponse(expectedStructure);
+  }
+
+  // Ensure all required fields exist
+  for (const field of expectedStructure.required) {
+    if (!data[field]) {
+      data[field] = expectedStructure.defaults[field];
+    }
+  }
+
+  return data;
+}
+```
+
+## Logging Standards
+
+### Structured Logging
+
+```javascript
+// Consistent logging format
+console.log("Operation started:", {
+  operation: "processDocument",
+  userId,
+  lectureId,
+  fileId,
+  timestamp: new Date().toISOString(),
+});
+
+console.error("Operation failed:", {
+  operation: "processDocument",
+  error: error.message,
+  stack: error.stack,
+  userId,
+  timestamp: new Date().toISOString(),
+});
+```
+
+### Performance Monitoring
+
+```javascript
+// Token usage and cost monitoring
+function estimateTokenUsage(text, promptTemplate) {
+  const metrics = calculateTokens(text, promptTemplate);
+  console.log("Token estimation:", {
+    textTokens: metrics.textTokens,
+    totalTokens: metrics.totalTokens,
+    costEstimate: metrics.costEstimate,
+  });
+  return metrics;
+}
+```
+
+## Testing Error Scenarios
+
+### Provide Test Files
+
+Create test scripts that simulate:
+
+- Malformed AI responses (`test-flashcard.js`)
+- File processing failures (`test-file-service.js`)
+- Real API integration issues (`test-real-flashcard.js`)
+
+### Error Recovery Testing
+
+```javascript
+// Test fallback mechanisms
+const problematicResponses = [
+  "Invalid JSON response",
+  '{"incomplete": "object"',
+  "Question: What is X? Answer: Y is the answer",
+  null,
+  undefined,
+];
+
+for (const response of problematicResponses) {
+  const result = await processWithFallback(response);
+  assert(result.length > 0, "Should always return usable content");
+}
+```

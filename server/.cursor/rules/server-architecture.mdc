@@ -1,0 +1,78 @@
+---
+alwaysApply: true
+description: Server architecture and project structure guidelines for the Express.js document processing API
+---
+
+# Server Architecture & Structure
+
+This is a Node.js Express API server for document processing with AI integration. Follow these architectural patterns:
+
+## Project Structure
+
+The server follows a modular MVC-like architecture:
+
+- **[index.js](mdc:server/index.js)** - Main entry point with server configuration and mock payment pages
+- **routes/** - API route definitions and endpoint mapping
+- **controllers/** - Business logic handlers for different domains
+- **services/** - Core business services and external integrations
+- **config/** - Configuration files for external services (Supabase, OpenAI, Gemini)
+- **middleware/** - Custom middleware functions
+- **utils/** - Shared utility functions
+- **migrations/** - Database migration scripts
+
+## Key Technologies
+
+- **Runtime**: Node.js with ES6 modules (`"type": "module"` in package.json)
+- **Framework**: Express.js for REST API
+- **Database**: Supabase (PostgreSQL) with direct client usage
+- **AI Services**: OpenAI GPT and Google Gemini for document processing
+- **File Processing**: Multiple libraries for PDF (`pdf-parse`) and PPTX (`officeparser`) parsing
+- **Storage**: Supabase storage for file management
+
+## Import/Export Patterns
+
+Always use ES6 module syntax:
+
+```javascript
+// Named imports/exports
+import { createClient } from "@supabase/supabase-js";
+export const supabaseClient = createClient(url, key);
+
+// Default exports for main modules
+export default router;
+import apiRoutes from "./routes/api.js";
+```
+
+## Controller Architecture
+
+Controllers should:
+
+- Handle request/response logic
+- Validate input parameters
+- Call appropriate services
+- Return consistent response formats
+- Include comprehensive error handling with fallback responses
+
+## Service Layer
+
+Services encapsulate:
+
+- External API integrations (AI, Supabase)
+- Complex business logic
+- File processing operations
+- Database operations
+
+## Configuration Management
+
+- Use `.env` files for environment variables
+- Centralize service configurations in `config/` directory
+- Each external service gets its own config file
+- Always use `dotenv.config()` in config files
+
+## Port Management
+
+The server implements intelligent port fallback:
+
+- Tries base port (5000 or PORT env var)
+- Automatically increments if port is in use
+- Logs the actual port for client discovery

@@ -1,0 +1,157 @@
+---
+globs: server/routes/*.js,server/controllers/*.js
+description: API design patterns and conventions for consistent endpoint development
+---
+
+# API Patterns & Conventions
+
+Follow these patterns for consistent API development based on [routes/api.js](mdc:server/routes/api.js) and existing controllers.
+
+## Route Structure
+
+### Main API Router
+
+- Mount all routes under `/api` prefix
+- Group related functionality into sub-routers:
+  ```javascript
+  router.use("/payments", paymentRoutes);
+  router.use("/user-plans", userPlanRoutes);
+  ```
+
+### Endpoint Naming
+
+- Use kebab-case for endpoint paths: `/process-pdf`, `/detailed-brief`
+- Be descriptive but concise: `/test-document-content`
+- Use RESTful verbs where appropriate
+
+## Request/Response Patterns
+
+### Standard Request Structure
+
+All document processing endpoints expect:
+
+```javascript
+const { userId, lectureId, fileId } = req.body;
+```
+
+### Parameter Validation
+
+Always validate required parameters first:
+
+```javascript
+if (!userId || !lectureId || !fileId) {
+  return res.status(400).json({
+    error: "Missing required parameters: userId, lectureId, or fileId",
+  });
+}
+```
+
+### Response Formats
+
+#### Success Responses
+
+```javascript
+// For flashcards
+res.status(200).json({ flashcards });
+
+// For briefs
+res.status(200).json({ brief });
+
+// For detailed operations
+res.json({ success: true, data });
+```
+
+#### Error Responses
+
+Always provide fallback content instead of empty responses:
+
+```javascript
+// 422 for processing failures with fallback
+res.status(422).json({
+  error: "Could not generate content from document",
+  flashcards: [fallbackCard], // Always provide fallback
+});
+
+// 500 for system errors with fallback
+res.status(500).json({
+  error: "Failed to process document",
+  details: error.message,
+  data: fallbackData,
+});
+```
+
+## Controller Patterns
+
+### Function Structure
+
+```javascript
+export async function controllerFunction(
+  userId,
+  lectureId,
+  fileId,
+  options = {}
+) {
+  // 1. Validate parameters
+  // 2. Call services
+  // 3. Transform/validate results
+  // 4. Return standardized format
+}
+```
+
+### Error Propagation
+
+Controllers should:
+
+- Catch and log errors
+- Transform errors into user-friendly messages
+- Always return meaningful responses
+- Never leave users with empty states
+
+## Service Integration
+
+### Consistent Service Calls
+
+```javascript
+// Extract content first
+const extractedText = await extractTextFromFile(userId, lectureId, fileId);
+
+// Process with AI services
+const result = await aiService.processContent(extractedText, options);
+
+// Validate and transform results
+if (!result || !isValidResult(result)) {
+  return fallbackResponse;
+}
+```
+
+### Logging Patterns
+
+```javascript
+console.log("Processing document:", { userId, lectureId, fileId });
+console.log("Successfully extracted text, length:", extractedText.length);
+console.error("Error processing document:", error);
+```
+
+## Fallback Strategies
+
+Every endpoint must provide meaningful fallback responses:
+
+### Document Processing Fallbacks
+
+- If AI processing fails → provide generic educational content
+- If file parsing fails → return helpful error guidance
+- If no content extracted → suggest file format checks
+
+### Response Integrity
+
+Never return:
+
+- Empty arrays without explanation
+- Null responses
+- Generic "Internal Server Error" without context
+
+Always return:
+
+- Structured data matching expected format
+- Helpful error messages
+- Actionable guidance for users

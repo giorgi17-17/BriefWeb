@@ -1,0 +1,74 @@
+---
+alwaysApply: true
+---
+
+# Testing and Performance Guidelines
+
+## Performance Optimization
+
+### React Performance
+
+- **Minimize Re-renders**: Use `useCallback` and `useMemo` appropriately
+- **Code Splitting**: Use `React.lazy()` and `Suspense` for route-based splitting
+- **Bundle Analysis**: Run `npm run build` and analyze bundle size
+- **Memory Leaks**: Always cleanup timers, subscriptions, and refs
+
+### Vite Optimization
+
+- **Build Optimization**: [vite.config.js](mdc:vite.config.js) configured for optimal builds
+- **Tree Shaking**: Import only what you need from libraries
+- **Asset Optimization**: Use WebP images, optimize SVGs
+- **Caching**: Leverage Vite's built-in caching strategies
+
+### Authentication Performance
+
+- **Session Management**: Implement session timeout checks as in [AuthContext.jsx](mdc:src/contexts/AuthContext.jsx)
+- **Retry Logic**: Exponential backoff for failed auth requests
+- **Background Refresh**: Refresh auth on app visibility change
+
+## Code Quality
+
+### ESLint Configuration
+
+- **Config**: [eslint.config.js](mdc:eslint.config.js) - Modern flat config with React plugins
+- **Rules**: Enforces React hooks rules, refresh-only exports
+- **Run**: `npm run lint` to check code quality
+
+### Best Practices
+
+```jsx
+// Good: Proper cleanup and error handling
+useEffect(() => {
+  const timer = setTimeout(() => {}, 1000);
+
+  return () => clearTimeout(timer);
+}, []);
+
+// Good: Error boundaries for robust components
+function ErrorBoundary({ children }) {
+  // Error boundary implementation
+}
+```
+
+## Development Workflow
+
+### Scripts
+
+- `npm run dev` - Development server
+- `npm run build` - Production build
+- `npm run preview` - Preview production build
+- `npm run lint` - Code linting
+
+### Performance Monitoring
+
+- **PostHog Integration**: Analytics and performance tracking configured
+- **Web Vitals**: Monitor LCP, FID, CLS metrics
+- **Error Tracking**: Implement error boundaries and logging
+- **Bundle Analysis**: Regular bundle size monitoring
+
+### Testing Strategy
+
+- Unit tests for utility functions and hooks
+- Integration tests for complex component interactions
+- E2E tests for critical user flows (auth, main features)
+- Accessibility testing with screen readers and automated tools

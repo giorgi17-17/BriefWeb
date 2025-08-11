@@ -1,0 +1,60 @@
+---
+alwaysApply: true
+---
+
+# BriefWeb Development Workflow
+
+## Quick Start
+
+```bash
+npm run dev          # Start development server
+npm run build        # Production build
+npm run lint         # Check code quality
+npm run preview      # Preview production build
+```
+
+## Development Standards
+
+### Code Quality Checklist
+
+- [ ] Components use PropTypes for type checking
+- [ ] All imports use proper paths (@ alias for src/)
+- [ ] Error boundaries implemented for robust error handling
+- [ ] Loading states provided for async operations
+- [ ] Responsive design implemented with mobile-first approach
+- [ ] Accessibility attributes included (ARIA, semantic HTML)
+- [ ] i18n keys used for all user-facing text
+
+### Performance Checklist
+
+- [ ] useCallback used for event handlers passed to children
+- [ ] useMemo used for expensive calculations
+- [ ] Proper cleanup in useEffect hooks
+- [ ] Code splitting implemented for large components
+- [ ] Images optimized (WebP format, lazy loading)
+- [ ] Bundle size monitored after changes
+
+### Architecture Principles
+
+1. **Component Structure**: Follow single responsibility principle
+2. **State Management**: Use React Context for global state, local state for component-specific
+3. **Error Handling**: Implement consistent error patterns with user feedback
+4. **Security**: Validate all user inputs, sanitize data from APIs
+5. **Testing**: Write tests for critical user flows and complex logic
+
+## Key Project Features
+
+- **Authentication**: Supabase-based auth with Google OAuth
+- **Internationalization**: Georgian/English with i18next
+- **Educational Tools**: AI-powered briefs, quizzes, and flashcards
+- **File Processing**: PDF, DOCX, PPTX upload and processing
+- **Responsive Design**: Mobile-first with dark/light theme support
+- **Performance**: Optimized with Vite, code splitting, and caching
+
+## Common Patterns
+
+- Context providers for global state (Auth, Theme, Language, UserPlan)
+- Custom hooks for data fetching and business logic
+- Component composition over inheritance
+- Error boundaries for graceful failure handling
+- Loading states and skeleton screens for better UX

@@ -1,0 +1,51 @@
+---
+globs: *.jsx,*.js,*.css
+---
+
+# Styling and Design System Guidelines
+
+## Tailwind CSS Configuration
+
+- **Config**: [tailwind.config.js](mdc:tailwind.config.js) - Extended with custom colors, fonts, animations
+- **Base Styles**: [src/index.css](mdc:src/index.css) - Global styles and CSS variables
+- **Theme System**: Uses `theme-*` classes for dynamic theming (light/dark mode)
+
+## Design System Colors
+
+Based on [designTokens.js](mdc:src/utils/designTokens.js):
+
+- **Brand Colors**: `brand-black`, `brand-white`, `brand-gray-*`, `brand-purple-*`, `brand-blue-*`, `brand-green-*`
+- **UI Colors**: `ui-success`, `ui-error`, `ui-warning`, `ui-info`
+- **Theme Classes**: `theme-bg-primary`, `theme-text-primary` for dynamic theming
+
+## Component Styling Patterns
+
+```jsx
+// Use design system patterns from Button component
+const baseClasses =
+  "inline-flex items-center justify-center font-medium rounded-lg transition-colors";
+const variantClasses = {
+  primary: "bg-black text-white hover:bg-gray-800",
+  secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+};
+```
+
+## Responsive Design
+
+- **Mobile-First**: Start with mobile styles, use `sm:`, `md:`, `lg:`, `xl:` for larger screens
+- **Grid System**: Use CSS Grid and Flexbox with Tailwind utilities
+- **Touch Targets**: Ensure minimum 44px touch targets for mobile
+- **Typography**: Use responsive text sizing with `text-sm md:text-base lg:text-lg`
+
+## Theme System
+
+- **ThemeContext**: [ThemeContext.jsx](mdc:src/contexts/ThemeContext.jsx) manages light/dark themes
+- **Dynamic Classes**: Use `theme-bg-*` and `theme-text-*` classes that adapt to current theme
+- **Theme Toggle**: [ThemeToggle.jsx](mdc:src/components/ui/ThemeToggle.jsx) for theme switching
+
+## CSS Best Practices
+
+- Prefer Tailwind utilities over custom CSS
+- Use `clsx` for conditional classes
+- Keep custom CSS in index.css for global styles only
+- Use CSS variables for theme values that change dynamically

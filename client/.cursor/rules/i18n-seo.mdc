@@ -1,0 +1,64 @@
+---
+globs: **/locales/**/*.json,**/utils/i18n.js,**/utils/*Seo.js,**/components/SEO/*.jsx
+---
+
+# Internationalization and SEO Guidelines
+
+## i18n Configuration
+
+- **Setup**: [i18n.js](mdc:src/utils/i18n.js) - i18next configuration with language detection
+- **Translations**: [locales/](mdc:src/locales/) - JSON files for each language (en, ka)
+- **Context**: [LanguageContext.jsx](mdc:src/contexts/LanguageContext.jsx) - Language state management
+
+## Language Support
+
+- **Primary**: Georgian (ka) - fallback language
+- **Secondary**: English (en)
+- **Detection**: Browser language with localStorage persistence
+- **Switching**: [LanguageSwitcher.jsx](mdc:src/components/ui/LanguageSwitcher.jsx)
+
+## Translation Usage
+
+```jsx
+import { useTranslation } from "react-i18next";
+
+function MyComponent() {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <h1>{t("page.title")}</h1>
+      <p>{t("page.description", { name: "BriefWeb" })}</p>
+    </div>
+  );
+}
+```
+
+## SEO Implementation
+
+- **SEO Component**: [SEO.jsx](mdc:src/components/SEO/SEO.jsx) - Meta tags and structured data
+- **React Helmet**: Used for dynamic head management
+- **Guides**: Reference [SEO_README.md](mdc:SEO_README.md) and [MULTILINGUAL_SEO_GUIDE.md](mdc:MULTILINGUAL_SEO_GUIDE.md)
+
+## SEO Best Practices
+
+- Use semantic HTML elements (`<main>`, `<article>`, `<section>`)
+- Include meta descriptions, titles, and Open Graph tags
+- Implement proper heading hierarchy (h1 → h6)
+- Add structured data for rich snippets
+- Generate sitemaps with [generate-sitemap.cjs](mdc:scripts/generate-sitemap.cjs)
+
+## Multilingual SEO
+
+- Language-specific URLs when applicable
+- hreflang attributes for language targeting
+- Localized meta tags and structured data
+- Country-specific domain considerations for Georgian market
+
+## Content Guidelines
+
+- Keep translation keys descriptive and hierarchical
+- Use interpolation for dynamic content
+- Provide context in translation files
+- Consider cultural differences in messaging
+- Test all languages in production builds

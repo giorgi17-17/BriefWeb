@@ -1,0 +1,371 @@
+---
+globs: server/middleware/*.js,server/routes/*.js,server/controllers/*.js
+description: Security patterns, validation, and access control guidelines
+---
+
+# Security & Validation
+
+Security and access control patterns based on [middleware/planValidation.js](mdc:server/middleware/planValidation.js) and database security.
+
+## Authentication & Authorization
+
+### User Identity Management
+
+The system integrates with Supabase Auth and Bank of Georgia ID for user authentication:
+
+```javascript
+// User ID validation - ALWAYS required
+const userId = req.body.user_id || req.query.user_id;
+
+if (!userId) {
+  return res.status(401).json({
+    success: false,
+    message: "User ID is required for this operation",
+  });
+}
+```
+
+### BOG-ID Integration
+
+For Georgian users, Bank of Georgia identity verification:
+
+```javascript
+// OAuth 2.0 flow with BOG-ID
+export const handleBogIdCallback = async (code) => {
+  // Exchange authorization code for access token
+  const tokenResponse = await axios.post(bogTokenEndpoint, {
+    grant_type: "authorization_code",
+    code,
+    client_id: BOG_AUTH_CLIENT_ID,
+    client_secret: BOG_AUTH_CLIENT_SECRET,
+    redirect_uri: process.env.BOG_AUTH_REDIRECT_URI,
+  });
+
+  // Get user information
+  const userInfo = await axios.get(bogUserInfoEndpoint, {
+    headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
+  });
+
+  return { tokens: tokenResponse.data, userInfo: userInfo.data };
+};
+```
+
+## Input Validation
+
+### Parameter Validation
+
+Always validate required parameters first:
+
+```javascript
+// Document processing endpoints
+const { userId, lectureId, fileId } = req.body;
+
+if (!userId || !lectureId || !fileId) {
+  return res.status(400).json({
+    error: "Missing required parameters: userId, lectureId, or fileId",
+  });
+}
+```
+
+### File Upload Security
+
+```javascript
+// Validate file types
+const fileExt = fileId.split(".").pop().toLowerCase();
+const allowedExtensions = ["pdf", "pptx"];
+
+if (!allowedExtensions.includes(fileExt)) {
+  return res.status(400).json({
+    error: `Unsupported file type: ${fileExt}. Allowed: ${allowedExtensions.join(
+      ", "
+    )}`,
+  });
+}
+```
+
+### Database Query Validation
+
+```javascript
+// Validate database parameters before queries
+function validateDatabaseParams(params) {
+  const { userId, lectureId } = params;
+
+  // UUID format validation
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (userId && !uuidRegex.test(userId)) {
+    throw new Error("Invalid user ID format");
+  }
+
+  return true;
+}
+```
+
+## Access Control & Permissions
+
+### Plan-Based Restrictions
+
+```javascript
+// Subject creation limits
+export const validateSubjectCreation = async (req, res, next) => {
+  const userId = req.body.user_id || req.query.user_id;
+
+  // Get user's plan
+  const { data: planData } = await supabaseClient
+    .from("user_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  // Premium users bypass limits
+  if (!planData || planData.plan_type === "premium") {
+    return next();
+  }
+
+  // Check free plan limits
+  const { count } = await supabaseClient
+    .from("subjects")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if (count >= planData.subject_limit) {
+    return res.status(403).json({
+      success: false,
+      message: `Limit reached: ${planData.subject_limit} subjects on free plan`,
+      upgrade_required: true,
+      limit_reached: true,
+    });
+  }
+
+  next();
+};
+```
+
+### Resource Ownership Validation
+
+```javascript
+// Ensure users can only access their own resources
+async function validateResourceOwnership(userId, resourceId, resourceType) {
+  const { data, error } = await supabaseClient
+    .from(resourceType)
+    .select("user_id")
+    .eq("id", resourceId)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`${resourceType} not found`);
+  }
+
+  if (data.user_id !== userId) {
+    throw new Error("Access denied: You don't own this resource");
+  }
+
+  return true;
+}
+```
+
+## Database Security
+
+### Row Level Security (RLS)
+
+Database tables use RLS policies for data isolation:
+
+```sql
+-- Enable RLS on all user tables
+ALTER TABLE user_plans ENABLE ROW LEVEL SECURITY;
+
+-- Users can only view their own data
+CREATE POLICY "Users can view their own plan"
+    ON user_plans FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- Admin access for management
+CREATE POLICY "Admin can manage all plans"
+    ON user_plans FOR ALL
+    USING (auth.jwt() ? auth.jwt()->>'role' = 'admin' : false);
+```
+
+### Secure Database Operations
+
+```javascript
+// Always use parameterized queries through Supabase client
+const { data, error } = await supabaseClient
+  .from("table_name")
+  .select("*")
+  .eq("user_id", userId) // Automatic escaping
+  .eq("id", resourceId);
+
+// Never concatenate user input into queries
+// BAD: `SELECT * FROM table WHERE user_id = '${userId}'`
+// GOOD: Use Supabase client methods
+```
+
+## CORS & Network Security
+
+### CORS Configuration
+
+```javascript
+// Restrict CORS to known domains
+app.use(
+  cors({
+    origin: [
+      "https://www.briefly.ge",
+      "https://briefly.ge",
+      process.env.CLIENT_URL,
+      "http://localhost:5173", // Development only
+    ].filter(Boolean),
+    credentials: true,
+  })
+);
+```
+
+### Environment Variable Security
+
+```javascript
+// Always validate environment variables
+const requiredEnvVars = [
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`Required environment variable ${envVar} is not set`);
+  }
+}
+```
+
+## Error Handling Security
+
+### Secure Error Responses
+
+```javascript
+// Don't expose internal details in production
+function createSecureError(error, isDevelopment = false) {
+  if (isDevelopment) {
+    return {
+      error: error.message,
+      stack: error.stack,
+      details: error.details,
+    };
+  }
+
+  // Production: Generic messages only
+  return {
+    error: "An error occurred processing your request",
+    code: error.code || "INTERNAL_ERROR",
+  };
+}
+```
+
+### Rate Limiting Considerations
+
+```javascript
+// Implement basic rate limiting for expensive operations
+const processingLimits = new Map();
+
+function checkProcessingLimit(userId) {
+  const userRequests = processingLimits.get(userId) || [];
+  const oneMinuteAgo = Date.now() - 60000;
+
+  // Remove old requests
+  const recentRequests = userRequests.filter((time) => time > oneMinuteAgo);
+
+  if (recentRequests.length >= 5) {
+    // 5 requests per minute
+    throw new Error("Rate limit exceeded. Please wait before trying again.");
+  }
+
+  recentRequests.push(Date.now());
+  processingLimits.set(userId, recentRequests);
+}
+```
+
+## API Security Best Practices
+
+### Request Sanitization
+
+```javascript
+// Sanitize user input for AI processing
+function sanitizeTextInput(text) {
+  if (typeof text !== "string") {
+    throw new Error("Text input must be a string");
+  }
+
+  // Remove potentially harmful content
+  const sanitized = text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "") // Remove scripts
+    .replace(/javascript:/gi, "") // Remove javascript: URLs
+    .substring(0, 100000); // Limit length
+
+  return sanitized.trim();
+}
+```
+
+### Response Validation
+
+```javascript
+// Validate API responses before sending
+function validateApiResponse(response) {
+  // Remove any sensitive data that might have leaked
+  if (response.error && response.error.stack) {
+    delete response.error.stack; // Don't expose stack traces
+  }
+
+  // Ensure no API keys are in responses
+  const responseStr = JSON.stringify(response);
+  if (responseStr.includes("sk-") || responseStr.includes("API_KEY")) {
+    throw new Error("Potential API key exposure detected");
+  }
+
+  return response;
+}
+```
+
+## File Processing Security
+
+### File Type Validation
+
+```javascript
+// Validate file MIME types, not just extensions
+import { fileTypeFromBuffer } from "file-type";
+
+async function validateFileType(buffer, expectedExtension) {
+  const fileType = await fileTypeFromBuffer(buffer);
+
+  const allowedTypes = {
+    pdf: ["application/pdf"],
+    pptx: [
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ],
+  };
+
+  if (!fileType || !allowedTypes[expectedExtension]?.includes(fileType.mime)) {
+    throw new Error(
+      `Invalid file type. Expected ${expectedExtension}, got ${fileType?.mime}`
+    );
+  }
+
+  return true;
+}
+```
+
+### File Size Limits
+
+```javascript
+// Enforce file size limits
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function validateFileSize(buffer) {
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(
+      `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    );
+  }
+
+  return true;
+}
+```

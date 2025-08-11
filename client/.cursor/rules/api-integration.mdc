@@ -1,0 +1,65 @@
+---
+globs: **/utils/api.js,**/hooks/*.js,**/services/*.js
+---
+
+# API Integration and Data Management
+
+## API Configuration
+
+- **Base Client**: [api.js](mdc:src/utils/api.js) - Axios configuration with base URL and interceptors
+- **Supabase Client**: [supabaseClient.js](mdc:src/utils/supabaseClient.js) - Database and auth client
+- **Backend Proxy**: Vite dev server proxies `/api` requests to `http://localhost:5000`
+
+## Custom Hooks for Data Fetching
+
+Follow the pattern established in existing hooks:
+
+- [useBrief.js](mdc:src/hooks/useBrief.js) - Brief generation and management
+- [useQuiz.js](mdc:src/hooks/useQuiz.js) - Quiz functionality
+- [useLectureData.js](mdc:src/hooks/useLectureData.js) - Lecture data fetching
+
+## Hook Pattern
+
+```jsx
+function useApiData() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get("/endpoint");
+      setData(response.data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { data, loading, error, fetchData };
+}
+```
+
+## Error Handling
+
+- **Consistent Patterns**: Use try/catch blocks with state management
+- **User Feedback**: Display error messages in UI components
+- **Retry Logic**: Implement retry mechanisms for failed requests
+- **Offline Handling**: Consider offline states and network recovery
+
+## Data Synchronization
+
+- **Supabase Real-time**: Use subscriptions for real-time updates when needed
+- **Cache Management**: Implement proper cache invalidation strategies
+- **Optimistic Updates**: Update UI immediately, rollback on failure
+- **Background Sync**: Sync data when app becomes visible
+
+## File Upload Patterns
+
+- **File Service**: Handle file uploads through backend API
+- **Progress Tracking**: Show upload progress to users
+- **Error Recovery**: Handle upload failures gracefully
+- **File Validation**: Validate file types and sizes before upload

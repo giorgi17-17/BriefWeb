@@ -1,0 +1,309 @@
+---
+globs: server/services/fileService.js,server/services/pdfService.js,server/services/pptxService.js,server/utils/*.js
+description: File processing and document handling patterns for PDF and PPTX files
+---
+
+# File Processing & Document Handling
+
+Guidelines for processing PDF and PPTX files with Supabase storage integration, based on [services/fileService.js](mdc:server/services/fileService.js).
+
+## Supported File Formats
+
+### PDF Processing
+
+- **Library**: `pdf2json` via [utils/pdfParser.js](mdc:server/utils/pdfParser.js)
+- **Capabilities**: Full document and page-by-page extraction
+- **Features**: Handles encoded text, preserves page structure
+
+### PPTX Processing
+
+- **Library**: `officeparser` via [utils/pptxParser.js](mdc:server/utils/pptxParser.js)
+- **Capabilities**: Full document and slide-by-slide extraction
+- **Features**: Handles complex presentations with images, shapes, formatted text
+
+## File Storage Integration
+
+### Supabase Storage Structure
+
+```
+lecture-files/
+  ├── {userId}/
+      └── {lectureId}/
+          ├── document1.pdf
+          ├── presentation.pptx
+          └── ...
+```
+
+### File Access Pattern
+
+```javascript
+// 1. Verify file exists
+const { data: files, error: listError } = await supabaseClient.storage
+  .from("lecture-files")
+  .list(`${userId}/${lectureId}`);
+
+const fileExists = files.some((file) => file.name === fileId);
+
+// 2. Download file
+const { data: fileContent, error: fileDownloadError } =
+  await supabaseClient.storage
+    .from("lecture-files")
+    .download(`${userId}/${lectureId}/${fileId}`);
+
+// 3. Convert to buffer for processing
+const fileBuffer = Buffer.from(await fileContent.arrayBuffer());
+```
+
+## File Type Detection
+
+### Extension-Based Processing
+
+```javascript
+const fileExt = fileId.split(".").pop().toLowerCase();
+
+switch (fileExt) {
+  case "pdf":
+    return await parsePDF(fileBuffer);
+  case "pptx":
+    return await parsePPTX(fileBuffer);
+  default:
+    throw new Error(`Unsupported file type: ${fileExt}`);
+}
+```
+
+### Supported Extensions
+
+- `.pdf` - PDF documents
+- `.pptx` - PowerPoint presentations
+- **Future**: `.docx`, `.xlsx`, `.txt` (prepare for expansion)
+
+## Content Extraction Patterns
+
+### Full Document Extraction
+
+```javascript
+export async function extractTextFromFile(userId, lectureId, fileId) {
+  // Returns complete document text as single string
+  // Used for: summaries, briefs, flashcards
+}
+```
+
+### Page/Slide-Based Extraction
+
+```javascript
+export async function extractContentByPagesOrSlides(userId, lectureId, fileId) {
+  // Returns array of strings, one per page/slide
+  // Used for: detailed analysis, page-specific processing
+}
+```
+
+## Parser Implementation
+
+### PDF Parser Structure
+
+```javascript
+export function parsePDF(buffer) {
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParser();
+
+    pdfParser.on("pdfParser_dataError", (errData) => {
+      console.error("PDF Parsing Error:", errData);
+      reject(errData.parserError);
+    });
+
+    pdfParser.on("pdfParser_dataReady", (pdfData) => {
+      // Extract text from all pages
+      let extractedText = "";
+
+      pdfData.Pages?.forEach((page) => {
+        page.Texts?.forEach((text) => {
+          try {
+            const decodedText = decodeURIComponent(text.R[0].T);
+            extractedText += decodedText + " ";
+          } catch (decodeError) {
+            console.warn("Decoding error:", decodeError);
+          }
+        });
+      });
+
+      resolve(extractedText.trim());
+    });
+
+    pdfParser.parseBuffer(buffer);
+  });
+}
+```
+
+### PPTX Parser Structure
+
+```javascript
+export function parsePPTX(buffer) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const extractedText = await officeParser.parseOfficeAsync(buffer);
+
+      // Format with slide separators
+      const formattedText = extractedText
+        .split("\n")
+        .map((line, index) => {
+          // Detect slide boundaries
+          if (
+            line.trim() &&
+            index > 0 &&
+            !extractedText.split("\n")[index - 1].trim()
+          ) {
+            return `\n\n--- New Slide ---\n${line}`;
+          }
+          return line;
+        })
+        .join("\n");
+
+      resolve(formattedText.trim());
+    } catch (error) {
+      console.error("Error parsing PPTX:", error);
+      reject(error);
+    }
+  });
+}
+```
+
+## Error Handling for File Processing
+
+### Storage Errors
+
+```javascript
+try {
+  const { data: files, error: listError } = await supabaseClient.storage
+    .from("lecture-files")
+    .list(`${userId}/${lectureId}`);
+
+  if (listError) {
+    console.error("Error listing files:", listError);
+    throw new Error(`Storage access failed: ${listError.message}`);
+  }
+} catch (error) {
+  throw new Error(`Failed to access file storage: ${error.message}`);
+}
+```
+
+### File Not Found
+
+```javascript
+const fileExists = files.some((file) => file.name === fileId);
+if (!fileExists) {
+  throw new Error(
+    `File ${fileId} not found in directory ${userId}/${lectureId}`
+  );
+}
+```
+
+### Parsing Errors
+
+```javascript
+// PDF parsing errors
+pdfParser.on("pdfParser_dataError", (errData) => {
+  console.error("PDF Parsing Error:", errData);
+  // Provide meaningful error context
+  reject(
+    new Error(
+      `PDF parsing failed: ${errData.parserError?.message || "Unknown error"}`
+    )
+  );
+});
+
+// PPTX parsing errors
+try {
+  const extractedText = await officeParser.parseOfficeAsync(buffer);
+} catch (error) {
+  console.error("Error parsing PPTX:", error);
+  throw new Error(`PPTX parsing failed: ${error.message}`);
+}
+```
+
+## Content Quality Assurance
+
+### Text Validation
+
+```javascript
+function validateExtractedText(text) {
+  if (!text || typeof text !== "string") {
+    throw new Error("No text extracted from document");
+  }
+
+  if (text.trim().length < 10) {
+    throw new Error("Insufficient text content extracted");
+  }
+
+  return text.trim();
+}
+```
+
+### Page/Slide Validation
+
+```javascript
+function validatePageContent(pages) {
+  if (!Array.isArray(pages) || pages.length === 0) {
+    throw new Error("No pages/slides extracted from document");
+  }
+
+  const validPages = pages.filter(
+    (page) => page && typeof page === "string" && page.trim().length > 0
+  );
+
+  if (validPages.length === 0) {
+    throw new Error("No valid content found in any page/slide");
+  }
+
+  return validPages;
+}
+```
+
+## Performance Considerations
+
+### Buffer Management
+
+```javascript
+// Convert ArrayBuffer to Node.js Buffer efficiently
+const fileBuffer = Buffer.from(await fileContent.arrayBuffer());
+
+// For large files, consider streaming
+if (fileBuffer.length > 10 * 1024 * 1024) {
+  // 10MB
+  console.warn(`Large file detected: ${fileBuffer.length} bytes`);
+  // Implement streaming or chunked processing
+}
+```
+
+### Memory Optimization
+
+```javascript
+// Process pages individually for large documents
+async function processLargeDocument(pages) {
+  const results = [];
+
+  for (const page of pages) {
+    const result = await processPage(page);
+    results.push(result);
+
+    // Allow garbage collection between pages
+    if (global.gc) global.gc();
+  }
+
+  return results;
+}
+```
+
+## Testing File Processing
+
+### Test File Requirements
+
+- Sample PDF files with various formats
+- PowerPoint files with complex layouts
+- Edge cases: empty files, corrupted files, password-protected
+
+### Test Scripts
+
+```javascript
+// test-file-service.js - Test file type detection and processing
+// test-pptx.js - Test PPTX parsing functionality
+```

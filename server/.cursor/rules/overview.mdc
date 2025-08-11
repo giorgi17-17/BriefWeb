@@ -1,0 +1,86 @@
+---
+alwaysApply: true
+description: Overview of the BriefWeb server architecture and key development guidelines
+---
+
+# BriefWeb Server Overview
+
+This is the backend API server for BriefWeb, an educational document processing platform that converts PDFs and PowerPoint presentations into study materials using AI.
+
+## 🎯 Core Functionality
+
+- **Document Processing**: Extract text from PDF and PPTX files
+- **AI Integration**: Generate flashcards, summaries, and quizzes using OpenAI/Gemini
+- **User Management**: Handle authentication, subscriptions, and plan limitations
+- **Payment Processing**: Integrate with Bank of Georgia payment gateway
+- **File Storage**: Manage documents via Supabase storage
+
+## 📁 Key Components
+
+### Entry Point
+
+- **[index.js](mdc:server/index.js)** - Express server with CORS, mock payment pages, and port fallback
+
+### Core Services
+
+- **[services/aiService.js](mdc:server/services/aiService.js)** - AI processing with token optimization
+- **[services/fileService.js](mdc:server/services/fileService.js)** - Document extraction from Supabase
+- **[services/paymentService.js](mdc:server/services/paymentService.js)** - BOG payment gateway integration
+
+### API Layer
+
+- **[routes/api.js](mdc:server/routes/api.js)** - Main API endpoints with comprehensive error handling
+- **[controllers/](mdc:server/controllers/)** - Business logic for documents, payments, files
+
+### Configuration
+
+- **[config/](mdc:server/config/)** - External service configurations (Supabase, OpenAI, Gemini)
+
+## 🛡️ Security Features
+
+- Row Level Security (RLS) on all database tables
+- Plan-based access control and resource limits
+- Bank of Georgia OAuth integration
+- File type and size validation
+- Comprehensive input sanitization
+
+## 🚨 Error Handling Philosophy
+
+**Never fail silently** - Every endpoint provides meaningful fallback responses:
+
+- Malformed AI responses → Content extraction with patterns
+- File processing failures → Helpful guidance messages
+- Service unavailable → Fallback educational content
+
+## 🔧 Development Guidelines
+
+1. **Always validate input parameters** before processing
+2. **Provide fallback responses** for all error conditions
+3. **Use ES6 modules** (`import`/`export`) throughout
+4. **Log comprehensively** with structured data
+5. **Handle AI response parsing robustly** with multi-stage repair
+
+## 📊 AI Processing Strategy
+
+- **Primary**: Google Gemini (cost-effective)
+- **Fallback**: OpenAI GPT (reliability)
+- **Optimization**: Token usage monitoring and batch processing
+- **Multi-language**: Support for English and Georgian text
+
+## 🔗 Related Rules
+
+- [Server Architecture](mdc:server/.cursor/rules/server-architecture.mdc) - Project structure and patterns
+- [API Patterns](mdc:server/.cursor/rules/api-patterns.mdc) - Endpoint design conventions
+- [Error Handling](mdc:server/.cursor/rules/error-handling.mdc) - Robustness strategies
+- [AI Integration](mdc:server/.cursor/rules/ai-integration.mdc) - AI service patterns
+- [File Processing](mdc:server/.cursor/rules/file-processing.mdc) - Document handling
+- [Security & Validation](mdc:server/.cursor/rules/security-validation.mdc) - Access control
+
+## 🎓 Educational Focus
+
+This system prioritizes **educational value** over technical perfection:
+
+- Always provide learning content, even during failures
+- Transform errors into learning opportunities
+- Maintain user engagement through meaningful fallbacks
+- Ensure students never encounter empty states
