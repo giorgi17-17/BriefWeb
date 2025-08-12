@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { supabase } from "../../utils/supabaseClient";
@@ -9,6 +9,10 @@ import { getLocalizedSeoField } from "../../utils/seoTranslations";
 import { getCanonicalUrl } from "../../utils/languageSeo";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { usePostHog } from "posthog-js/react";
+import {
+  generateLectureTitle,
+  formatLectureDisplayTitle,
+} from "../../utils/lectureUtils";
 
 // Helper to check if a string is a valid UUID
 const isUuid = (str) => {
@@ -40,78 +44,81 @@ const LecturesPage = () => {
   const posthog = usePostHog();
 
   // Extract the subject ID resolution logic to a reusable function
-  const resolveSubjectId = async (idOrSlug) => {
-    if (!idOrSlug) {
-      setError(t("lectures.notFound"));
-      setIsLoading(false);
-      return;
-    }
+  const resolveSubjectId = useCallback(
+    async (idOrSlug) => {
+      if (!idOrSlug) {
+        setError(t("lectures.notFound"));
+        setIsLoading(false);
+        return;
+      }
 
-    // If it's already a UUID, use it directly
-    if (isUuid(idOrSlug)) {
-      console.log("Subject ID is a valid UUID:", idOrSlug);
-      setSubjectId(idOrSlug);
-      return;
-    }
+      // If it's already a UUID, use it directly
+      if (isUuid(idOrSlug)) {
+        console.log("Subject ID is a valid UUID:", idOrSlug);
+        setSubjectId(idOrSlug);
+        return;
+      }
 
-    // If not a UUID, try to find the subject by title
-    console.log("Subject ID is not a UUID, searching by title:", idOrSlug);
-    try {
-      // Convert URL slug back to title format (replace dashes with spaces)
-      const searchTitle = idOrSlug.replace(/-/g, " ");
-      console.log("Converted slug to search title:", searchTitle);
+      // If not a UUID, try to find the subject by title
+      console.log("Subject ID is not a UUID, searching by title:", idOrSlug);
+      try {
+        // Convert URL slug back to title format (replace dashes with spaces)
+        const searchTitle = idOrSlug.replace(/-/g, " ");
+        console.log("Converted slug to search title:", searchTitle);
 
-      // Search by exact title match first, then partial match as fallback
-      let titleData, titleError;
+        // Search by exact title match first, then partial match as fallback
+        let titleData, titleError;
 
-      // Try exact match first
-      const exactMatch = await supabase
-        .from("subjects")
-        .select("id")
-        .eq("title", searchTitle)
-        .limit(1);
-
-      if (exactMatch.data && exactMatch.data.length > 0) {
-        titleData = exactMatch.data;
-        titleError = exactMatch.error;
-      } else {
-        // Fallback to partial match
-        const partialMatch = await supabase
+        // Try exact match first
+        const exactMatch = await supabase
           .from("subjects")
           .select("id")
-          .ilike("title", `%${searchTitle}%`)
+          .eq("title", searchTitle)
           .limit(1);
-        titleData = partialMatch.data;
-        titleError = partialMatch.error;
-      }
 
-      if (titleError) {
-        console.error("Error finding subject by title:", titleError);
+        if (exactMatch.data && exactMatch.data.length > 0) {
+          titleData = exactMatch.data;
+          titleError = exactMatch.error;
+        } else {
+          // Fallback to partial match
+          const partialMatch = await supabase
+            .from("subjects")
+            .select("id")
+            .ilike("title", `%${searchTitle}%`)
+            .limit(1);
+          titleData = partialMatch.data;
+          titleError = partialMatch.error;
+        }
+
+        if (titleError) {
+          console.error("Error finding subject by title:", titleError);
+          setError(t("lectures.notFound"));
+          setIsLoading(false);
+          return;
+        }
+
+        if (!titleData || titleData.length === 0) {
+          console.error("No subject found for name:", idOrSlug);
+          setError(t("lectures.notFound"));
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Found subject by title:", titleData[0].id);
+        setSubjectId(titleData[0].id);
+      } catch (err) {
+        console.error("Unexpected error resolving subject ID:", err);
         setError(t("lectures.notFound"));
         setIsLoading(false);
-        return;
       }
-
-      if (!titleData || titleData.length === 0) {
-        console.error("No subject found for name:", idOrSlug);
-        setError(t("lectures.notFound"));
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("Found subject by title:", titleData[0].id);
-      setSubjectId(titleData[0].id);
-    } catch (err) {
-      console.error("Unexpected error resolving subject ID:", err);
-      setError(t("lectures.notFound"));
-      setIsLoading(false);
-    }
-  };
+    },
+    [t]
+  );
 
   // First check if the URL parameter is a valid UUID or find the subject by name/slug
   useEffect(() => {
     resolveSubjectId(subjectIdFromUrlOrState);
-  }, [subjectIdFromUrlOrState]);
+  }, [subjectIdFromUrlOrState, resolveSubjectId]);
 
   // Now fetch lectures once we have a valid subject ID
   useEffect(() => {
@@ -214,10 +221,10 @@ const LecturesPage = () => {
         return;
       }
 
-      // Use the current lectures length + 1 for the lecture title.
+      // Generate lecture title in English for consistent database storage
       const newLecture = {
         subject_id: subjectId,
-        title: `${t("lectures.lectureDetails.lecture")} ${lectures.length + 1}`,
+        title: generateLectureTitle(lectures.length + 1),
         date: new Date().toISOString(),
       };
 
@@ -278,7 +285,7 @@ const LecturesPage = () => {
         <div className="relative p-6">
           <div className="flex flex-col h-full">
             <h3 className="font-semibold text-lg theme-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {lecture.title}
+              {formatLectureDisplayTitle(lecture.title, currentLang, t)}
             </h3>
             <p className="text-sm theme-text-tertiary mb-4">
               {new Date(lecture.date).toLocaleDateString(

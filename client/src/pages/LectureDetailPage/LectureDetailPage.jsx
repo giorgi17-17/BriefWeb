@@ -6,6 +6,7 @@ import Brief from "../../components/subjects/Brief";
 import QuizLayout from "../../components/subjects/QuizLayout";
 import SEO from "../../components/SEO/SEO";
 import { useTranslation } from "react-i18next";
+import { formatLectureDisplayTitle } from "../../utils/lectureUtils";
 
 // Import our new components and hooks
 import LectureHeader from "./LectureHeader";
@@ -22,7 +23,8 @@ import {
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
   const [activeTab, setActiveTab] = useState(
     t("lectures.lectureDetails.tabs.flashcards")
   );
@@ -122,13 +124,15 @@ const LectureDetailPage = () => {
   return (
     <div className="min-h-screen py-4 theme-bg-primary">
       <SEO
-        title={`${lectureTitle}${subjectTitle ? ` - ${subjectTitle}` : ""}`}
+        title={`${formatLectureDisplayTitle(lectureTitle, currentLang, t)}${
+          subjectTitle ? ` - ${subjectTitle}` : ""
+        }`}
         description={`${t("lectures.lectureDetails.seoDescription", {
-          lectureTitle,
+          lectureTitle: formatLectureDisplayTitle(lectureTitle, currentLang, t),
           subjectTitle: subjectTitle || "",
         })}`}
         keywords={[
-          lectureTitle,
+          formatLectureDisplayTitle(lectureTitle, currentLang, t),
           subjectTitle,
           t("lectures.lectureDetails.lecture"),
           t("lectures.lectureDetails.studyMaterials"),
@@ -138,10 +142,17 @@ const LectureDetailPage = () => {
         structuredData={{
           "@context": "https://schema.org",
           "@type": "LearningResource",
-          name: lectureTitle,
+          name: formatLectureDisplayTitle(lectureTitle, currentLang, t),
           description: `${t(
             "lectures.lectureDetails.structuredDataDescription",
-            { lectureTitle, subjectTitle: subjectTitle || "" }
+            {
+              lectureTitle: formatLectureDisplayTitle(
+                lectureTitle,
+                currentLang,
+                t
+              ),
+              subjectTitle: subjectTitle || "",
+            }
           )}`,
           educationalLevel: "College",
           learningResourceType: t("lectures.lectureDetails.lecture"),
@@ -160,7 +171,7 @@ const LectureDetailPage = () => {
       <div className="max-w-5xl mx-auto px-0 sm:px-4">
         {/* Header */}
         <LectureHeader
-          lectureTitle={lectureTitle}
+          lectureTitle={formatLectureDisplayTitle(lectureTitle, currentLang, t)}
           subjectTitle={subjectTitle}
           onBackClick={handleBackClick}
         />

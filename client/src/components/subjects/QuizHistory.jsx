@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
+import { formatLectureDisplayTitle } from "../../utils/lectureUtils";
 import {
   ArrowLeftIcon,
   Calendar,
@@ -16,6 +17,7 @@ export default function QuizHistory({
   onClose,
 }) {
   const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
 
   // Format date for display
   const formatDate = (date) => {
@@ -100,7 +102,11 @@ export default function QuizHistory({
                     </div>
                     {submission.lectureTitle && (
                       <div className="flex items-center mt-1 sm:mt-0 sm:ml-3 text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-                        {submission.lectureTitle}
+                        {formatLectureDisplayTitle(
+                          submission.lectureTitle,
+                          currentLang,
+                          t
+                        )}
                       </div>
                     )}
                   </div>
