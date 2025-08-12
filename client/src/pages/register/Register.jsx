@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
+import { useTranslation } from "react-i18next";
 
 const Register = () => {
   const [error, setError] = useState(null);
@@ -18,6 +19,7 @@ const Register = () => {
   const location = useLocation();
   const { signUp, signInWithGoogle, user } = useAuth();
   const posthog = usePostHog();
+  const { t } = useTranslation();
 
   // Check for redirect status in URL
   useEffect(() => {
@@ -33,13 +35,13 @@ const Register = () => {
 
     // Validate password match
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("auth.errors.passwordsDoNotMatch"));
       return;
     }
 
     // Basic password strength check
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      setError(t("auth.errors.passwordTooShort"));
       return;
     }
 
@@ -97,9 +99,11 @@ const Register = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b0b0b] text-gray-900 dark:text-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            {t("auth.register.redirecting.title")}
+          </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            You are being redirected to Google for authentication.
+            {t("auth.register.redirecting.description")}
           </p>
         </div>
       </div>
@@ -116,10 +120,10 @@ const Register = () => {
     <div className="w-full max-w-sm mx-auto px-4 sm:px-0">
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-white">
-          Create your account
+          {t("auth.register.title")}
         </h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Start using the website in seconds.
+          {t("auth.register.subtitle")}
         </p>
       </div>
 
@@ -165,14 +169,14 @@ const Register = () => {
               />
             </g>
           </svg>
-          Sign up with Google
+          {t("auth.register.googleButton")}
         </button>
       </div>
 
       <div className="my-6 flex items-center gap-4">
         <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
         <span className="text-xs uppercase tracking-wide text-gray-500">
-          or
+          {t("auth.register.orDivider")}
         </span>
         <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
       </div>
@@ -183,7 +187,7 @@ const Register = () => {
             htmlFor="email"
             className="mb-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Email
+            {t("auth.register.email")}
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -196,7 +200,7 @@ const Register = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email address"
+              placeholder={t("auth.register.emailPlaceholder")}
               className="block w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f0f0f] py-2 pl-10 pr-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none ring-0 focus:border-gray-400 dark:focus:border-white/20 focus:ring-2 focus:ring-gray-200 dark:focus:ring-white/10"
             />
           </div>
@@ -207,7 +211,7 @@ const Register = () => {
             htmlFor="password"
             className="mb-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Password
+            {t("auth.register.password")}
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -220,7 +224,7 @@ const Register = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a strong password (min 8 chars)"
+              placeholder={t("auth.register.passwordPlaceholder")}
               className="block w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f0f0f] py-2 pl-10 pr-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none focus:border-gray-400 dark:focus:border-white/20 focus:ring-2 focus:ring-gray-200 dark:focus:ring-white/10"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -244,7 +248,7 @@ const Register = () => {
             htmlFor="confirm-password"
             className="mb-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Confirm password
+            {t("auth.register.confirmPassword")}
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -257,7 +261,7 @@ const Register = () => {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password"
+              placeholder={t("auth.register.confirmPasswordPlaceholder")}
               className="block w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f0f0f] py-2 pl-10 pr-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none focus:border-gray-400 dark:focus:border-white/20 focus:ring-2 focus:ring-gray-200 dark:focus:ring-white/10"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -285,17 +289,19 @@ const Register = () => {
               : "bg-blue-600 hover:bg-blue-500 text-white"
           } w-full rounded-md px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400/30`}
         >
-          {isLoading ? "Creating account..." : "Sign up"}
+          {isLoading
+            ? t("auth.register.creatingAccount")
+            : t("auth.register.signUpButton")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-        Already have an account?{" "}
+        {t("auth.register.haveAccount")}{" "}
         <Link
           to="/login"
           className="font-medium text-blue-600 hover:underline dark:text-gray-200"
         >
-          Log in
+          {t("auth.register.loginLink")}
         </Link>
       </p>
     </div>

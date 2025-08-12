@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../utils/authHooks";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
+import { useTranslation } from "react-i18next";
 
 const Login = () => {
   const [error, setError] = useState(null);
@@ -16,6 +17,7 @@ const Login = () => {
   const location = useLocation();
   const { signInWithEmail, signInWithGoogle } = useAuth();
   const posthog = usePostHog();
+  const { t } = useTranslation();
 
   // Check for redirect status in URL
   useEffect(() => {
@@ -82,9 +84,11 @@ const Login = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b0b0b] text-gray-900 dark:text-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            {t("auth.login.redirecting.title")}
+          </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            You are being redirected to Google for authentication.
+            {t("auth.login.redirecting.description")}
           </p>
         </div>
       </div>
@@ -97,10 +101,10 @@ const Login = () => {
     <div className="w-full max-w-sm mx-auto px-4 sm:px-0">
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-white">
-          Welcome!
+          {t("auth.login.title")}
         </h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Log in to continue.
+          {t("auth.login.subtitle")}
         </p>
       </div>
 
@@ -146,14 +150,14 @@ const Login = () => {
               />
             </g>
           </svg>
-          Log in with Google
+          {t("auth.login.googleButton")}
         </button>
       </div>
 
       <div className="my-6 flex items-center gap-4">
         <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
         <span className="text-xs uppercase tracking-wide text-gray-500">
-          or
+          {t("auth.login.orDivider")}
         </span>
         <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
       </div>
@@ -164,7 +168,7 @@ const Login = () => {
             htmlFor="email"
             className="mb-2 block text-sm text-gray-700 dark:text-gray-300"
           >
-            Email
+            {t("auth.login.email")}
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -177,7 +181,7 @@ const Login = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email address"
+              placeholder={t("auth.login.emailPlaceholder")}
               className="block w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f0f0f] py-2 pl-10 pr-3 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none ring-0 focus:border-gray-400 dark:focus:border-white/20 focus:ring-2 focus:ring-gray-200 dark:focus:ring-white/10"
             />
           </div>
@@ -189,13 +193,13 @@ const Login = () => {
               htmlFor="password"
               className="block text-sm text-gray-700 dark:text-gray-300"
             >
-              Password
+              {t("auth.login.password")}
             </label>
             <a
               href="#"
               className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
             >
-              Forgot password?
+              {t("auth.login.forgotPassword")}
             </a>
           </div>
           <div className="relative">
@@ -209,7 +213,7 @@ const Login = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Your password"
+              placeholder={t("auth.login.passwordPlaceholder")}
               className="block w-full rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f0f0f] py-2 pl-10 pr-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 outline-none focus:border-gray-400 dark:focus:border-white/20 focus:ring-2 focus:ring-gray-200 dark:focus:ring-white/10"
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -237,17 +241,17 @@ const Login = () => {
               : "bg-blue-600 hover:bg-blue-500 text-white"
           } w-full rounded-md px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400/30`}
         >
-          {isLoading ? "Signing in..." : "Log in"}
+          {isLoading ? t("auth.login.signingIn") : t("auth.login.signInButton")}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-        Don’t have an account?{" "}
+        {t("auth.login.noAccount")}{" "}
         <Link
           to="/register"
           className="font-medium text-blue-600 hover:underline dark:text-gray-200"
         >
-          Sign up
+          {t("auth.login.signUpLink")}
         </Link>
       </p>
     </div>
