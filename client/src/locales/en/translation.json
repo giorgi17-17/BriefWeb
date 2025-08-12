@@ -118,18 +118,21 @@
     "howItWorks": {
       "title": "How It Works",
       "subtitle": "Three simple steps to transform your study materials into AI-powered learning tools.",
-      "upload": {
-        "title": "Upload Your Notes",
-        "description": "Simply upload your lecture notes or study materials. Works with PDFs, Word docs, text files and more."
+      "steps": {
+        "upload": {
+          "title": "Upload Your Notes",
+          "description": "Simply upload your lecture notes or study materials. Works with PDFs, Word docs, text files and more."
+        },
+        "analyze": {
+          "title": "AI Processing",
+          "description": "Our advanced AI analyzes your content and automatically generates comprehensive flashcards and study briefs for personalized learning."
+        },
+        "study": {
+          "title": "Smart Studying",
+          "description": "Review and learn with your personalized study materials. Track your progress and master subjects efficiently with our educational AI."
+        }
       },
-      "process": {
-        "title": "AI Processing",
-        "description": "Our advanced AI analyzes your content and automatically generates comprehensive flashcards and study briefs for personalized learning."
-      },
-      "learn": {
-        "title": "Smart Studying",
-        "description": "Review and learn with your personalized study materials. Track your progress and master subjects efficiently with our educational AI."
-      }
+      "conclusion": "Start using Briefly today and experience a more efficient way to study."
     },
     "whyUs": {
       "tagline": "THE BRIEFly ADVANTAGE",
@@ -151,35 +154,37 @@
     },
     "pricing": {
       "title": "Pricing",
-      "subtitle": "",
+      "subtitle": "Choose the perfect plan for your study needs with no hidden fees",
       "period": "/month",
+      "popularBadge": "Popular",
+      "guarantee": "30-day money-back guarantee for all paid plans",
       "free": {
         "title": "Free",
         "subtitle": "Great place to get started",
         "price": "$0",
         "period": "/forever",
-        "features": [
-          "Up to 3 subjects",
-          "5 lectures per subject",
-          "Generate up to 20 flashcards",
-          "Basic note summarization",
-          "PDF file support up to 5MB"
-        ],
+        "features": {
+          "feature1": "Up to 3 subjects",
+          "feature2": "5 lectures per subject",
+          "feature3": "Generate up to 20 flashcards",
+          "feature4": "Basic note summarization",
+          "feature5": "PDF file support up to 5MB"
+        },
         "cta": "Get Started For Free"
       },
       "pro": {
         "title": "Pro",
         "popular": "Popular",
         "subtitle": "Everything you need to ace your classes",
-        "price": "$2",
+        "price": "$5",
         "period": "/month",
-        "features": [
-          "Unlimited subjects",
-          "Unlimited lectures",
-          "Generate unlimited flashcards",
-          "Advanced AI-powered summaries",
-          "PDF file support up to 50MB"
-        ],
+        "features": {
+          "feature1": "Unlimited subjects",
+          "feature2": "Unlimited lectures",
+          "feature3": "Generate unlimited flashcards",
+          "feature4": "Advanced AI-powered summaries",
+          "feature5": "PDF file support up to 50MB"
+        },
         "cta": "Try Premium"
       }
     },

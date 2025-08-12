@@ -5,50 +5,26 @@ import { Lightbulb, Upload, PenLine } from "lucide-react";
 const HowitWorks = () => {
   const { t } = useTranslation();
 
-  const getTranslatedText = (key, defaultText) => {
-    const translated = t(key);
-    // Check if the translation failed and returned the key itself
-    return translated === key ? defaultText : translated;
-  };
-
   // Step data with icons
   const steps = [
     {
       id: 1,
-      title: getTranslatedText(
-        "landing.howItWorks.steps.upload.title",
-        "Upload Your Notes"
-      ),
-      description: getTranslatedText(
-        "landing.howItWorks.steps.upload.description",
-        "Simply upload your lecture notes, slides, or any study material to get started."
-      ),
+      title: t("landing.howItWorks.steps.upload.title"),
+      description: t("landing.howItWorks.steps.upload.description"),
       icon: Upload,
       schemaType: "UploadAction",
     },
     {
       id: 2,
-      title: getTranslatedText(
-        "landing.howItWorks.steps.analyze.title",
-        "AI Processing"
-      ),
-      description: getTranslatedText(
-        "landing.howItWorks.steps.analyze.description",
-        "Our AI analyzes your content and extracts key concepts and important details."
-      ),
+      title: t("landing.howItWorks.steps.analyze.title"),
+      description: t("landing.howItWorks.steps.analyze.description"),
       icon: Lightbulb,
       schemaType: "AnalyzeAction",
     },
     {
       id: 3,
-      title: getTranslatedText(
-        "landing.howItWorks.steps.study.title",
-        "Study Smarter"
-      ),
-      description: getTranslatedText(
-        "landing.howItWorks.steps.study.description",
-        "Use the generated flashcards and summaries to review and master the material."
-      ),
+      title: t("landing.howItWorks.steps.study.title"),
+      description: t("landing.howItWorks.steps.study.description"),
       icon: PenLine,
       schemaType: "LearnAction",
     },
@@ -69,16 +45,13 @@ const HowitWorks = () => {
             )}`}
             itemProp="name"
           >
-            {getTranslatedText("landing.howItWorks.title", "How It Works")}
+            {t("landing.howItWorks.title")}
           </h2>
           <p
             className={`text-base md:text-lg ${text("tertiary")}`}
             itemProp="description"
           >
-            {getTranslatedText(
-              "landing.howItWorks.subtitle",
-              "Three simple steps to transform your study materials into effective learning tools."
-            )}
+            {t("landing.howItWorks.subtitle")}
           </p>
         </header>
 
@@ -117,10 +90,7 @@ const HowitWorks = () => {
 
         <div className="mt-10 md:mt-16 text-center">
           <p className={`text-base md:text-lg mb-4 ${text("secondary")}`}>
-            {getTranslatedText(
-              "landing.howItWorks.conclusion",
-              "Start using Brief today and experience a more efficient way to study."
-            )}
+            {t("landing.howItWorks.conclusion")}
           </p>
         </div>
       </div>

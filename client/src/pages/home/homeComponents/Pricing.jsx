@@ -5,74 +5,40 @@ const Pricing = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const getTranslatedText = (key, defaultText) => {
-    const translated = t(key);
-    // Check if the translation failed and returned the key itself
-    return translated === key ? defaultText : translated;
-  };
-
   // Define pricing plans with schema data
   const plans = [
     {
       id: "free",
-      name: getTranslatedText("landing.pricing.free.title", "Free"),
+      name: t("landing.pricing.free.title"),
       price: "0",
-      period: getTranslatedText("landing.pricing.period", "/forever"),
-      description: getTranslatedText(
-        "landing.pricing.free.subtitle",
-        "Great place to get started"
-      ),
+      period: t("landing.pricing.free.period"),
+      description: t("landing.pricing.free.subtitle"),
       features: [
-        getTranslatedText(
-          "landing.pricing.free.features.feature1",
-          "Up to 3 subjects"
-        ),
-        getTranslatedText(
-          "landing.pricing.free.features.feature2",
-          "5 lectures per subject"
-        ),
-        getTranslatedText(
-          "landing.pricing.free.features.feature3",
-          "Generate up to 20 flashcards"
-        ),
-        getTranslatedText(
-          "landing.pricing.free.features.feature4",
-          "Basic note summarization"
-        ),
+        t("landing.pricing.free.features.feature1"),
+        t("landing.pricing.free.features.feature2"),
+        t("landing.pricing.free.features.feature3"),
+        t("landing.pricing.free.features.feature4"),
+        t("landing.pricing.free.features.feature5"),
       ],
-      cta: getTranslatedText("landing.pricing.free.cta", "Get Started"),
+      cta: t("landing.pricing.free.cta"),
       popular: false,
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
     },
     {
       id: "pro",
-      name: getTranslatedText("landing.pricing.pro.title", "Pro"),
+      name: t("landing.pricing.pro.title"),
       price: "5",
-      period: getTranslatedText("landing.pricing.period", "/month"),
-      description: getTranslatedText(
-        "landing.pricing.pro.subtitle",
-        "Everything you need to ace your classes"
-      ),
+      period: t("landing.pricing.pro.period"),
+      description: t("landing.pricing.pro.subtitle"),
       features: [
-        getTranslatedText(
-          "landing.pricing.pro.features.feature1",
-          "Unlimited subjects"
-        ),
-        getTranslatedText(
-          "landing.pricing.pro.features.feature2",
-          "Unlimited lectures"
-        ),
-        getTranslatedText(
-          "landing.pricing.pro.features.feature3",
-          "Generate unlimited flashcards"
-        ),
-        getTranslatedText(
-          "landing.pricing.pro.features.feature4",
-          "Advanced AI-powered summaries"
-        ),
+        t("landing.pricing.pro.features.feature1"),
+        t("landing.pricing.pro.features.feature2"),
+        t("landing.pricing.pro.features.feature3"),
+        t("landing.pricing.pro.features.feature4"),
+        t("landing.pricing.pro.features.feature5"),
       ],
-      cta: getTranslatedText("landing.pricing.pro.cta", "Upgrade Now"),
+      cta: t("landing.pricing.pro.cta"),
       popular: true,
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -92,16 +58,10 @@ const Pricing = () => {
             className="text-3xl font-bold mb-4 theme-text-primary"
             itemProp="name"
           >
-            {getTranslatedText(
-              "landing.pricing.title",
-              "Simple, Transparent Pricing"
-            )}
+            {t("landing.pricing.title")}
           </h2>
           <p className="theme-text-tertiary text-lg" itemProp="description">
-            {getTranslatedText(
-              "landing.pricing.subtitle",
-              "Choose the perfect plan for your study needs with no hidden fees"
-            )}
+            {t("landing.pricing.subtitle")}
           </p>
         </header>
 
@@ -118,7 +78,7 @@ const Pricing = () => {
             >
               {plan.popular && (
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 dark:bg-blue-700 text-white px-4 py-1 rounded-full text-sm font-medium">
-                  {getTranslatedText("landing.pricing.popularBadge", "Popular")}
+                  {t("landing.pricing.popularBadge")}
                 </div>
               )}
 
@@ -141,8 +101,8 @@ const Pricing = () => {
                     itemProp="price"
                   >
                     {plan.price === "0"
-                      ? getTranslatedText("landing.pricing.free.price", "$0")
-                      : `$${plan.price}`}
+                      ? t("landing.pricing.free.price")
+                      : t("landing.pricing.pro.price")}
                   </span>
 
                   <meta itemProp="priceCurrency" content={plan.priceCurrency} />
@@ -150,7 +110,7 @@ const Pricing = () => {
 
                   {plan.price !== "0" && (
                     <span className="text-sm theme-text-tertiary ml-1">
-                       {plan.period}
+                      {plan.period}
                     </span>
                   )}
                 </div>
@@ -202,10 +162,7 @@ const Pricing = () => {
         </div>
 
         <p className="text-center mt-8 text-sm theme-text-tertiary">
-          {getTranslatedText(
-            "landing.pricing.guarantee",
-            "30-day money-back guarantee for all paid plans"
-          )}
+          {t("landing.pricing.guarantee")}
         </p>
       </div>
     </section>
