@@ -180,15 +180,41 @@ router.post("/detailed-brief", async (req, res) => {
       const fallbackBrief = {
         totalPages: 1,
         pageSummaries: [
-          "The system couldn't generate a meaningful summary for this document.",
+          `1. Document Processing Issue
+This document could not be properly processed by the AI system, which may be due to formatting, content complexity, or technical limitations.
+
+- The document may contain images, charts, or complex formatting that requires manual review
+- Try uploading the document in a different format (PDF vs DOCX vs PPTX)
+- Ensure the document contains readable text content rather than just images
+- Contact support if the issue persists with multiple document formats
+
+2. Recommended Actions
+Please try the following steps to resolve this issue:
+
+- Check that the document is not password-protected or corrupted
+- Verify the document contains substantial text content for analysis
+- Consider breaking large documents into smaller sections
+- Review the document for any unusual formatting that might interfere with processing`,
         ],
         overview: {
           documentTitle: fileId,
-          mainThemes: [],
+          mainThemes: [
+            "Document Processing",
+            "Technical Issues",
+            "User Guidance",
+          ],
           fileName: fileId,
         },
-        key_concepts: [],
-        important_details: [],
+        key_concepts: [
+          "Document compatibility",
+          "AI processing limitations",
+          "Alternative formats",
+        ],
+        important_details: [
+          "Multiple format support",
+          "Manual review options",
+          "Support availability",
+        ],
       };
 
       return res.json({

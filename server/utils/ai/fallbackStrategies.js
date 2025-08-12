@@ -138,11 +138,19 @@ export function createFallbackBrief(pages, error = null) {
       const cleanedPage = pageText.trim();
       if (!cleanedPage) return null;
 
+      // Create structured fallback instead of raw text
+      const structuredSummary = createStructuredFallbackSummary(
+        cleanedPage,
+        index + 1
+      );
+
+      // Generate title for this page
+      const title = generateFallbackTitle(cleanedPage, index + 1);
+
       return {
         pageNumber: index + 1,
-        summary: `Page ${index + 1}: ${cleanedPage.substring(0, 200)}${
-          cleanedPage.length > 200 ? "..." : ""
-        }`,
+        title: title,
+        summary: structuredSummary,
       };
     })
     .filter(Boolean);
@@ -156,6 +164,348 @@ export function createFallbackBrief(pages, error = null) {
   }
 
   return result;
+}
+
+/**
+ * Creates a structured fallback summary with proper formatting
+ * @param {string} pageText - The raw page text
+ * @param {number} pageNumber - The page number
+ * @returns {string} - Structured fallback summary
+ */
+export function createStructuredFallbackSummary(pageText, pageNumber) {
+  const cleanText = pageText.trim();
+
+  if (!cleanText) {
+    return `1. Empty Page
+This page contains no readable text content.
+
+- The page may contain images, charts, or visual elements only
+- Check the original document for any visual information
+- This content may need manual review to extract meaning`;
+  }
+
+  // Intelligently process the actual content rather than describe what it contains
+  return processContentIntelligently(cleanText, pageNumber);
+}
+
+/**
+ * Intelligently processes content to create educational summaries
+ * @param {string} text - The content text to process
+ * @param {number} pageNumber - The page number
+ * @returns {string} - Intelligent structured summary
+ */
+function processContentIntelligently(text, pageNumber) {
+  // Clean and prepare text
+  const cleanText = text.replace(/\s+/g, " ").trim();
+
+  // Check for different content types and process accordingly
+  if (
+    /(?:question|activity|exercise|critical thinking|discuss)/i.test(cleanText)
+  ) {
+    return createIntelligentActivitySummary(cleanText);
+  } else if (
+    /(?:syllabus|grading|policy|instructor|contact)/i.test(cleanText)
+  ) {
+    return createIntelligentAdminSummary(cleanText);
+  } else {
+    return createIntelligentContentSummary(cleanText);
+  }
+}
+
+/**
+ * Creates intelligent summary for activity content by extracting actual questions
+ */
+function createIntelligentActivitySummary(text) {
+  // Extract questions from the text
+  const questions = [];
+  const questionPatterns = [
+    /\(\d+\)\s*([^?]*?\?)/g,
+    /\d+\.\s*([^?]*?\?)/g,
+    /[Qq]uestion[\s\d:]*([^?]*?\?)/g,
+  ];
+
+  questionPatterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(text)) !== null && questions.length < 4) {
+      const q = match[1].trim();
+      if (q.length > 10 && q.length < 300) {
+        questions.push(q);
+      }
+    }
+  });
+
+  let summary = `1. Critical Thinking Questions\n`;
+  summary += `These thought-provoking questions are designed to encourage analytical thinking and practical application of concepts.\n\n`;
+
+  if (questions.length > 0) {
+    questions.forEach((q, index) => {
+      summary += `- ${q}\n`;
+    });
+    summary += `\n2. Learning Objectives\n`;
+    summary += `These questions encourage students to evaluate real-world scenarios, consider multiple perspectives, and develop evidence-based reasoning skills.\n\n`;
+    summary += `- Practice analytical thinking through structured questioning\n`;
+    summary += `- Connect theoretical concepts to practical applications\n`;
+    summary += `- Develop critical evaluation and reasoning abilities`;
+  } else {
+    // Fallback if no clear questions found
+    const content = text.substring(0, 300);
+    summary += `${content}${text.length > 300 ? "..." : ""}\n\n`;
+    summary += `- Students should prepare thoughtful responses to these discussion points\n`;
+    summary += `- Consider multiple perspectives and evidence-based reasoning\n`;
+    summary += `- Connect ideas to broader course concepts and real-world applications`;
+  }
+
+  return summary;
+}
+
+/**
+ * Creates intelligent summary for administrative content
+ */
+function createIntelligentAdminSummary(text) {
+  // Extract specific details
+  const policies = extractKeyInfo(
+    text,
+    /(?:policy|requirement|must|should|grade|evaluation)/i
+  );
+  const contacts = extractKeyInfo(
+    text,
+    /(?:email|phone|office|contact|instructor|professor)/i
+  );
+
+  let summary = `1. Course Administration\n`;
+
+  if (policies.length > 0) {
+    summary += `Important course policies and academic requirements are outlined below.\n\n`;
+    policies.forEach((policy) => {
+      summary += `- ${policy}\n`;
+    });
+  } else if (contacts.length > 0) {
+    summary += `Contact information and communication guidelines are provided below.\n\n`;
+    contacts.forEach((contact) => {
+      summary += `- ${contact}\n`;
+    });
+  } else {
+    // General administrative content
+    const content = text.substring(0, 400);
+    summary += `${content}${text.length > 400 ? "..." : ""}\n\n`;
+    summary += `- Review all administrative details carefully\n`;
+    summary += `- Keep important dates and requirements accessible\n`;
+    summary += `- Follow outlined procedures for best academic outcomes`;
+  }
+
+  return summary;
+}
+
+/**
+ * Creates intelligent summary for general educational content
+ */
+function createIntelligentContentSummary(text) {
+  // Look for definitions, key terms, and concepts
+  const definitions = extractDefinitions(text);
+  const keyTerms = extractKeyTerms(text);
+
+  let summary = "";
+  let sectionCount = 1;
+
+  // Handle definitions
+  if (definitions.length > 0) {
+    summary += `${sectionCount}. Key Definitions\n`;
+    definitions.forEach((def) => {
+      summary += `${def.term} is defined as ${def.definition}. `;
+    });
+    summary += `These fundamental concepts form the foundation for understanding the broader subject matter.\n\n`;
+
+    definitions.forEach((def) => {
+      summary += `- ${def.term}: ${def.definition}\n`;
+    });
+    summary += "\n";
+    sectionCount++;
+  }
+
+  // Extract main content themes
+  const mainThemes = extractMainThemes(text);
+  if (mainThemes.length > 0) {
+    summary += `${sectionCount}. Core Concepts\n`;
+    summary += `Several important themes are explored below:\n\n`;
+    mainThemes.forEach((theme) => {
+      summary += `- ${theme}\n`;
+    });
+  } else {
+    // Fallback processing
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 20);
+    if (sentences.length > 0) {
+      summary += `${sectionCount}. Core Subject Matter\n`;
+      const content = sentences.slice(0, 3).join(". ").trim() + ".";
+      summary += `${content}\n\n`;
+      summary += `- Key concepts build upon foundational principles\n`;
+      summary += `- Practical applications demonstrate real-world relevance\n`;
+      summary += `- Theoretical frameworks connect to broader academic disciplines`;
+    }
+  }
+
+  return summary || text.substring(0, 500);
+}
+
+// Helper functions
+function extractKeyInfo(text, pattern) {
+  const info = [];
+  const sentences = text.split(/[.!?]+/);
+
+  sentences.forEach((sentence) => {
+    if (
+      pattern.test(sentence) &&
+      sentence.trim().length > 10 &&
+      sentence.trim().length < 200
+    ) {
+      info.push(sentence.trim());
+    }
+  });
+
+  return info.slice(0, 5);
+}
+
+function extractDefinitions(text) {
+  const definitions = [];
+  const patterns = [
+    /([A-Z][a-zA-Z\s]+?)\s*[-:]\s*([^.!?]+[.!?])/g,
+    /([A-Z][a-zA-Z\s]+?)\s+([A-Z][^.!?]+[.!?])/g,
+  ];
+
+  patterns.forEach((pattern) => {
+    let match;
+    while ((match = pattern.exec(text)) !== null && definitions.length < 4) {
+      const term = match[1].trim();
+      const definition = match[2].trim();
+      if (
+        term.length < 40 &&
+        definition.length > 15 &&
+        definition.length < 150
+      ) {
+        definitions.push({ term, definition });
+      }
+    }
+  });
+
+  return definitions;
+}
+
+function extractKeyTerms(text) {
+  const terms = [];
+  const termPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+  const termCounts = {};
+  let match;
+
+  while ((match = termPattern.exec(text)) !== null) {
+    const term = match[1];
+    if (term.length > 3 && term.length < 25) {
+      termCounts[term] = (termCounts[term] || 0) + 1;
+    }
+  }
+
+  return Object.entries(termCounts)
+    .filter(([term, count]) => count > 1)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([term]) => term);
+}
+
+function extractMainThemes(text) {
+  const themes = [];
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 30);
+
+  sentences.slice(0, 4).forEach((sentence) => {
+    const theme = sentence.trim();
+    if (theme.length < 150) {
+      themes.push(theme);
+    }
+  });
+
+  return themes;
+}
+
+/**
+ * Generates a descriptive title for fallback content
+ * @param {string} text - The page content
+ * @param {number} pageNumber - The page number
+ * @returns {string} - Generated title
+ */
+function generateFallbackTitle(text, pageNumber) {
+  const cleanText = text.trim();
+
+  if (!cleanText) {
+    return `Page ${pageNumber}`;
+  }
+
+  // Look for exhibit or chapter titles
+  const exhibitMatch = cleanText.match(
+    /Exhibit\s+[\d.]+\s+([A-Z][A-Za-z\s]{5,40})/i
+  );
+  if (exhibitMatch) {
+    return exhibitMatch[1].trim();
+  }
+
+  const chapterMatch = cleanText.match(
+    /Chapter\s+\d+[\s:]+([A-Z][A-Za-z\s]{5,40})/i
+  );
+  if (chapterMatch) {
+    return chapterMatch[1].trim();
+  }
+
+  // Detect content type
+  if (
+    /(?:question|activity|exercise|critical thinking|discuss)/i.test(cleanText)
+  ) {
+    if (/critical thinking/i.test(cleanText)) {
+      return "Critical Thinking Exercise";
+    } else if (/question/i.test(cleanText)) {
+      return "Discussion Questions";
+    } else {
+      return "Learning Activity";
+    }
+  }
+
+  if (/(?:definition|means|refers to|defined as)/i.test(cleanText)) {
+    // Look for specific terms being defined
+    const definitionMatch = cleanText.match(
+      /([A-Z][a-zA-Z\s]{3,25})(?:\s*[-:]|\s+is\s+|\s+means\s+)/
+    );
+    if (definitionMatch) {
+      return `${definitionMatch[1].trim()}`;
+    }
+    return "Key Definitions";
+  }
+
+  if (/(?:advantage|benefit|characteristic|feature)/i.test(cleanText)) {
+    const topicMatch = cleanText.match(
+      /(?:advantage|benefit)s?\s+of\s+([A-Z][a-zA-Z\s]{5,30})/i
+    );
+    if (topicMatch) {
+      return `Advantages of ${topicMatch[1].trim()}`;
+    }
+    return "Key Advantages";
+  }
+
+  if (/(?:syllabus|grading|policy|instructor|contact)/i.test(cleanText)) {
+    return "Course Information";
+  }
+
+  // Try to extract a meaningful title from the beginning
+  const titleMatch = cleanText.match(
+    /^([A-Z][A-Za-z\s]{5,40})(?:\s*[-:.]|\s*$)/
+  );
+  if (titleMatch) {
+    return titleMatch[1].trim();
+  }
+
+  // Extract first few meaningful words
+  const words = cleanText.split(/\s+/).slice(0, 5);
+  const title = words.join(" ");
+
+  if (title.length > 5 && title.length <= 50) {
+    return title;
+  }
+
+  return `Page ${pageNumber} Content`;
 }
 
 /**

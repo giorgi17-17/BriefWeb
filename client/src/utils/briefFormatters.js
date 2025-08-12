@@ -6,144 +6,233 @@
 export function formatSummaryText(text) {
   if (!text) return "";
 
-  // First, deal with specific patterns in the example text
-  // Replace patterns like "1. Real-Time Experience:" with proper headings
-  let formattedText = text.replace(
-    /(\d+)\.\s+([A-Z][a-z]+(?:[-\s][A-Z][a-z]+)*)\s*(?:\n\s*)?:/g,
-    "\n$1. **$2**:\n"
-  );
+  // First, clean up any broken HTML formatting from AI responses
+  let cleanedText = cleanBrokenHtmlFormatting(text);
 
-  // Fix broken words across line breaks (like "Experienc\ne")
-  formattedText = formattedText.replace(/(\w+)\s*\n\s*([a-z]+)/g, "$1$2");
+  // Clean up the text
+  let processedText = cleanedText
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
 
-  // Clean up other line breaks and whitespace
-  formattedText = formattedText.replace(/([^.!?:])\n+/g, "$1 ");
+  // Split text into paragraphs (by double line breaks or natural paragraph breaks)
+  const paragraphs = processedText.split(/\n\s*\n+/).filter((p) => p.trim());
 
-  // Specifically handle the dash list pattern in the example
-  formattedText = formattedText.replace(/([.:]) -/g, "$1\n-");
+  let formattedContent = [];
 
-  // Normalize other whitespace
-  formattedText = formattedText.replace(/\s{2,}/g, " ").trim();
+  paragraphs.forEach((paragraph) => {
+    const trimmedPara = paragraph.trim();
 
-  // Add proper breaks for list items
-  formattedText = formattedText.replace(/\.\s+(\d+)\./g, ".\n$1.");
-
-  // Split by lines while preserving paragraphs
-  const lines = formattedText.split(/\n/).filter((line) => line.trim());
-
-  // Process each line to identify list items
-  let inList = false;
-  let listItems = [];
-  let result = [];
-
-  lines.forEach((line) => {
-    // Check if this is a numbered list item
-    const numberedMatch = line.match(/^\s*(\d+)\.\s+(.*)/);
-
-    if (numberedMatch) {
-      const [, number, content] = numberedMatch;
-
-      // Check if it's a header-style item (looks like a title)
-      if (content.includes(":") && content.length < 50) {
-        // This is a section header
-        if (inList) {
-          // Close previous list if we were in one
-          result.push(
-            `<ol class="list-decimal pl-5 space-y-0.5 mb-2">${listItems.join(
-              ""
-            )}</ol>`
-          );
-          listItems = [];
-          inList = false;
-        }
-
-        result.push(
-          `<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mt-3 mb-1">${number}. ${content.trim()}</h3>`
-        );
-      } else {
-        // This is a regular list item
-        if (!inList) {
-          inList = true;
-        }
-
-        // Process content for any bold text
-        const processedContent = content.replace(
-          /\*\*([^*]+)\*\*/g,
-          '<span class="font-semibold">$1</span>'
-        );
-
-        listItems.push(`<li class="my-0.5">${processedContent.trim()}</li>`);
-      }
-    } else if (
-      line.match(/^\s*-\s+(.*)/) ||
-      (line.match(/^\s+(.*)/) && inList)
-    ) {
-      // This is a sub-item or continuation
-      const content = line.replace(/^\s*-\s+/, "").trim();
-
-      if (content) {
-        const processedContent = content.replace(
-          /\*\*([^*]+)\*\*/g,
-          '<span class="font-semibold">$1</span>'
-        );
-
-        // If it starts with a dash, it's a bullet item
-        if (line.match(/^\s*-\s+/)) {
-          listItems.push(
-            `<li class="ml-4 list-disc my-0.5">${processedContent}</li>`
-          );
-        } else {
-          // Otherwise it's a continuation of the previous item
-          if (listItems.length > 0) {
-            // Add to the previous item
-            listItems[listItems.length - 1] = listItems[
-              listItems.length - 1
-            ].replace("</li>", ` ${processedContent}</li>`);
-          } else {
-            // No previous item, treat as new item
-            listItems.push(`<li class="my-0.5">${processedContent}</li>`);
-          }
-        }
-      }
-    } else {
-      // This is a regular paragraph
-      if (inList) {
-        // Close the list
-        result.push(
-          `<ol class="list-decimal pl-5 space-y-0.5 mb-2">${listItems.join(
-            ""
-          )}</ol>`
-        );
-        listItems = [];
-        inList = false;
-      }
-
-      // Process this paragraph
-      const processedPara = line.replace(
-        /\*\*([^*]+)\*\*/g,
-        '<span class="font-semibold">$1</span>'
+    // Check for numbered sections (e.g., "1. Business Ownership Forms")
+    const sectionMatch = trimmedPara.match(/^(\d+)\.\s+([A-Z][^.\n]+)$/m);
+    if (sectionMatch) {
+      formattedContent.push(
+        `<h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-6 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2 first:mt-0">
+          ${sectionMatch[1]}. ${sectionMatch[2]}
+        </h2>`
       );
-
-      result.push(`<p class="mb-2">${processedPara.trim()}</p>`);
+      // Process the rest of the paragraph after the section header
+      const remainingText = trimmedPara.replace(sectionMatch[0], "").trim();
+      if (remainingText) {
+        formattedContent.push(...processContentBlock(remainingText));
+      }
+      return;
     }
+
+    // Process the paragraph content
+    formattedContent.push(...processContentBlock(trimmedPara));
   });
 
-  // Close any open list at the end
-  if (inList && listItems.length > 0) {
-    result.push(
-      `<ol class="list-decimal pl-5 space-y-0.5 mb-2">${listItems.join(
+  // Join all formatted content
+  return formattedContent.join("\n");
+}
+
+/**
+ * Process a block of content and format it appropriately
+ * @param {string} content - Content block to process
+ * @returns {Array<string>} - Array of formatted HTML elements
+ */
+function processContentBlock(content) {
+  const lines = content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line);
+  const formattedElements = [];
+  let currentBulletList = [];
+  let currentParagraph = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check for bullet points
+    if (line.match(/^[-•]\s+/)) {
+      // If we have a current paragraph, close it
+      if (currentParagraph.length > 0) {
+        formattedElements.push(formatParagraph(currentParagraph.join(" ")));
+        currentParagraph = [];
+      }
+
+      // Add to bullet list
+      const bulletContent = line.replace(/^[-•]\s+/, "").trim();
+      currentBulletList.push(
+        `<li class="text-gray-700 dark:text-gray-300 leading-relaxed mb-2 text-base">${formatInlineText(
+          bulletContent
+        )}</li>`
+      );
+    } else {
+      // If we have a bullet list, close it
+      if (currentBulletList.length > 0) {
+        formattedElements.push(
+          `<ul class="list-disc pl-6 my-4 space-y-2">${currentBulletList.join(
+            ""
+          )}</ul>`
+        );
+        currentBulletList = [];
+      }
+
+      // Check if this line is a sub-header (shorter capitalized phrases)
+      if (
+        line.length < 60 &&
+        /^[A-Z]/.test(line) &&
+        /[A-Z][a-z]+/.test(line) &&
+        !line.endsWith(".")
+      ) {
+        // Close current paragraph if exists
+        if (currentParagraph.length > 0) {
+          formattedElements.push(formatParagraph(currentParagraph.join(" ")));
+          currentParagraph = [];
+        }
+
+        formattedElements.push(
+          `<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2 first:mt-0">${line}</h3>`
+        );
+      } else {
+        // Add to current paragraph
+        currentParagraph.push(line);
+      }
+    }
+  }
+
+  // Close any open elements
+  if (currentBulletList.length > 0) {
+    formattedElements.push(
+      `<ul class="list-disc pl-6 my-4 space-y-2">${currentBulletList.join(
         ""
-      )}</ol>`
+      )}</ul>`
     );
   }
-
-  // Final clean-up: ensure no empty paragraphs
-  let html = result.join("").replace(/<p>\s*<\/p>/g, "");
-
-  // If we don't have any content yet, wrap the original text
-  if (!html) {
-    html = `<p>${formattedText}</p>`;
+  if (currentParagraph.length > 0) {
+    formattedElements.push(formatParagraph(currentParagraph.join(" ")));
   }
 
-  return html;
+  return formattedElements;
+}
+
+/**
+ * Format a paragraph with proper styling
+ * @param {string} text - Paragraph text
+ * @returns {string} - Formatted paragraph HTML
+ */
+function formatParagraph(text) {
+  // Check for numbered sub-items within paragraphs
+  const processedText = text.replace(
+    /(\d+)\)\s+([^,\n]+)/g,
+    '<span class="font-medium">$1)</span> $2'
+  );
+
+  // Apply inline formatting
+  const formattedText = formatInlineText(processedText);
+
+  return `<p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed text-base">${formattedText}</p>`;
+}
+
+/**
+ * Apply inline text formatting
+ * @param {string} text - Text to format
+ * @returns {string} - Formatted text
+ */
+function formatInlineText(text) {
+  return (
+    text
+      // Bold text (double asterisks)
+      .replace(
+        /\*\*([^*]+)\*\*/g,
+        '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>'
+      )
+      // Italic text (single asterisks)
+      .replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>')
+      // Highlight key terms in quotes
+      .replace(
+        /"([^"]+)"/g,
+        '<span class="font-medium text-gray-900 dark:text-gray-100">"$1"</span>'
+      )
+      // Format numbers with colons (e.g., "1: " becomes emphasized)
+      .replace(/^(\d+):\s*/g, '<span class="font-semibold">$1:</span> ')
+  );
+}
+
+/**
+ * Cleans broken HTML formatting that appears in AI responses
+ * @param {string} text - Text that may contain broken HTML
+ * @returns {string} - Cleaned text
+ */
+function cleanBrokenHtmlFormatting(text) {
+  return (
+    text
+      // Remove literal CSS class strings that appear as text
+      .replace(/"font-semibold text-gray-900 dark:text-gray-100">/g, "")
+      .replace(/"font-medium text-gray-900 dark:text-gray-100">/g, "")
+      .replace(/"text-gray-700 dark:text-gray-300">/g, "")
+      .replace(/"list-disc pl-6 my-4 space-y-2">/g, "")
+      .replace(/"font-medium">/g, "")
+      .replace(/"font-semibold">/g, "")
+      .replace(/"italic">/g, "")
+      .replace(/"font-bold">/g, "")
+
+      // Remove any other CSS class patterns
+      .replace(/\s*"[^"]*font-[^"]*">\s*/g, " ")
+      .replace(/\s*"[^"]*text-[^"]*">\s*/g, " ")
+      .replace(/\s*"[^"]*list-[^"]*">\s*/g, " ")
+      .replace(/\s*"[^"]*pl-[^"]*">\s*/g, " ")
+
+      // Clean up orphaned HTML fragments
+      .replace(/\s*">\s*/g, " ")
+      .replace(/\s*<\/?\w+[^>]*>\s*/g, " ")
+
+      // Fix double spaces and clean up
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * Enhanced formatter that ensures all content is properly structured
+ * This is called after the main formatting to ensure consistency
+ */
+export function ensureFormattingConsistency(html) {
+  // If the content has no formatting at all, add basic paragraph structure
+  if (!html.includes("<")) {
+    const paragraphs = html.split(/\n\s*\n+/).filter((p) => p.trim());
+    return paragraphs
+      .map(
+        (p) =>
+          `<p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed text-base">${p.trim()}</p>`
+      )
+      .join("\n");
+  }
+
+  // Ensure spacing between different elements and apply responsive classes
+  return (
+    html
+      .replace(/<\/p>\s*<h/g, "</p>\n\n<h")
+      .replace(/<\/ul>\s*<p/g, "</ul>\n\n<p")
+      .replace(/<\/p>\s*<ul/g, "</p>\n\n<ul")
+      .replace(/<\/h\d>\s*<p/g, "</h$1>\n\n<p")
+      // Ensure consistent spacing for all elements
+      .replace(/<h2/g, "<h2")
+      .replace(/<h3/g, "<h3")
+      .replace(/<ul/g, "<ul")
+      .replace(/<ol/g, "<ol")
+      .replace(/<p/g, "<p")
+  );
 }

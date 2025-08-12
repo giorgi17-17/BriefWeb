@@ -244,7 +244,7 @@ export function getBriefPrompt(language, combinedText) {
 
   return `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${language}. Do not use any other language regardless of what you think is appropriate.
 
-You are processing multiple pages of a document. Your task is to create comprehensive, educational summaries for EACH page's content. Each summary should be approximately ${targetWordsPerPage} words to provide thorough coverage and educational depth. This will be part of a larger document brief where each page is processed comprehensively.
+You are processing multiple pages of a document. Your task is to create comprehensive, educational summaries for EACH page's content. Each summary should be ${minWordsPerPage}-${targetWordsPerPage} words to provide thorough coverage and educational depth with proper structure and formatting.
 
 CORE REQUIREMENTS:
 
@@ -262,69 +262,205 @@ CORE REQUIREMENTS:
      "pageSummaries": [
        {
          "pageNumber": 1,
-         "summary": "Comprehensive educational summary of page 1 content..."
+         "title": "Descriptive Topic Title for Page 1",
+         "summary": "Direct educational explanation starting with the concepts..."
        },
        {
          "pageNumber": 2,
-         "summary": "Comprehensive educational summary of page 2 content..."
+         "title": "Descriptive Topic Title for Page 2", 
+         "summary": "Direct educational explanation starting with the concepts..."
        }
      ]
    }
+   
+   **CRITICAL WARNING**: In the "summary" field, use ONLY plain text. NO HTML, NO CSS classes, NO special formatting. The frontend handles all styling automatically.
 
-3️⃣ **DIRECT EXPLANATION STYLE**:
-   - Start DIRECTLY with the explanation of concepts
-   - DO NOT begin with meta-phrases like "This page discusses...", "The content covers...", "This section focuses on..."
-   - Write in an educational, informative style as if teaching the material directly
-   - Use active voice and present tense
-   - Explain the subject matter directly without referring to "the text" or "the document"
+3️⃣ **STRUCTURED CONTENT ORGANIZATION - MANDATORY**:
+   **CRITICAL**: You MUST organize ALL content using this structure for CONSISTENCY:
+   
+   **REQUIRED STRUCTURE FOR EVERY PAGE**:
+   1. Start each major topic with: "1. Topic Name" (on its own line)
+   2. Follow with 2-3 sentences explaining the topic
+   3. Use bullet points for ALL supporting details
+   4. NEVER write long unstructured paragraphs
+   
+   **Formatting Rules:**
+   - Numbered sections MUST be on their own line: "1. Topic Name"
+   - Each numbered section MUST have explanation text
+   - ALL details, examples, characteristics MUST use bullet points (-)
+   - Each bullet point should be concise (1-2 sentences max)
+   - Leave blank lines between sections for clarity
+   
+   **MANDATORY Structure Example:**
+   
+   1. Business Ownership Forms
+   
+   Business ownership structures determine how companies are organized, managed, and taxed. Three primary forms dominate the business landscape.
+   
+   - Sole proprietorships involve single-person ownership with complete control
+   - Partnerships distribute ownership among two or more individuals  
+   - Corporations exist as separate legal entities from their owners
+   - Each structure has distinct tax implications and liability protections
+   
+   2. Corporate Governance Principles
+   
+   Corporate governance establishes frameworks for accountability and oversight. These principles ensure proper business management.
+   
+   - Board of directors provides strategic oversight
+   - Executive management handles daily operations
+   - Shareholders maintain ownership rights
+   - Regular audits ensure transparency
+   
+   **FORBIDDEN Formatting:**
+   ❌ Long paragraphs without structure
+   ❌ Mixing explanation text with bullet points on same line
+   ❌ Numbered sections without following explanation
+   ❌ Details not in bullet points
+   ❌ No spacing between sections
 
-4️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
+4️⃣ **PAGE TITLE REQUIREMENTS - CRITICAL FOR DISPLAY**:
+   **MANDATORY**: Every page MUST have a descriptive title that summarizes the KEY CONTENT!
+   
+   **TITLE GENERATION PROCESS**:
+   1. READ the entire page content thoroughly
+   2. IDENTIFY the main topic, concept, or theme
+   3. CREATE a title that tells readers EXACTLY what they'll learn
+   4. ENSURE the title is specific and descriptive, not generic
+   
+   ✅ **EXCELLENT DESCRIPTIVE TITLES**:
+   - "Sole Proprietorship Tax Benefits and Legal Structure"
+   - "How Corporations Protect Personal Assets from Business Debts"
+   - "Partnership Agreement Requirements and Profit Distribution"
+   - "Stock Merger vs Asset Purchase: Key Differences"
+   - "Balance Sheet Analysis for Investment Decisions"
+   - "SWOT Analysis in Strategic Business Planning"
+   
+   ❌ **FORBIDDEN GENERIC TITLES** (will be rejected):
+   - "Business Concepts" → Instead: "Types of Business Ownership Structures"
+   - "Key Points" → Instead: "Partnership Advantages Over Sole Proprietorship"
+   - "Overview" → Instead: "Corporate Governance and Board Responsibilities"
+   - "Introduction" → Instead: "Fundamentals of Financial Accounting"
+   - "Page Content" → Instead: specific topic like "Cash Flow Statement Components"
+   - "Topics" → Instead: describe the actual topics covered
+   
+   **TITLE FORMULA**:
+   [Main Concept/Topic] + [Key Aspect/Benefit/Process]
+   
+   Examples:
+   - If page discusses business types → "Comparing Sole Proprietorship, Partnership, and Corporation"
+   - If page covers advantages → "Five Tax Benefits of S-Corporation Status"
+   - If page explains a process → "Steps to Register a Limited Liability Company"
+   - If page has definitions → "Essential Business Terms: Assets, Liabilities, and Equity"
+   
+   **CRITICAL RULES**:
+   - Minimum 4 words, maximum 10 words (15-60 characters)
+   - MUST describe the actual content, not the content type
+   - Include specific terms from the page content
+   - Make it searchable and memorable
+   - Think: "What would someone search for to find this information?"
+
+5️⃣ **CONTENT DEPTH AND LENGTH REQUIREMENTS**:
+   - Target ${minWordsPerPage}-${targetWordsPerPage} words per page summary
+   - Ensure substantial content for each numbered section (minimum 50-80 words)
+   - Provide 3-5 bullet points per major concept when applicable
+   - If content is sparse, expand with educational context, examples, and broader implications
+   - Never provide summaries shorter than ${minWordsPerPage} words unless page is genuinely empty
+   - CRITICAL: Keep total response under 50,000 characters to ensure valid JSON parsing
+
+6️⃣ **DIRECT EXPLANATION STYLE - ABSOLUTELY CRITICAL**:
+   **MANDATORY RULE**: Every summary MUST start with direct educational content. NO meta-descriptions allowed!
+   
+   ❌ **ABSOLUTELY FORBIDDEN STARTS** (will be automatically removed):
+   - "This page describes/covers/explains/discusses/presents..."
+   - "This chapter/section/document contains/includes..."
+   - "The content/material/information provides..."
+   - "Students are tasked with..."
+   - "The core aim is..."
+   - "Here we discuss/explore/examine..."
+   - "In this page/section..."
+   - "On this page..."
+   - Any sentence that talks ABOUT the content instead of BEING the content
+   
+   ✅ **CORRECT STARTS - DIRECT TEACHING**:
+   - "Business ownership structures determine how companies are organized and managed. Three primary forms exist..."
+   - "Sole proprietorship represents the simplest business structure where one individual owns and operates..."
+   - "Corporate governance establishes frameworks for accountability through board oversight..."
+   - "Partnerships distribute ownership and responsibilities among two or more individuals..."
+   - "Limited liability protects personal assets from business debts by creating a legal separation..."
+   
+   ❌ **WRONG**: "This page explores the concept of business ownership and its various forms..."
+   ✅ **RIGHT**: "Business ownership takes three primary forms: sole proprietorships, partnerships, and corporations."
+   
+   ❌ **WRONG**: "Students will learn about the advantages of incorporating a business..."
+   ✅ **RIGHT**: "Incorporation provides five key advantages: limited liability, perpetual existence, easier capital raising..."
+   
+   ❌ **WRONG**: "This section describes how mergers and acquisitions work in corporate settings..."
+   ✅ **RIGHT**: "Mergers combine two companies into a single entity through stock exchanges or asset purchases."
+   
+   **ENFORCEMENT**: If you write ANY forbidden phrase, the system will automatically delete it. Write as if you're the textbook itself, not someone describing a textbook.
+
+7️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
    - Process ALL content on each page, regardless of type, with extensive detail
-   - If the page contains course information (syllabus, grading, logistics), provide comprehensive explanations of policies, procedures, and their educational rationale
-   - If the page contains instructor information, provide detailed professional background, expertise areas, and how their experience benefits students
-   - If the page contains study materials or requirements, explain in detail what they are, their purpose, how to use them effectively, and their educational value
-   - If the page contains subject matter content, provide thorough explanations of concepts, their significance, applications, and relationships to other topics
-   - If the page contains questions, provide detailed context, explain what topics they address, and offer insights into the learning objectives they serve
-   - NEVER tell the user to "move to the next page" or skip content
+   - Transform every piece of information into well-structured educational content
+   - If the page contains course information, create numbered sections for policies with bullet points for details
+   - If the page contains subject matter, organize concepts hierarchically with supporting details
+   - If the page contains procedures, use numbered steps with explanatory bullet points
    - Expand on every piece of information with educational context and detailed explanations
 
-5️⃣ **EDUCATIONAL DEPTH**:
+8️⃣ **EDUCATIONAL DEPTH AND INSIGHT**:
    - Don't just restate content - explain it with comprehensive educational insight
-   - Break down complex ideas into understandable terms with detailed explanations
-   - Provide extensive context for why information is important and how it fits into the broader subject
+   - Break down complex ideas into numbered concepts with supporting bullet points
+   - Provide extensive context for why information is important
    - Connect concepts to broader learning objectives and real-world applications
-   - Make abstract concepts concrete and relatable with examples and analogies
-   - Include detailed explanations of key terms, concepts, and their relationships
-   - Provide step-by-step explanations for complex processes or ideas
-   - Add educational commentary that helps students understand the significance and implications
+   - Make abstract concepts concrete with examples and analogies
+   - Include detailed explanations of key terms and their relationships
+   - Add educational commentary that helps students understand significance
 
-6️⃣ **STRUCTURE AND FORMAT**:
-   - Use clear paragraphs with logical flow
-   - DO NOT use asterisks (*) for emphasis or headings
-   - DO NOT use markdown formatting
-   - Use proper sentence structure and paragraphs
-   - For important terms, use appropriate capitalization
-   - Keep explanations comprehensive yet concise
+9️⃣ **FORMATTING RULES - CRITICAL**:
+   **STRICT TEXT-ONLY FORMATTING REQUIREMENTS:**
+   
+   ✅ **ALLOWED FORMATTING:**
+   - Numbered sections: "1. Topic Name" (on separate line)
+   - Bullet points: "- Supporting detail"
+   - Plain text only - NO HTML, NO CSS, NO special characters
+   
+   ❌ **ABSOLUTELY FORBIDDEN:**
+   - NO HTML tags: <strong>, <em>, <span>, etc.
+   - NO CSS classes: "font-semibold", "text-gray-900", etc. 
+   - NO markdown: **, *, ##, etc.
+   - NO special formatting symbols or codes
+   - NO quotation marks around CSS classes
+   - NO any form of markup language
+   
+   **CRITICAL**: Your response must be PLAIN TEXT ONLY. The frontend will handle all styling automatically. Any HTML, CSS, or markup will appear as broken text to users.
+   
+   **Correct format example:**
+   
+   1. Business Ownership Forms
+   
+   Business ownership structures determine how companies are organized and managed.
+   
+   - Sole proprietorships involve single-person ownership
+   - Partnerships distribute ownership among multiple individuals
+   - Corporations exist as separate legal entities
 
-7️⃣ **HANDLING DIFFERENT CONTENT TYPES**:
-   - **Administrative content**: Summarize policies, procedures, and requirements clearly
-   - **Instructor information**: Provide relevant professional background and contact details
-   - **Course structure**: Explain how the course is organized and what students can expect
-   - **Subject matter**: Provide deep, educational explanations of concepts
-   - **Assessment information**: Explain evaluation methods and their educational purpose
-   - **Study materials**: Describe resources and how they support learning
+🔟 **CONTENT TYPE HANDLING**:
+   - **Learning objectives**: Transform into direct educational explanations - DO NOT describe what students should learn, TEACH the concepts directly
+   - **Administrative content**: Number main policies, bullet point specific requirements
+   - **Conceptual content**: Number core concepts, bullet point characteristics and applications  
+   - **Procedural content**: Number main procedures, bullet point steps or considerations
+   - **Mixed content**: Organize hierarchically with appropriate numbering and bullet structure
+   - **Course descriptions**: Convert course aims into direct educational content about the subject matter
 
-8️⃣ **QUALITY STANDARDS**:
-   - Every page must receive a meaningful, substantial summary
-   - Target approximately ${targetWordsPerPage} words per page summary for comprehensive coverage
-   - Minimum ${minWordsPerPage} words for pages with substantial content
-   - If a page has minimal content, expand on what little is there with educational context and explanations
+1️⃣1️⃣ **QUALITY STANDARDS**:
+   - Every page must receive a meaningful, substantial summary of ${minWordsPerPage}-${targetWordsPerPage} words
+   - Each numbered section must contain comprehensive explanations
+   - Bullet points must add genuine educational value, not just list items
    - Focus on educational value and student understanding
-   - Ensure the summary helps students learn and understand the material
+   - Ensure proper structure enhances readability and learning
    - Provide detailed explanations, examples, and educational insights
-   - Include relevant context and connections to broader concepts
 
-Remember: You are creating summaries for ALL pages in a single response. Make each page's summary comprehensive, educational, and valuable for student learning. The user will navigate through all pages to get the complete document understanding.
+Remember: Create well-structured, comprehensive summaries that use numbered sections for major concepts and bullet points for supporting details. Each summary should be ${minWordsPerPage}-${targetWordsPerPage} words with clear educational value.
 
 Your response MUST be in ${language} ONLY and in VALID JSON format.
 

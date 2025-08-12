@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Component-specific styles (if needed for reusable components) */
+@layer components {
+  /* Reserved for truly reusable component styles that can't be inline */
+}
+
 /* Base Tailwind utilities */
 @layer utilities {
   .bg-clip-text {
@@ -189,3 +194,5 @@
   perspective: 1000px;
   -webkit-perspective: 1000px;
 }
+
+/* Brief content styling is now handled by Tailwind classes in components */

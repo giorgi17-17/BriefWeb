@@ -37,8 +37,10 @@ export const GENERATION_CONFIG = {
   },
   brief: {
     temperature: 0.4,
-    targetWordsPerPage: 500,
+    targetWordsPerPage: 450,
     minWordsPerPage: 300,
+    maxWordsPerPage: 600,
+    optimalWordsPerPage: 400,
   },
 };
 

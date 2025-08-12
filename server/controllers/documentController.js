@@ -346,7 +346,18 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       throw new Error("Invalid multi-page result structure");
     }
 
-    const summaries = multiPageResult.pageSummaries.map((item) => item.summary);
+    // Extract summaries and titles for new format
+    const summariesWithTitles = multiPageResult.pageSummaries.map((item) => ({
+      summary: item.summary || "",
+      title:
+        item.title ||
+        `Page ${
+          item.pageNumber || multiPageResult.pageSummaries.indexOf(item) + 1
+        }`,
+    }));
+
+    // For backward compatibility, keep the summaries array
+    const summaries = summariesWithTitles.map((item) => item.summary);
     filteredSummaries = summaries.filter(Boolean);
 
     console.log(
@@ -373,7 +384,7 @@ export async function processDetailedContent(userId, lectureId, fileId) {
       lecture_id: lectureId,
       user_id: userId,
       total_pages: filteredSummaries.length,
-      summaries: filteredSummaries, // Array of summary strings
+      summaries: filteredSummaries, // Array of summary strings (backward compatibility)
       metadata: {
         generatedAt: new Date().toISOString(),
         documentTitle: fileId,
@@ -383,6 +394,8 @@ export async function processDetailedContent(userId, lectureId, fileId) {
         mainThemes: [],
         key_concepts: [],
         important_details: [],
+        page_titles: summariesWithTitles.map((item) => item.title), // Store titles in metadata for now
+        summaries_with_titles: summariesWithTitles, // Store enhanced format in metadata
       },
     };
 
