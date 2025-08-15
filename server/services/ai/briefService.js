@@ -70,7 +70,7 @@ export async function generateMultiPageBrief(allPages) {
 
     // Call AI API
     const response = await geminiAI.models.generateContent({
-      model: geminiModel,
+      model: geminiModelBrief,
       contents: prompt,
       generationConfig: {
         temperature: GENERATION_CONFIG.brief.temperature,

@@ -22,9 +22,9 @@ console.log("API Configuration:", {
   environment: import.meta.env.MODE,
 });
 
-// Create custom axios instance with longer timeout
+// Create custom axios instance with longer timeout for AI processing
 const apiClient = axios.create({
-  timeout: 60000, // 60 second timeout
+  timeout: 120000, // 120 second timeout (2 minutes) for AI processing
   headers: {
     "Content-Type": "application/json",
   },

@@ -2,7 +2,7 @@
  * Flashcard Generation Service
  */
 
-import { geminiAI, geminiModel } from "../../config/gemini.js";
+import { geminiAI, geminiModelFlashCard } from "../../config/gemini.js";
 import {
   detectLanguage,
   validateResponseLanguage,
@@ -14,8 +14,6 @@ import { createFallbackFlashcards } from "../../utils/ai/fallbackStrategies.js";
 import { getFlashcardPrompt } from "../../config/ai/promptTemplates.js";
 import { GENERATION_CONFIG } from "../../config/ai/aiConfig.js";
 import {
-  estimateTokenUsage,
-  logServiceCost,
   trackActualCostFromResponse,
   countInputTokens,
 } from "../../utils/ai/tokenUtils.js";
@@ -38,7 +36,7 @@ export async function generateFlashcards(extractedText) {
 
     // Count input tokens using Gemini API
     console.log("🔍 Counting input tokens...");
-    const inputTokenCount = await countInputTokens(geminiModel, prompt);
+    const inputTokenCount = await countInputTokens(geminiModelFlashCard, prompt);
 
     if (inputTokenCount.hasActualCount) {
       console.log(
@@ -52,7 +50,7 @@ export async function generateFlashcards(extractedText) {
 
     // Call AI API
     const response = await geminiAI.models.generateContent({
-      model: geminiModel,
+      model: geminiModelFlashCard,
       contents: prompt,
       generationConfig: {
         temperature: GENERATION_CONFIG.flashcards.temperature,

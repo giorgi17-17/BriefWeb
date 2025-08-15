@@ -2,7 +2,7 @@
  * Quiz Generation Service
  */
 
-import { geminiAI, geminiModel } from "../../config/gemini.js";
+import { geminiAI, geminiModelQuiz } from "../../config/gemini.js";
 import { parseJsonWithFallbacks } from "../../utils/ai/jsonUtils.js";
 import { validateQuiz } from "../../utils/ai/validationUtils.js";
 import { logAIError, handleParseError } from "../../utils/ai/errorHandler.js";
@@ -31,7 +31,7 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
 
     // Count input tokens using Gemini API
     console.log("🔍 Counting input tokens for quiz...");
-    const inputTokenCount = await countInputTokens(geminiModel, prompt);
+    const inputTokenCount = await countInputTokens(geminiModelQuiz, prompt);
 
     if (inputTokenCount.hasActualCount) {
       console.log(
@@ -45,7 +45,7 @@ export async function generateQuiz(extractedText, quizOptions = {}) {
 
     // Call AI API
     const response = await geminiAI.models.generateContent({
-      model: geminiModel,
+      model: geminiModelQuiz,
       contents: prompt,
       generationConfig: {
         temperature: GENERATION_CONFIG.quiz.temperature,

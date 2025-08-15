@@ -17,8 +17,6 @@ import {
 import { getEvaluationPrompt } from "../../config/ai/promptTemplates.js";
 import { GENERATION_CONFIG } from "../../config/ai/aiConfig.js";
 import {
-  estimateTokenUsage,
-  logServiceCost,
   trackActualCostFromResponse,
   countInputTokens,
 } from "../../utils/ai/tokenUtils.js";

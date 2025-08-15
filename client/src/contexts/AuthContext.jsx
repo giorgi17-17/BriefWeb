@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const isMounted = useRef(true);
   const lastActiveTime = useRef(Date.now());
   const sessionCheckTimeout = useRef(null);
+  const addUserPromise = useRef(null); // Track ongoing addUserToDatabase calls
 
   // Helper function to update auth state
   const updateAuthState = useCallback((newSession) => {
@@ -93,64 +94,114 @@ export function AuthProvider({ children }) {
         return { error: new Error("Invalid user data") };
       }
 
-      try {
-        // Check if user already exists
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("users")
-          .select("user_id")
-          .eq("user_id", userData.id)
-          .maybeSingle();
+      // If there's already an ongoing call for this user, return that promise
+      const userKey = userData.id;
+      if (addUserPromise.current && addUserPromise.current[userKey]) {
+        console.log(
+          "Reusing existing addUserToDatabase promise for user:",
+          userData.email
+        );
+        return addUserPromise.current[userKey];
+      }
 
-        if (fetchError) throw fetchError;
+      // Initialize promise tracking object if needed
+      if (!addUserPromise.current) {
+        addUserPromise.current = {};
+      }
 
-        // Insert user if not exists
-        if (!existingUser) {
-          const { error: insertError } = await supabase.from("users").insert([
-            {
-              user_id: userData.id,
-              email: userData.email,
-              created_at: new Date().toISOString(),
-            },
-          ]);
+      // Create new promise for this user
+      const promise = (async () => {
+        try {
+          // Check if user already exists
+          const { data: existingUser, error: fetchError } = await supabase
+            .from("users")
+            .select("user_id")
+            .eq("user_id", userData.id)
+            .maybeSingle();
 
-          if (insertError) throw insertError;
-
-          console.log("User added to database:", userData.email);
-        }
-
-        // Check if user plan exists
-        const { data: existingPlan, error: planFetchError } = await supabase
-          .from("user_plans")
-          .select("*")
-          .eq("user_id", userData.id)
-          .maybeSingle();
-
-        if (planFetchError && planFetchError.code !== "PGRST116")
-          throw planFetchError;
-
-        // Create user plan if not exists
-        if (!existingPlan) {
-          const { error: planInsertError } = await supabase
-            .from("user_plans")
-            .insert([
+          if (fetchError && fetchError.code !== "42P01") {
+            // 42P01 is "relation does not exist"
+            console.warn("User fetch error:", fetchError);
+            // Don't throw - continue with plan creation
+          } else if (!fetchError && !existingUser) {
+            // Insert user if not exists and table exists
+            const { error: insertError } = await supabase.from("users").insert([
               {
                 user_id: userData.id,
-                plan_type: "free",
-                subject_limit: 3,
+                email: userData.email,
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
               },
             ]);
 
-          if (planInsertError) throw planInsertError;
+            if (insertError && insertError.code !== "23505") {
+              // 23505 is duplicate key error - ignore it
+              console.warn("User insert error:", insertError);
+            } else if (!insertError) {
+              console.log("User added to database:", userData.email);
+            }
+          }
 
-          console.log("User plan created:", userData.email);
+          // Check if user plan exists
+          const { data: existingPlan, error: planFetchError } = await supabase
+            .from("user_plans")
+            .select("*")
+            .eq("user_id", userData.id)
+            .maybeSingle();
+
+          if (planFetchError) {
+            console.warn("Plan fetch error:", planFetchError);
+            // If there are multiple rows, let's handle it gracefully
+            if (planFetchError.code === "PGRST116") {
+              // Multiple rows found - use the first one
+              const { data: multiplePlans } = await supabase
+                .from("user_plans")
+                .select("*")
+                .eq("user_id", userData.id)
+                .limit(1);
+
+              if (multiplePlans && multiplePlans.length > 0) {
+                console.log("Using first of multiple user plans");
+                return { success: true };
+              }
+            } else {
+              throw planFetchError;
+            }
+          }
+
+          // Create user plan if not exists
+          if (!existingPlan) {
+            const { error: planInsertError } = await supabase
+              .from("user_plans")
+              .insert([
+                {
+                  user_id: userData.id,
+                  plan_type: "free",
+                  subject_limit: 3,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              ]);
+
+            if (planInsertError) throw planInsertError;
+
+            console.log("User plan created:", userData.email);
+          }
+
+          return { success: true };
+        } catch (error) {
+          return handleAuthError("adding user to database", error);
+        } finally {
+          // Clean up the promise tracking for this user
+          if (addUserPromise.current) {
+            delete addUserPromise.current[userKey];
+          }
         }
+      })();
 
-        return { success: true };
-      } catch (error) {
-        return handleAuthError("adding user to database", error);
-      }
+      // Store the promise for this user
+      addUserPromise.current[userKey] = promise;
+
+      return promise;
     },
     [handleAuthError]
   );
@@ -249,6 +300,8 @@ export function AuthProvider({ children }) {
       if (sessionCheckTimeout.current) {
         clearTimeout(sessionCheckTimeout.current);
       }
+      // Clear any ongoing addUserToDatabase promises
+      addUserPromise.current = null;
       subscription.unsubscribe();
     };
   }, [

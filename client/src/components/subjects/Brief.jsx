@@ -20,6 +20,7 @@ const Brief = ({ selectedFile, user, lectureId }) => {
     brief,
     currentPage,
     isLoading,
+    isPolling,
     error,
     noBriefExists,
     generateBrief,
@@ -56,6 +57,7 @@ const Brief = ({ selectedFile, user, lectureId }) => {
         brief={brief}
         noBriefExists={noBriefExists}
         isLoading={isLoading}
+        isPolling={isPolling}
         selectedFile={selectedFile}
         isPremium={isPremium}
         onGenerateBrief={handleGenerateBrief}
@@ -99,6 +101,7 @@ const Brief = ({ selectedFile, user, lectureId }) => {
         ) : (
           <BriefLoadingState
             isLoading={isLoading}
+            isPolling={isPolling}
             noBriefExists={noBriefExists}
             selectedFile={selectedFile}
           />

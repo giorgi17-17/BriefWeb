@@ -5,6 +5,7 @@ const BriefHeader = ({
   brief,
   noBriefExists,
   isLoading,
+  isPolling,
   selectedFile,
   isPremium,
   onGenerateBrief,
@@ -20,18 +21,27 @@ const BriefHeader = ({
         {(noBriefExists || !brief || isPremium) && (
           <button
             onClick={onGenerateBrief}
-            disabled={isLoading || !selectedFile}
+            disabled={isLoading || isPolling || !selectedFile}
             className={`flex items-center px-4 py-2 rounded-md text-sm font-medium
               ${
-                isLoading || !selectedFile
+                isLoading || isPolling || !selectedFile
                   ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                   : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
               }`}
           >
             <RefreshCw
-              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 mr-2 ${
+                isLoading || isPolling ? "animate-spin" : ""
+              }`}
             />
-            {brief ? "Regenerate" : "Generate"} Summary
+            {isPolling
+              ? "Checking Status..."
+              : isLoading
+              ? "Generating..."
+              : brief
+              ? "Regenerate"
+              : "Generate"}{" "}
+            Summary
           </button>
         )}
       </div>
@@ -43,6 +53,7 @@ BriefHeader.propTypes = {
   brief: PropTypes.object,
   noBriefExists: PropTypes.bool.isRequired,
   isLoading: PropTypes.bool.isRequired,
+  isPolling: PropTypes.bool.isRequired,
   selectedFile: PropTypes.object,
   isPremium: PropTypes.bool.isRequired,
   onGenerateBrief: PropTypes.func.isRequired,
