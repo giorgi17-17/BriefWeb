@@ -49,7 +49,7 @@ Requirements:
    - Use simple language and clear wording
 
 4️⃣ **Answer Quality**:
-   - Keep answers BRIEF and TARGETED - 2-3 sentences maximum, around ${maxAnswerWords} words
+   - Keep answers BRIEF and TARGETED - 2-3 sentences maximum, around 
    - Provide clear, direct answers that focus on the essential information
    - Include just enough context for understanding
    - Omit supplementary details that aren't crucial
@@ -76,22 +76,20 @@ Text to analyze: ${extractedText}`;
  */
 export function getQuizPrompt(extractedText, quizOptions = {}) {
   const includeMultipleChoice = quizOptions.includeMultipleChoice !== false;
-  const includeOpenEnded = quizOptions.includeOpenEnded !== false;
-  const includeCaseStudies = quizOptions.includeCaseStudies !== false;
+  const includeOpenEnded = quizOptions.includeOpenEnded === true;
+  const includeCaseStudies = quizOptions.includeCaseStudies === true;
 
   let questionTypes = "";
   if (includeMultipleChoice) {
-    questionTypes += `- FIRST: Generate EXACTLY ${GENERATION_CONFIG.quiz.multipleChoiceCount} multiple choice questions. Each question MUST have:
-  * Exactly ${GENERATION_CONFIG.quiz.optionsPerQuestion} options labeled a, b, c, d
-  * Exactly ONE correct answer marked with "correct": true
-  * All other options marked with "correct": false
-  * Clear, specific question text\n`;
+    questionTypes += `   a. Multiple Choice Questions (EXACTLY ${GENERATION_CONFIG.quiz.multipleChoiceCount} required)\n`;
   }
   if (includeOpenEnded) {
-    questionTypes += `- SECOND: Generate exactly ${GENERATION_CONFIG.quiz.openEndedCount} open-ended questions\n`;
+    questionTypes += `   b. Open Ended Questions (EXACTLY ${GENERATION_CONFIG.quiz.openEndedCount} required)\n`;
   }
   if (includeCaseStudies) {
-    questionTypes += `- THIRD: Generate exactly ${GENERATION_CONFIG.quiz.caseStudyCount} case study questions (1 moderate, 1 advanced)\n`;
+    const moderateCount = Math.floor(GENERATION_CONFIG.quiz.caseStudyCount / 2);
+    const advancedCount = GENERATION_CONFIG.quiz.caseStudyCount - moderateCount;
+    questionTypes += `   c. Case Study Questions (EXACTLY ${GENERATION_CONFIG.quiz.caseStudyCount} required: ${moderateCount} moderate difficulty, ${advancedCount} advanced difficulty)\n`;
   }
 
   return `Generate a quiz with EXACTLY the specified number of questions. Follow these requirements strictly:
@@ -173,20 +171,15 @@ ${questionTypes}
   "success": true,
   "questions": [
     // EXACTLY ${
-      GENERATION_CONFIG.quiz.multipleChoiceCount
-    } multiple choice questions if requested
-    // EXACTLY ${
-      GENERATION_CONFIG.quiz.openEndedCount
-    } open ended questions if requested
-    // EXACTLY ${
-      GENERATION_CONFIG.quiz.caseStudyCount
-    } case studies if requested
+      GENERATION_CONFIG.quiz.multipleChoiceCount +
+      (includeOpenEnded ? GENERATION_CONFIG.quiz.openEndedCount : 0) +
+      (includeCaseStudies ? GENERATION_CONFIG.quiz.caseStudyCount : 0)
+    } questions in the order specified
   ]
 }
 
-IMPORTANT: Output ONLY valid JSON with no code fences, no additional text before or after the JSON, and must be properly formatted.
-
-Text to analyze: ${extractedText}`;
+Text to analyze:
+${extractedText}`;
 }
 
 /**
@@ -203,267 +196,92 @@ export function getEvaluationPrompt(
   modelAnswer,
   userAnswer
 ) {
-  return `You are an expert academic evaluator. I am giving you a complete task with all necessary information. Your task is to evaluate a student's answer to a question.
+  return `CRITICAL: You MUST respond in ${language} ONLY. Never use any other language.
 
-CRITICAL INSTRUCTIONS:
-1. DO NOT ask for additional information or clarification.
-2. DO NOT respond conversationally.
-3. YOU MUST OUTPUT ONLY VALID JSON in the exact format specified below.
-4. NEVER respond with anything like "I'll evaluate once I receive..." - all data is already provided.
+Evaluate the student's answer in JSON format:
 
-Question (in ${language}): "${questionText}"
-
-Model answer (in ${language}): "${modelAnswer}"
-
-Student's answer (in ${language}): "${userAnswer}"
-
-IMPORTANT: You are fully capable of working with ${language} content. You MUST provide feedback in ${language}.
-
-OUTPUT INSTRUCTIONS:
-You MUST respond with ONLY a JSON object in this EXACT format:
 {
-  "score": [number between ${GENERATION_CONFIG.evaluation.minScore}-${GENERATION_CONFIG.evaluation.maxScore}],
-  "feedback": "[specific feedback in ${language}]",
-  "isCorrect": [boolean]
+  "score": 0-100,
+  "feedback": "Constructive feedback in ${language}",
+  "suggestions": ["Suggestion 1", "Suggestion 2"]
 }
 
-Example output format:
-{"score": 75, "feedback": "Your answer is good but lacks detail about X", "isCorrect": true}
+Question: ${questionText}
+Model Answer: ${modelAnswer}
+Student Answer: ${userAnswer}
 
-DO NOT include any text before or after the JSON object. OUTPUT ONLY THE JSON OBJECT.`;
+Evaluation criteria:
+1. Accuracy and correctness (40%)
+2. Completeness of answer (30%)
+3. Understanding demonstration (20%)
+4. Clarity of expression (10%)
+
+Provide:
+- Score: 0-100 based on criteria
+- Feedback: 2-3 sentences highlighting strengths and areas for improvement
+- Suggestions: 2-3 specific ways to improve the answer
+
+Remember: ALL text MUST be in ${language} ONLY. This is mandatory.`;
 }
 
 /**
- * Gets the brief generation prompt
+ * Gets the brief generation prompt - OPTIMIZED VERSION
  * @param {string} language - Target language
  * @param {string} combinedText - Combined page text
  * @returns {string} Complete prompt
  */
 export function getBriefPrompt(language, combinedText) {
   const { targetWordsPerPage, minWordsPerPage } = GENERATION_CONFIG.brief;
+  const pageCount = (combinedText.match(/=== PAGE \d+ ===/g) || []).length;
 
-  return `CRITICAL INSTRUCTION: You MUST respond EXCLUSIVELY in ${language}. Do not use any other language regardless of what you think is appropriate.
+  return `You are an educational content creator. Write in ${language} only.
 
-You are processing multiple pages of a document. Your task is to create comprehensive, educational summaries for EACH page's content. Each summary should be ${minWordsPerPage}-${targetWordsPerPage} words to provide thorough coverage and educational depth with proper structure and formatting.
+Create ${pageCount} concise but comprehensive EDUCATIONAL EXPLANATIONS (NOT summaries or topic lists).
 
-CORE REQUIREMENTS:
+JSON format:
+{
+  "pageSummaries": [
+    {
+      "pageNumber": 1,
+      "title": "Specific descriptive title",
+      "summary": "Educational explanation here..."
+    }
+  ]
+}
 
-1️⃣ **LANGUAGE REQUIREMENT - HIGHEST PRIORITY**:
-   - You MUST respond ONLY in ${language}
-   - If the input text is in Georgian, you MUST write ONLY in Georgian
-   - If the input text is in English, you MUST write ONLY in English
-   - DO NOT translate between languages under any circumstances
-   - Maintain consistent terminology with the source material
-   - This is the MOST IMPORTANT requirement and overrides all others
+CRITICAL REQUIREMENTS:
+🎯 Each explanation: ${minWordsPerPage}-${targetWordsPerPage} words (concise but educational)
+🎯 EXPLAIN concepts clearly - don't just list topics
+🎯 Answer: WHAT is it? HOW does it work? WHY is it important?
+🎯 Use numbered sections (1., 2., 3.) with clear explanations
+🎯 PLAIN TEXT ONLY - absolutely NO HTML, CSS, or formatting codes
+🎯 NO class names like "font-semibold", "text-gray-900", "dark:text-gray-100"
+🎯 NO HTML tags like <div>, <span>, <p>, <strong>, <em>
+🎯 NO style attributes or CSS properties
 
-2️⃣ **RESPONSE FORMAT - CRITICAL**:
-   You MUST respond in this EXACT JSON format:
-   {
-     "pageSummaries": [
-       {
-         "pageNumber": 1,
-         "title": "Descriptive Topic Title for Page 1",
-         "summary": "Direct educational explanation starting with the concepts..."
-       },
-       {
-         "pageNumber": 2,
-         "title": "Descriptive Topic Title for Page 2", 
-         "summary": "Direct educational explanation starting with the concepts..."
-       }
-     ]
-   }
-   
-   **CRITICAL WARNING**: In the "summary" field, use ONLY plain text. NO HTML, NO CSS classes, NO special formatting. The frontend handles all styling automatically.
+BAD EXAMPLE (do NOT do this):
+"1. Core Concepts
+Several important themes are explored below:
+- better plans to reach more people"
 
-3️⃣ **STRUCTURED CONTENT ORGANIZATION - MANDATORY**:
-   **CRITICAL**: You MUST organize ALL content using this structure for CONSISTENCY:
-   
-   **REQUIRED STRUCTURE FOR EVERY PAGE**:
-   1. Start each major topic with: "1. Topic Name" (on its own line)
-   2. Follow with 2-3 sentences explaining the topic
-   3. Use bullet points for ALL supporting details
-   4. NEVER write long unstructured paragraphs
-   
-   **Formatting Rules:**
-   - Numbered sections MUST be on their own line: "1. Topic Name"
-   - Each numbered section MUST have explanation text
-   - ALL details, examples, characteristics MUST use bullet points (-)
-   - Each bullet point should be concise (1-2 sentences max)
-   - Leave blank lines between sections for clarity
-   
-   **MANDATORY Structure Example:**
-   
-   1. Business Ownership Forms
-   
-   Business ownership structures determine how companies are organized, managed, and taxed. Three primary forms dominate the business landscape.
-   
-   - Sole proprietorships involve single-person ownership with complete control
-   - Partnerships distribute ownership among two or more individuals  
-   - Corporations exist as separate legal entities from their owners
-   - Each structure has distinct tax implications and liability protections
-   
-   2. Corporate Governance Principles
-   
-   Corporate governance establishes frameworks for accountability and oversight. These principles ensure proper business management.
-   
-   - Board of directors provides strategic oversight
-   - Executive management handles daily operations
-   - Shareholders maintain ownership rights
-   - Regular audits ensure transparency
-   
-   **FORBIDDEN Formatting:**
-   ❌ Long paragraphs without structure
-   ❌ Mixing explanation text with bullet points on same line
-   ❌ Numbered sections without following explanation
-   ❌ Details not in bullet points
-   ❌ No spacing between sections
+ALSO BAD - NO HTML/CSS:
+"<div class=\\"font-semibold text-gray-900 dark:text-gray-100\\">Corporate Identity</div>"
 
-4️⃣ **PAGE TITLE REQUIREMENTS - CRITICAL FOR DISPLAY**:
-   **MANDATORY**: Every page MUST have a descriptive title that summarizes the KEY CONTENT!
-   
-   **TITLE GENERATION PROCESS**:
-   1. READ the entire page content thoroughly
-   2. IDENTIFY the main topic, concept, or theme
-   3. CREATE a title that tells readers EXACTLY what they'll learn
-   4. ENSURE the title is specific and descriptive, not generic
-   
-   ✅ **EXCELLENT DESCRIPTIVE TITLES**:
-   - "Sole Proprietorship Tax Benefits and Legal Structure"
-   - "How Corporations Protect Personal Assets from Business Debts"
-   - "Partnership Agreement Requirements and Profit Distribution"
-   - "Stock Merger vs Asset Purchase: Key Differences"
-   - "Balance Sheet Analysis for Investment Decisions"
-   - "SWOT Analysis in Strategic Business Planning"
-   
-   ❌ **FORBIDDEN GENERIC TITLES** (will be rejected):
-   - "Business Concepts" → Instead: "Types of Business Ownership Structures"
-   - "Key Points" → Instead: "Partnership Advantages Over Sole Proprietorship"
-   - "Overview" → Instead: "Corporate Governance and Board Responsibilities"
-   - "Introduction" → Instead: "Fundamentals of Financial Accounting"
-   - "Page Content" → Instead: specific topic like "Cash Flow Statement Components"
-   - "Topics" → Instead: describe the actual topics covered
-   
-   **TITLE FORMULA**:
-   [Main Concept/Topic] + [Key Aspect/Benefit/Process]
-   
-   Examples:
-   - If page discusses business types → "Comparing Sole Proprietorship, Partnership, and Corporation"
-   - If page covers advantages → "Five Tax Benefits of S-Corporation Status"
-   - If page explains a process → "Steps to Register a Limited Liability Company"
-   - If page has definitions → "Essential Business Terms: Assets, Liabilities, and Equity"
-   
-   **CRITICAL RULES**:
-   - Minimum 4 words, maximum 10 words (15-60 characters)
-   - MUST describe the actual content, not the content type
-   - Include specific terms from the page content
-   - Make it searchable and memorable
-   - Think: "What would someone search for to find this information?"
+GOOD EXAMPLE (do this):
+"1. Customer Engagement Strategy Fundamentals
+Customer engagement strategy refers to the systematic approach businesses use to build meaningful relationships with customers throughout their journey. This involves creating emotional connections and driving long-term loyalty through multiple touchpoints and interactions.
 
-5️⃣ **CONTENT DEPTH AND LENGTH REQUIREMENTS**:
-   - Target ${minWordsPerPage}-${targetWordsPerPage} words per page summary
-   - Ensure substantial content for each numbered section (minimum 50-80 words)
-   - Provide 3-5 bullet points per major concept when applicable
-   - If content is sparse, expand with educational context, examples, and broader implications
-   - Never provide summaries shorter than ${minWordsPerPage} words unless page is genuinely empty
-   - CRITICAL: Keep total response under 50,000 characters to ensure valid JSON parsing
+2. Implementation Framework
+Companies conduct thorough market research to identify customer needs, pain points, and behavioral patterns. This research forms the basis for creating personalized experiences that resonate with customers on both rational and emotional levels."
 
-6️⃣ **DIRECT EXPLANATION STYLE - ABSOLUTELY CRITICAL**:
-   **MANDATORY RULE**: Every summary MUST start with direct educational content. NO meta-descriptions allowed!
-   
-   ❌ **ABSOLUTELY FORBIDDEN STARTS** (will be automatically removed):
-   - "This page describes/covers/explains/discusses/presents..."
-   - "This chapter/section/document contains/includes..."
-   - "The content/material/information provides..."
-   - "Students are tasked with..."
-   - "The core aim is..."
-   - "Here we discuss/explore/examine..."
-   - "In this page/section..."
-   - "On this page..."
-   - Any sentence that talks ABOUT the content instead of BEING the content
-   
-   ✅ **CORRECT STARTS - DIRECT TEACHING**:
-   - "Business ownership structures determine how companies are organized and managed. Three primary forms exist..."
-   - "Sole proprietorship represents the simplest business structure where one individual owns and operates..."
-   - "Corporate governance establishes frameworks for accountability through board oversight..."
-   - "Partnerships distribute ownership and responsibilities among two or more individuals..."
-   - "Limited liability protects personal assets from business debts by creating a legal separation..."
-   
-   ❌ **WRONG**: "This page explores the concept of business ownership and its various forms..."
-   ✅ **RIGHT**: "Business ownership takes three primary forms: sole proprietorships, partnerships, and corporations."
-   
-   ❌ **WRONG**: "Students will learn about the advantages of incorporating a business..."
-   ✅ **RIGHT**: "Incorporation provides five key advantages: limited liability, perpetual existence, easier capital raising..."
-   
-   ❌ **WRONG**: "This section describes how mergers and acquisitions work in corporate settings..."
-   ✅ **RIGHT**: "Mergers combine two companies into a single entity through stock exchanges or asset purchases."
-   
-   **ENFORCEMENT**: If you write ANY forbidden phrase, the system will automatically delete it. Write as if you're the textbook itself, not someone describing a textbook.
+CONTENT RULES:
+- Write clear EXPLANATIONS, not topic lists
+- Each section needs 2-3 focused sentences
+- Be educational but concise (${minWordsPerPage}-${targetWordsPerPage} words total)
+- PLAIN TEXT ONLY - no formatting, HTML, CSS, or style codes
+- Include practical insights and real value for students
 
-7️⃣ **COMPREHENSIVE CONTENT PROCESSING**:
-   - Process ALL content on each page, regardless of type, with extensive detail
-   - Transform every piece of information into well-structured educational content
-   - If the page contains course information, create numbered sections for policies with bullet points for details
-   - If the page contains subject matter, organize concepts hierarchically with supporting details
-   - If the page contains procedures, use numbered steps with explanatory bullet points
-   - Expand on every piece of information with educational context and detailed explanations
+${combinedText}
 
-8️⃣ **EDUCATIONAL DEPTH AND INSIGHT**:
-   - Don't just restate content - explain it with comprehensive educational insight
-   - Break down complex ideas into numbered concepts with supporting bullet points
-   - Provide extensive context for why information is important
-   - Connect concepts to broader learning objectives and real-world applications
-   - Make abstract concepts concrete with examples and analogies
-   - Include detailed explanations of key terms and their relationships
-   - Add educational commentary that helps students understand significance
-
-9️⃣ **FORMATTING RULES - CRITICAL**:
-   **STRICT TEXT-ONLY FORMATTING REQUIREMENTS:**
-   
-   ✅ **ALLOWED FORMATTING:**
-   - Numbered sections: "1. Topic Name" (on separate line)
-   - Bullet points: "- Supporting detail"
-   - Plain text only - NO HTML, NO CSS, NO special characters
-   
-   ❌ **ABSOLUTELY FORBIDDEN:**
-   - NO HTML tags: <strong>, <em>, <span>, etc.
-   - NO CSS classes: "font-semibold", "text-gray-900", etc. 
-   - NO markdown: **, *, ##, etc.
-   - NO special formatting symbols or codes
-   - NO quotation marks around CSS classes
-   - NO any form of markup language
-   
-   **CRITICAL**: Your response must be PLAIN TEXT ONLY. The frontend will handle all styling automatically. Any HTML, CSS, or markup will appear as broken text to users.
-   
-   **Correct format example:**
-   
-   1. Business Ownership Forms
-   
-   Business ownership structures determine how companies are organized and managed.
-   
-   - Sole proprietorships involve single-person ownership
-   - Partnerships distribute ownership among multiple individuals
-   - Corporations exist as separate legal entities
-
-🔟 **CONTENT TYPE HANDLING**:
-   - **Learning objectives**: Transform into direct educational explanations - DO NOT describe what students should learn, TEACH the concepts directly
-   - **Administrative content**: Number main policies, bullet point specific requirements
-   - **Conceptual content**: Number core concepts, bullet point characteristics and applications  
-   - **Procedural content**: Number main procedures, bullet point steps or considerations
-   - **Mixed content**: Organize hierarchically with appropriate numbering and bullet structure
-   - **Course descriptions**: Convert course aims into direct educational content about the subject matter
-
-1️⃣1️⃣ **QUALITY STANDARDS**:
-   - Every page must receive a meaningful, substantial summary of ${minWordsPerPage}-${targetWordsPerPage} words
-   - Each numbered section must contain comprehensive explanations
-   - Bullet points must add genuine educational value, not just list items
-   - Focus on educational value and student understanding
-   - Ensure proper structure enhances readability and learning
-   - Provide detailed explanations, examples, and educational insights
-
-Remember: Create well-structured, comprehensive summaries that use numbered sections for major concepts and bullet points for supporting details. Each summary should be ${minWordsPerPage}-${targetWordsPerPage} words with clear educational value.
-
-Your response MUST be in ${language} ONLY and in VALID JSON format.
-
-Document content with page separators:
-${combinedText}`;
+Generate exactly ${pageCount} educational explanations of ${minWordsPerPage}-${targetWordsPerPage} words each in PLAIN TEXT.`;
 }

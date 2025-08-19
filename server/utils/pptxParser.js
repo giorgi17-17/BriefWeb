@@ -1,5 +1,9 @@
 import officeParser from "officeparser";
 import fs from "fs";
+import { extractPptxSlides } from "pptx-content-extractor";
+import path from "path";
+import os from "os";
+import { debugLog, debugWarn, debugError } from "./debugLogger.js";
 
 /**
  * Extract text from a PPTX file using officeparser
@@ -9,15 +13,10 @@ import fs from "fs";
 export function parsePPTX(buffer) {
   return new Promise(async (resolve, reject) => {
     try {
-      // Use the officeparser library to extract text
       const extractedText = await officeParser.parseOfficeAsync(buffer);
-
-      // Format the text with slide separators for better readability
-      // officeparser already extracts the slides, we're just making it consistent with our previous format
       const formattedText = extractedText
         .split("\n")
         .map((line, index) => {
-          // If this is the start of a new slide (we'll assume major paragraph breaks are new slides)
           if (
             line.trim() &&
             index > 0 &&
@@ -31,95 +30,126 @@ export function parsePPTX(buffer) {
 
       resolve(formattedText.trim());
     } catch (error) {
-      console.error("Error parsing PPTX:", error);
+      debugError("Error parsing PPTX:", error);
       reject(error);
     }
   });
 }
 
 /**
- * Extract text from PPTX and organize by slides
+ * Extract text from PPTX and organize by slides - ULTRA SIMPLE APPROACH
  * @param {Buffer} buffer - The PPTX file buffer
  * @returns {Promise<Array<string>>} - Array of extracted text from each slide
  */
 export function parseSlidesByPPTX(buffer) {
   return new Promise(async (resolve, reject) => {
+    let tempFilePath = null;
+
+    // Ensure cleanup happens regardless of how the function exits
+    const cleanup = () => {
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+          debugLog(`Cleaned up temp file: ${tempFilePath}`);
+        } catch (cleanupError) {
+          debugWarn(`Failed to cleanup temp file: ${cleanupError.message}`);
+        }
+      }
+    };
+
     try {
-      // Use the officeparser library to extract text
-      const extractedText = await officeParser.parseOfficeAsync(buffer);
+      debugLog("Parsing PPTX with specialized library...");
 
-      // Split the text into slides (assuming major paragraph breaks indicate new slides)
-      const lines = extractedText.split("\n");
-      let slides = [];
-      let currentSlide = "";
+      // STEP 1: Try specialized library
+      const tempDir = os.tmpdir();
+      tempFilePath = path.join(tempDir, `temp_pptx_${Date.now()}.pptx`);
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
+      fs.writeFileSync(tempFilePath, buffer);
+      const slidesData = await extractPptxSlides(tempFilePath);
+      debugLog(`Found ${slidesData.length} slides in PPTX`);
 
-        // If we've hit an empty line and the next line has content, consider it a new slide
-        if (
-          !line &&
-          i < lines.length - 1 &&
-          lines[i + 1].trim() &&
-          currentSlide
-        ) {
-          slides.push(currentSlide.trim());
-          currentSlide = "";
-        } else if (line) {
-          currentSlide += line + " ";
-        }
-      }
+      // Clean up temp file
+      cleanup();
 
-      // Add the last slide if it has content
-      if (currentSlide.trim()) {
-        slides.push(currentSlide.trim());
-      }
+      // Process the slides - KEEP IT SIMPLE
+      const slides = [];
+      for (let i = 0; i < slidesData.length; i++) {
+        const slideData = slidesData[i];
+        let text = "";
 
-      // IMPROVED: More inclusive slide filtering
-      // Process all slides, even those with minimal content
-      const processedSlides = slides.map((slide, index) => {
-        const slideNumber = index + 1;
-
-        // If slide is completely empty, provide a placeholder
-        if (!slide || slide.trim().length === 0) {
-          console.log(`Slide ${slideNumber} is empty, providing placeholder`);
-          return `Slide ${slideNumber} appears to contain visual content (images, diagrams, or formatting elements) without extractable text.`;
+        // Extract text in the simplest way possible
+        if (typeof slideData === "string") {
+          text = slideData;
+        } else if (slideData && slideData.content) {
+          text = slideData.content;
+        } else if (slideData && slideData.text) {
+          text = slideData.text;
+        } else if (slideData) {
+          // Get any string content
+          const values = Object.values(slideData);
+          text = values
+            .filter((v) => typeof v === "string" && v.trim())
+            .join(" ");
         }
 
-        // Check for meaningful content with multi-language support
-        const hasMeaningfulContent =
-          /[\w\u00C0-\u017F\u0400-\u04FF\u10A0-\u10FF\u0590-\u05FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/.test(
-            slide
-          );
+        // Clean text and remove any HTML that might have been extracted
+        text = text
+          .replace(/\s+/g, " ")
+          .replace(/<[^>]*>/g, "") // Remove HTML tags
+          .replace(/&[a-zA-Z0-9#]+;/g, " ") // Remove HTML entities
+          .replace(/class\s*=\s*"[^"]*"/g, "") // Remove class attributes
+          .replace(/style\s*=\s*"[^"]*"/g, "") // Remove style attributes
+          .trim();
 
-        if (!hasMeaningfulContent && slide.length < 10) {
-          console.log(
-            `Slide ${slideNumber} has minimal content, but including it anyway`
-          );
-          return `Slide ${slideNumber} contains limited text content: ${slide}`;
+        if (text.length < 5) {
+          text = `Slide ${i + 1}: Visual content with minimal text.`;
         }
 
-        console.log(
-          `Slide ${slideNumber} processed successfully with ${slide.length} characters`
-        );
-        return slide;
-      });
-
-      // If we have no slides at all, create at least one slide
-      if (processedSlides.length === 0) {
-        console.log("No slides found, creating placeholder slide");
-        processedSlides.push(
-          "This presentation appears to contain only visual content without extractable text."
-        );
+        slides.push(text);
       }
 
-      console.log(
-        `PPTX parsed successfully: ${processedSlides.length} slides processed`
-      );
-      resolve(processedSlides);
+      debugLog(`Successfully processed ${slides.length} slides`);
+      resolve(slides);
     } catch (error) {
-      console.error("Error parsing PPTX slides:", error);
-      reject(error);
+      debugWarn(`Specialized library failed: ${error.message}`);
+
+      // Clean up temp file
+      cleanup();
+
+      // STEP 2: Simple fallback
+      try {
+        debugLog("Using fallback text extraction...");
+        const fullText = await officeParser.parseOfficeAsync(buffer);
+
+        // Clean the full text first
+        const cleanedFullText = fullText
+          .replace(/<[^>]*>/g, "") // Remove HTML tags
+          .replace(/&[a-zA-Z0-9#]+;/g, " ") // Remove HTML entities
+          .replace(/class\s*=\s*"[^"]*"/g, "") // Remove class attributes
+          .replace(/style\s*=\s*"[^"]*"/g, "") // Remove style attributes
+          .replace(/\s+/g, " ")
+          .trim();
+
+        // ULTRA-SIMPLE: Just divide text into reasonable chunks
+        const words = cleanedFullText.split(/\s+/);
+        const wordsPerSlide = Math.max(50, Math.floor(words.length / 30)); // Target ~30 slides max
+
+        const slides = [];
+        for (let i = 0; i < words.length; i += wordsPerSlide) {
+          const slideWords = words.slice(i, i + wordsPerSlide);
+          const slideText = slideWords.join(" ").trim();
+          if (slideText.length > 20) {
+            slides.push(slideText);
+          }
+        }
+
+        debugLog(`Fallback created ${slides.length} slides`);
+        resolve(slides.length > 0 ? slides : [fullText]);
+      } catch (finalError) {
+        debugError("All parsing methods failed:", finalError);
+        cleanup();
+        reject(finalError);
+      }
     }
   });
 }

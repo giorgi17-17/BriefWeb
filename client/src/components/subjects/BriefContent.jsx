@@ -3,82 +3,16 @@ import {
   formatSummaryText,
   ensureFormattingConsistency,
 } from "../../utils/briefFormatters";
+import { debugWarn } from "../../utils/debugLogger";
 
 const BriefContent = ({ brief, currentPage }) => {
   if (!brief) return null;
 
-  // ENHANCED DEBUG LOGGING
-  console.log("🔍 === BRIEF CONTENT DEBUG ===");
-  console.log("Current Page:", currentPage);
-  console.log("Brief object structure:", {
-    hasBrief: !!brief,
-    hasMetadata: !!brief.metadata,
-    hasPageTitles: !!brief.metadata?.page_titles,
-    hasSummariesWithTitles: !!brief.metadata?.summaries_with_titles,
-    totalPages: brief.total_pages,
-    summariesLength: brief.summaries?.length,
-  });
+  // Get the current page title from standardized metadata structure
+  let currentPageTitle = brief.metadata?.page_titles?.[currentPage - 1];
 
-  // Log detailed title information
-  if (brief.metadata?.page_titles) {
-    console.log("📑 Page Titles Array:", brief.metadata.page_titles);
-    console.log(
-      `Title for page ${currentPage}:`,
-      brief.metadata.page_titles[currentPage - 1]
-    );
-    console.log(
-      `Title type:`,
-      typeof brief.metadata.page_titles[currentPage - 1]
-    );
-    console.log(
-      `Title length:`,
-      brief.metadata.page_titles[currentPage - 1]?.length
-    );
-  }
-
-  if (brief.metadata?.summaries_with_titles) {
-    console.log(
-      "📋 Summaries with Titles:",
-      brief.metadata.summaries_with_titles
-    );
-    const currentSummaryWithTitle =
-      brief.metadata.summaries_with_titles[currentPage - 1];
-    console.log(
-      `Summary with title for page ${currentPage}:`,
-      currentSummaryWithTitle
-    );
-    if (currentSummaryWithTitle?.title) {
-      console.log(
-        `Title from summaries_with_titles:`,
-        currentSummaryWithTitle.title
-      );
-      console.log(`Title type:`, typeof currentSummaryWithTitle.title);
-      console.log(`Title length:`, currentSummaryWithTitle.title.length);
-    }
-  }
-
-  // Get the current page title from metadata or direct properties
-  let currentPageTitle = null;
-
-  // Try different sources for the title
-  if (brief.metadata?.summaries_with_titles?.[currentPage - 1]?.title) {
-    currentPageTitle =
-      brief.metadata.summaries_with_titles[currentPage - 1].title;
-    console.log("✅ Using title from summaries_with_titles:", currentPageTitle);
-  } else if (brief.metadata?.page_titles?.[currentPage - 1]) {
-    currentPageTitle = brief.metadata.page_titles[currentPage - 1];
-    console.log("✅ Using title from page_titles:", currentPageTitle);
-  } else if (brief.page_titles?.[currentPage - 1]) {
-    currentPageTitle = brief.page_titles[currentPage - 1];
-    console.log("✅ Using title from direct page_titles:", currentPageTitle);
-  } else if (brief.summaries_with_titles?.[currentPage - 1]?.title) {
-    currentPageTitle = brief.summaries_with_titles[currentPage - 1].title;
-    console.log(
-      "✅ Using title from direct summaries_with_titles:",
-      currentPageTitle
-    );
-  } else {
-    console.log("⚠️ No title found in any source, generating fallback");
+  // If no title in standardized location, generate fallback
+  if (!currentPageTitle) {
     currentPageTitle = generateFallbackTitle(
       brief.summaries[currentPage - 1],
       currentPage
@@ -91,15 +25,12 @@ const BriefContent = ({ brief, currentPage }) => {
     typeof currentPageTitle !== "string" ||
     currentPageTitle.length < 3
   ) {
-    console.warn(`⚠️ Invalid title detected: "${currentPageTitle}"`);
+    debugWarn(`Invalid title detected: "${currentPageTitle}"`);
     currentPageTitle = generateFallbackTitle(
       brief.summaries[currentPage - 1],
       currentPage
     );
-    console.log("✅ Generated fallback title:", currentPageTitle);
   }
-
-  console.log("🔍 === END DEBUG ===");
 
   // Fallback title generation function
   function generateFallbackTitle(content, pageNum) {

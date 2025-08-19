@@ -2,6 +2,8 @@ import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useBrief } from "../../hooks/useBrief";
 import PropTypes from "prop-types";
 import { useEffect } from "react";
+import { debugLog } from "../../utils/debugLogger";
+import ErrorBoundary from "../ErrorBoundary";
 
 // Import our new components
 import BriefHeader from "./BriefHeader";
@@ -29,12 +31,16 @@ const Brief = ({ selectedFile, user, lectureId }) => {
 
   useEffect(() => {
     if (brief) {
-      console.log("Brief data:", {
+      debugLog("✅ Brief component received updated brief data:", {
+        briefId: brief.id,
         totalPages: brief.total_pages,
         currentPage,
         summariesLength: brief.summaries ? brief.summaries.length : 0,
         hasSummaries: !!brief.summaries,
+        firstSummaryPreview: brief.summaries?.[0]?.substring(0, 50) + "..."
       });
+    } else {
+      debugLog("⚠️ Brief component has no brief data");
     }
   }, [brief, currentPage]);
 
@@ -51,7 +57,8 @@ const Brief = ({ selectedFile, user, lectureId }) => {
   }
 
   return (
-    <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <ErrorBoundary message="Error loading document summary">
+      <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header with Generate button */}
       <BriefHeader
         brief={brief}
@@ -66,12 +73,8 @@ const Brief = ({ selectedFile, user, lectureId }) => {
       {/* Content area */}
       <div className="p-4">
         {brief ? (
-          <div>
+          <div key={brief.id || brief.lecture_id}>
             {/* Pagination controls */}
-            {console.log("Rendering BriefPagination with:", {
-              currentPage,
-              totalPages: brief.total_pages,
-            })}
             {brief.total_pages > 1 ? (
               <BriefPagination
                 currentPage={currentPage}
@@ -85,8 +88,12 @@ const Brief = ({ selectedFile, user, lectureId }) => {
                 </span>
               </div>
             )}
-            {/* Main content */}
-            <BriefContent brief={brief} currentPage={currentPage} />
+            {/* Main content - Add key to force re-render */}
+            <BriefContent 
+              key={`${brief.id}-${currentPage}`}
+              brief={brief} 
+              currentPage={currentPage} 
+            />
 
             {/* Key concepts */}
             {brief.metadata?.key_concepts && (
@@ -108,11 +115,15 @@ const Brief = ({ selectedFile, user, lectureId }) => {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 };
 
 Brief.propTypes = {
-  selectedFile: PropTypes.object,
+  selectedFile: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    path: PropTypes.string.isRequired,
+  }),
   user: PropTypes.object.isRequired,
   lectureId: PropTypes.string.isRequired,
 };

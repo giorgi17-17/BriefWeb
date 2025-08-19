@@ -1,14 +1,14 @@
 import PropTypes from "prop-types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { debugLog } from "../../utils/debugLogger";
 
 const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
-  console.log("BriefPagination props:", { currentPage, totalPages });
+  debugLog("BriefPagination props:", { currentPage, totalPages });
 
-  // Always show pagination controls, even for single-page briefs
-  // if (!totalPages || totalPages <= 1) {
-  //   console.log("Pagination hidden: totalPages is", totalPages);
-  //   return null;
-  // }
+  // Only show pagination for multi-page documents
+  if (!totalPages || totalPages <= 1) {
+    return null;
+  }
 
   // Set a minimum of 1 page
   const pages = totalPages || 1;
@@ -54,7 +54,7 @@ const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
 
 BriefPagination.propTypes = {
   currentPage: PropTypes.number.isRequired,
-  totalPages: PropTypes.number,
+  totalPages: PropTypes.number.isRequired,
   onPageChange: PropTypes.func.isRequired,
 };
 
