@@ -31,6 +31,106 @@ const BATCH_CONFIG = {
 };
 
 /**
+ * Converts markdown-formatted text to clean, readable text
+ * Preserves structure while removing markdown syntax
+ * @param {string} markdownText - Text with markdown formatting
+ * @returns {string} - Clean, formatted text
+ */
+function convertMarkdownToFormattedText(markdownText) {
+  if (!markdownText || typeof markdownText !== "string") {
+    return markdownText;
+  }
+
+  let formatted = markdownText
+    // Convert headers to emphasized text with proper spacing
+    .replace(/^###\s+(.+)$/gm, "\n$1:\n") // H3 headers
+    .replace(/^##\s+(.+)$/gm, "\n\n$1\n\n") // H2 headers (main sections)
+    .replace(/^#\s+(.+)$/gm, "\n\n$1\n\n") // H1 headers
+    
+    // Handle bold text - keep for emphasis
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // Bold text - just remove markers
+    .replace(/\*([^*]+)\*/g, "$1") // Italic text - just remove markers
+    
+    // Handle lists with proper indentation
+    .replace(/^[-*]\s+(.+)$/gm, "• $1") // Convert markdown lists to bullet points
+    .replace(/^\d+\.\s+(.+)$/gm, "$1") // Remove numbered list markers but keep content
+    
+    // Clean up code blocks
+    .replace(/```[^`]*```/g, "") // Remove code blocks
+    .replace(/`([^`]+)`/g, "$1") // Remove inline code markers
+    
+    // Ensure proper paragraph spacing
+    .replace(/\n{3,}/g, "\n\n") // Limit to double line breaks
+    .replace(/^\s+|\s+$/gm, "") // Trim whitespace from lines
+    .trim();
+
+  // Ensure sections are properly spaced
+  const lines = formatted.split("\n");
+  const processedLines = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const nextLine = lines[i + 1]?.trim();
+    
+    if (line) {
+      processedLines.push(line);
+      
+      // Add extra spacing after section headers (lines ending with colon)
+      if (line.endsWith(":") && nextLine && !nextLine.startsWith("•")) {
+        processedLines.push("");
+      }
+    } else if (processedLines[processedLines.length - 1] !== "") {
+      // Preserve single empty lines but avoid multiple
+      processedLines.push("");
+    }
+  }
+  
+  return processedLines.join("\n");
+}
+
+/**
+ * Validates if content contains HTML/CSS that should be rejected
+ * @param {string} content - Content to validate
+ * @returns {boolean} - True if HTML/CSS detected, false otherwise
+ */
+function containsHtmlOrCss(content) {
+  if (!content) return false;
+  
+  // Check for HTML tags
+  const htmlTagPattern = /<[^>]*>/;
+  const hasHtmlTags = htmlTagPattern.test(content);
+  
+  // Check for CSS classes
+  const cssClassPatterns = [
+    /class\s*=\s*["'][^"']*["']/,
+    /className\s*=\s*["'][^"']*["']/,
+    /style\s*=\s*["'][^"']*["']/,
+    /font-(?:semibold|bold|medium|normal)/,
+    /text-(?:gray|blue|red|green|black|white)-\d+/,
+    /dark:text-/,
+    /bg-\w+/,
+    /border-\w+/,
+    /flex|block|inline|grid/,
+  ];
+  
+  const hasCssClasses = cssClassPatterns.some(pattern => pattern.test(content));
+  
+  if (hasHtmlTags || hasCssClasses) {
+    debugWarn("HTML/CSS detected in AI response!");
+    if (hasHtmlTags) {
+      const matches = content.match(/<[^>]*>/g);
+      debugLog("HTML tags found:", matches?.slice(0, 3));
+    }
+    if (hasCssClasses) {
+      debugLog("CSS classes detected in content");
+    }
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Generates a multi-page brief using parallel batch processing for performance
  * @param {Array<string>} allPages - Array of page texts
  * @returns {Promise<Object>} Brief with page summaries
@@ -240,27 +340,23 @@ async function generateSingleBatchBrief(
       debugError("⚠️ Response seems very short! This might indicate an issue.");
     }
 
-    // DEBUG: Log if raw response contains HTML
-    const containsHtml =
-      /<[^>]*>/.test(responseText) ||
-      /class\s*=/.test(responseText) ||
-      /style\s*=/.test(responseText) ||
-      /"font-/.test(responseText);
-
-    if (containsHtml) {
-      debugWarn("RAW AI RESPONSE CONTAINS HTML/CSS!");
-      debugLog("First 500 chars:", responseText.substring(0, 500));
-
-      // Show specific HTML patterns
-      const htmlMatches = responseText.match(/<[^>]*>/g);
-      const cssMatches = responseText.match(/"[^"]*font-[^"]*"/g);
-
-      if (htmlMatches)
-        debugLog("HTML in raw response:", htmlMatches.slice(0, 3));
-      if (cssMatches)
-        debugLog("CSS in raw response:", cssMatches.slice(0, 3));
+    // Check for HTML/CSS in response - if found, it's a format violation
+    if (containsHtmlOrCss(responseText)) {
+      debugError("❌ HTML/CSS detected in AI response - Format violation!");
+      debugLog("Response violates formatting requirements");
+      
+      // Try to extract just the JSON part if it exists
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch && !containsHtmlOrCss(jsonMatch[0])) {
+        debugLog("Found clean JSON within response, extracting...");
+        responseText = jsonMatch[0];
+      } else {
+        // If we can't find clean JSON, we should retry or fallback
+        debugError("Cannot extract clean JSON from HTML-contaminated response");
+        throw new Error("AI response contains forbidden HTML/CSS formatting");
+      }
     } else {
-      debugLog("Raw AI response appears clean (no HTML detected)");
+      debugLog("✅ Response format validated - no HTML/CSS detected");
     }
 
     // Only truncate if response is extremely large (over 200KB)
@@ -402,10 +498,21 @@ async function generateSingleBatchBrief(
       
       // Summary validation with strict length and content checks
       let cleanSummary = page.summary || "No summary available";
-      cleanSummary = cleanSummary.replace(/^(This page|This section|The page)\s+/i, '').trim();
       
-      // Apply HTML/CSS cleaning to each summary
-      cleanSummary = fixBrokenHtmlFormatting(cleanSummary);
+      // First check if the summary contains markdown formatting
+      const hasMarkdown = /^##\s+/m.test(cleanSummary) || /\*\*[^*]+\*\*/g.test(cleanSummary);
+      
+      if (hasMarkdown) {
+        debugLog("✅ Markdown formatting detected - converting to clean text");
+        // Convert markdown to formatted text
+        cleanSummary = convertMarkdownToFormattedText(cleanSummary);
+      } else {
+        debugLog("No markdown detected - applying standard cleaning");
+        // Remove any HTML/CSS if present
+        cleanSummary = fixBrokenHtmlFormatting(cleanSummary);
+        // Remove forbidden starting phrases
+        cleanSummary = cleanSummary.replace(/^(This page|This section|The page)\s+/i, '').trim();
+      }
       
       const wordCount = cleanSummary.split(/\s+/).filter(word => word.length > 0).length;
       const { minWordsPerPage, targetWordsPerPage } = GENERATION_CONFIG.brief;
@@ -880,6 +987,7 @@ function validateAndCleanTitle(title, pageNumber) {
 
 /**
  * Validates and cleans summary text to remove forbidden phrases
+ * Handles both markdown and plain text content
  * @param {string} summary - The summary to validate
  * @param {number} pageNumber - The page number for context
  * @returns {string} - Cleaned summary
@@ -890,12 +998,18 @@ function validateAndCleanSummary(summary, pageNumber) {
   }
 
   let cleanedSummary = summary.trim();
-
-  // First, ensure the content has proper structure
-  cleanedSummary = ensureContentStructure(cleanedSummary);
-
-  // Fix broken HTML formatting from AI responses
-  cleanedSummary = fixBrokenHtmlFormatting(cleanedSummary);
+  
+  // Check if content has markdown
+  const hasMarkdown = /^##\s+/m.test(cleanedSummary) || /\*\*[^*]+\*\*/g.test(cleanedSummary);
+  
+  if (hasMarkdown) {
+    // For markdown content, just remove forbidden phrases and HTML
+    cleanedSummary = fixBrokenHtmlFormatting(cleanedSummary);
+  } else {
+    // For plain text, apply full cleaning and structuring
+    cleanedSummary = ensureContentStructure(cleanedSummary);
+    cleanedSummary = fixBrokenHtmlFormatting(cleanedSummary);
+  }
 
   // List of forbidden starting phrases to remove
   const forbiddenPhrases = [
@@ -915,15 +1029,12 @@ function validateAndCleanSummary(summary, pageNumber) {
   // Remove forbidden phrases from the beginning
   for (const phrase of forbiddenPhrases) {
     if (phrase.test(cleanedSummary)) {
-      console.log(
-        `Page ${pageNumber}: Removing forbidden phrase from summary start`
-      );
+      debugLog(`Page ${pageNumber}: Removing forbidden phrase from summary start`);
       cleanedSummary = cleanedSummary.replace(phrase, "");
 
       // Capitalize the first letter of the cleaned summary
       if (cleanedSummary.length > 0) {
-        cleanedSummary =
-          cleanedSummary.charAt(0).toUpperCase() + cleanedSummary.slice(1);
+        cleanedSummary = cleanedSummary.charAt(0).toUpperCase() + cleanedSummary.slice(1);
       }
       break;
     }
@@ -1292,6 +1403,7 @@ function ensureContentStructure(content) {
 
 /**
  * Fixes broken HTML formatting that sometimes appears in AI responses
+ * Preserves markdown formatting while removing HTML/CSS
  * @param {string} content - Content that may have broken HTML
  * @returns {string} - Content with fixed formatting
  */
@@ -1300,29 +1412,62 @@ function fixBrokenHtmlFormatting(content) {
     return content;
   }
 
-  // Ultra-aggressive HTML/CSS cleaning for AI-generated content
+  // Check if content has markdown formatting we want to preserve
+  const hasMarkdown = /^##\s+/m.test(content) || /\*\*[^*]+\*\*/g.test(content);
+  
+  if (hasMarkdown) {
+    debugLog("Markdown detected - preserving formatting while removing HTML/CSS");
+    
+    // Remove HTML/CSS while preserving markdown
+    let fixed = content
+      // Remove all HTML tags
+      .replace(/<[^>]*>/g, "")
+      
+      // Remove CSS class patterns but preserve markdown
+      .replace(/class\s*=\s*"[^"]*"/g, "")
+      .replace(/className\s*=\s*"[^"]*"/g, "")
+      .replace(/style\s*=\s*"[^"]*"/g, "")
+      
+      // Remove standalone CSS class names
+      .replace(/\b(?:font-(?:semibold|medium|bold)|text-(?:gray-\d+|lg|xl|sm)|dark:text-gray-\d+|bg-\w+)\b/g, "")
+      .replace(/\b(?:p-\d+|m-\d+|w-\d+|h-\d+|flex|block|inline|grid|rounded|shadow)\b/g, "")
+      
+      // Remove HTML entities
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#\d+;/g, "")
+      
+      // Clean up spacing
+      .replace(/\s{3,}/g, " ")
+      .replace(/^\s+|\s+$/gm, "")
+      .trim();
+    
+    return fixed;
+  }
+
+  // Original aggressive cleaning for non-markdown content
   let fixed = content
-    // Remove all HTML tags completely (any < > pattern)
+    // Remove all HTML tags completely
     .replace(/<[^>]*>/g, "")
     
-    // AGGRESSIVE: Remove any quoted strings containing CSS class patterns
+    // Remove any quoted strings containing CSS class patterns
     .replace(/"[^"]*(?:font-|text-|bg-|border-|p-|m-|w-|h-|flex|block|inline|grid)[^"]*"/g, "")
     .replace(/"[^"]*(?:semibold|medium|bold|italic|underline|uppercase|lowercase)[^"]*"/g, "")  
     .replace(/"[^"]*(?:gray-|blue-|red-|green-|white|black|purple-|pink-|yellow-)[^"]*"/g, "")
     .replace(/"[^"]*(?:dark:|hover:|focus:|sm:|md:|lg:|xl:)[^"]*"/g, "")
     .replace(/"[^"]*(?:-\d+|space-|gap-|rounded|shadow)[^"]*"/g, "")
     
-    // Remove specific problem patterns mentioned by user
+    // Remove specific problem patterns
     .replace(/font-semibold\s+text-gray-900\s+dark:text-gray-100/g, "")
     .replace(/class="[^"]*"/g, "")
     .replace(/className="[^"]*"/g, "")
     
-    // Remove any standalone CSS class names (without quotes)
+    // Remove standalone CSS class names
     .replace(/\b(?:font-(?:semibold|medium|bold)|text-(?:gray-\d+|lg|xl|sm)|dark:text-gray-\d+|bg-\w+)\b/g, "")
     .replace(/\b(?:p-\d+|m-\d+|w-\d+|h-\d+|flex|block|inline|grid|rounded|shadow)\b/g, "")
-    
-    // Remove backslash-escaped quotes around CSS classes  
-    .replace(/\\"[^"]*(?:font-|text-|class)[^"]*\\"/g, "")
     
     // Remove HTML entities
     .replace(/&nbsp;/g, " ")
@@ -1337,39 +1482,30 @@ function fixBrokenHtmlFormatting(content) {
     .replace(/\s*(?:class|style|id)\s*=\s*"[^"]*"/g, "")
     .replace(/\s*(?:class|style|id)\s*=\s*'[^']*'/g, "")
 
-    // Remove orphaned quotes, brackets, and CSS fragments
+    // Remove orphaned quotes and brackets
     .replace(/\s*">\s*/g, " ")
     .replace(/\s*<[^>]*>\s*/g, " ")
-    .replace(/\s*\\?"[^"]*(?:font|text|class|style)[^"]*\\?"\s*/g, " ")
     .replace(/>\s*</g, " ")
 
-    // Clean up markdown formatting
-    .replace(/\*\*(.*?)\*\*/g, "$1") // Remove bold markdown
-    .replace(/\*(.*?)\*/g, "$1") // Remove italic markdown  
-    .replace(/`(.*?)`/g, "$1") // Remove code markdown
-    .replace(/#{1,6}\s+/g, "") // Remove markdown headers
-
     // Fix spacing and formatting
-    .replace(/\s{3,}/g, " ") // Reduce multiple spaces to single space
-    .replace(/\n\s*\n\s*\n+/g, "\n\n") // Limit to double line breaks
-    .replace(/^\s+|\s+$/gm, "") // Trim whitespace from each line
-    .replace(/^\s+|\s+$/g, ""); // Trim overall
+    .replace(/\s{3,}/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .replace(/^\s+|\s+$/gm, "")
+    .replace(/^\s+|\s+$/g, "");
 
-  // If we removed content, log it with details
+  // Log if we cleaned content
   if (fixed !== content) {
     debugLog("Cleaned HTML/formatting from AI response");
-    debugLog("Original content preview:", content.substring(0, 200));
-    debugLog("Cleaned content preview:", fixed.substring(0, 200));
-
-    // Log specific HTML patterns found
+    
+    // Log specific patterns found
     const htmlTags = content.match(/<[^>]*>/g);
-    const cssClasses = content.match(/"[^"]*(?:font-|text-|class=)[^"]*"/g);
-
+    const cssClasses = content.match(/(?:font-|text-|class=)[^"'\s]*/g);
+    
     if (htmlTags) {
-      debugLog("HTML tags found:", htmlTags.slice(0, 5));
+      debugLog("HTML tags removed:", htmlTags.slice(0, 3));
     }
     if (cssClasses) {
-      debugLog("CSS classes found:", cssClasses.slice(0, 5));
+      debugLog("CSS classes removed:", cssClasses.slice(0, 3));
     }
   }
 
@@ -1463,6 +1599,7 @@ function generatePageTitle(pageText, pageNumber) {
 
 /**
  * Generates educational fallback content when AI produces inadequate summaries
+ * Uses markdown format for better structure
  * @param {string} pageText - Original page text
  * @param {number} pageNumber - Page number
  * @param {string} title - Page title
@@ -1476,53 +1613,80 @@ function generateEducationalFallback(pageText, pageNumber, title) {
   const keywords = pageText.match(/\b[A-Z][a-z]{3,}\b/g) || [];
   const uniqueKeywords = [...new Set(keywords)].slice(0, 5);
   
-  let fallbackContent = `1. Educational Overview of ${title.replace(/Page \d+ /, '').replace(/Educational Content/, 'Key Concepts')}\n\n`;
+  // Build content in markdown format
+  let fallbackContent = `## Educational Overview\n\n`;
   
-  // Add concept explanation
-  fallbackContent += `This page covers important educational concepts that require careful study and understanding. `;
+  // Add introduction
+  fallbackContent += `This content focuses on ${title.replace(/Page \d+ /, '').replace(/Educational Content/, 'key educational concepts')} that form essential knowledge for students. `;
+  fallbackContent += `Understanding these concepts provides a foundation for deeper learning and practical application.\n\n`;
+  
+  // Add key concepts section
+  fallbackContent += `## Key Concepts and Principles\n\n`;
   
   if (uniqueKeywords.length > 0) {
-    fallbackContent += `The key topics discussed include ${uniqueKeywords.slice(0, 3).join(', ')}, each of which plays a crucial role in the overall subject matter.\n\n`;
+    fallbackContent += `The primary topics include **${uniqueKeywords[0]}**`;
+    if (uniqueKeywords.length > 1) {
+      fallbackContent += `, **${uniqueKeywords[1]}**`;
+    }
+    if (uniqueKeywords.length > 2) {
+      fallbackContent += `, and **${uniqueKeywords[2]}**`;
+    }
+    fallbackContent += `. Each concept builds upon fundamental principles that students must understand to progress in their studies.\n\n`;
   } else {
-    fallbackContent += `The content presents fundamental principles that students need to master for comprehensive understanding.\n\n`;
+    fallbackContent += `The material presents fundamental principles that require careful study and analysis. Students should focus on understanding the core concepts and their interconnections.\n\n`;
   }
   
-  // Add detailed sections based on available content
+  // Add detailed learning points if we have source content
   if (sentences.length > 0) {
-    fallbackContent += `2. Core Learning Points\n\n`;
+    fallbackContent += `## Core Learning Points\n\n`;
     
-    // Process first few sentences to create educational content
+    // Process available sentences to create educational content
     for (let i = 0; i < Math.min(3, sentences.length); i++) {
       const sentence = sentences[i].trim();
       if (sentence.length > 20) {
-        fallbackContent += `The material explains that ${sentence.toLowerCase().replace(/^[a-z]/, c => c.toUpperCase())} `;
-        fallbackContent += `This concept is significant because it provides foundation knowledge that students can apply in practical situations. `;
-        fallbackContent += `Understanding this principle helps learners develop critical thinking skills and analytical capabilities.\n\n`;
+        // Create educational explanation from the sentence
+        const cleanSentence = sentence.toLowerCase().replace(/^[a-z]/, c => c.toUpperCase());
+        fallbackContent += `**Key Point ${i + 1}**: ${cleanSentence}\n\n`;
+        fallbackContent += `This concept demonstrates important principles that students can apply in practical scenarios. `;
+        fallbackContent += `Understanding this helps develop analytical thinking and problem-solving skills.\n\n`;
       }
     }
   }
   
-  // Add application section
-  fallbackContent += `3. Practical Applications and Learning Outcomes\n\n`;
-  fallbackContent += `Students studying this material will gain valuable insights into real-world applications. `;
-  fallbackContent += `The concepts presented here connect to broader educational themes and provide essential knowledge for advanced study. `;
-  fallbackContent += `Mastery of these ideas enables learners to analyze complex situations, make informed decisions, and apply theoretical knowledge in practical contexts.\n\n`;
+  // Add practical applications
+  fallbackContent += `## Practical Applications\n\n`;
+  fallbackContent += `Students can apply these concepts in real-world situations through:\n\n`;
+  fallbackContent += `- Analysis of complex problems using the principles learned\n`;
+  fallbackContent += `- Development of solutions based on theoretical understanding\n`;
+  fallbackContent += `- Critical evaluation of different approaches and methodologies\n\n`;
   
-  // Add study guidance
-  fallbackContent += `For effective learning, students should review the key concepts multiple times, practice applying the principles in different scenarios, and connect these ideas to previous course material. `;
-  fallbackContent += `This comprehensive approach ensures deep understanding and long-term retention of the educational content.`;
+  // Add learning outcomes
+  fallbackContent += `## Expected Learning Outcomes\n\n`;
+  fallbackContent += `After studying this material, students should be able to:\n\n`;
+  fallbackContent += `- Identify and explain the key concepts presented\n`;
+  fallbackContent += `- Apply theoretical knowledge to practical situations\n`;
+  fallbackContent += `- Analyze relationships between different concepts\n`;
+  fallbackContent += `- Evaluate the effectiveness of various approaches\n\n`;
   
-  // Ensure minimum word count
+  // Add study recommendations
+  fallbackContent += `## Study Recommendations\n\n`;
+  fallbackContent += `For effective learning, students should:\n\n`;
+  fallbackContent += `- Review the material multiple times for better retention\n`;
+  fallbackContent += `- Create summaries and concept maps\n`;
+  fallbackContent += `- Practice applying concepts through exercises\n`;
+  fallbackContent += `- Discuss ideas with peers for deeper understanding\n\n`;
+  
+  // Check word count and add if needed
   const currentWordCount = fallbackContent.split(/\s+/).length;
   if (currentWordCount < minWordsPerPage) {
-    fallbackContent += `\n\n4. Additional Learning Considerations\n\n`;
-    fallbackContent += `The depth and complexity of this material requires sustained attention and active engagement from students. `;
-    fallbackContent += `Effective study strategies include summarizing key points, creating concept maps, discussing ideas with peers, and seeking clarification on challenging concepts. `;
-    fallbackContent += `Regular review and practice application of these principles will reinforce learning and improve academic performance. `;
-    fallbackContent += `Students are encouraged to explore additional resources and examples to enhance their understanding of these important educational concepts.`;
+    fallbackContent += `## Additional Considerations\n\n`;
+    fallbackContent += `This material requires active engagement and critical thinking. `;
+    fallbackContent += `Students should approach the content systematically, ensuring they understand each concept before moving forward. `;
+    fallbackContent += `Regular review and practice will reinforce learning and improve long-term retention of the material.`;
   }
   
-  return fallbackContent;
+  // Convert markdown to formatted text before returning
+  return convertMarkdownToFormattedText(fallbackContent);
 }
 
 /**
