@@ -38,6 +38,7 @@ export default function Dashboard() {
   // Fetch subjects - using useCallback to prevent unnecessary recreation
   const fetchSubjects = useCallback(async () => {
     if (!user) {
+      console.log('e')
       navigate("/login");
       return;
     }
