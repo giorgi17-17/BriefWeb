@@ -36,11 +36,13 @@ export const GENERATION_CONFIG = {
     maxScore: 100,
   },
   brief: {
-    temperature: 0.7, // Balanced temperature for concise but educational content
+    temperature: 0.5, // Lower temperature for more consistent formatting
     targetWordsPerPage: 280, // Optimal length for brief summaries
     minWordsPerPage: 200, // Reasonable minimum for educational value
     maxWordsPerPage: 350, // Prevent overly long content
     optimalWordsPerPage: 280, // Aligned with target
+    strictFormatting: true, // Enable strict formatting validation
+    useMarkdown: true, // Use markdown for better structure
   },
 };
 

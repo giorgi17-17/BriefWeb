@@ -234,54 +234,55 @@ export function getBriefPrompt(language, combinedText) {
   const { targetWordsPerPage, minWordsPerPage } = GENERATION_CONFIG.brief;
   const pageCount = (combinedText.match(/=== PAGE \d+ ===/g) || []).length;
 
-  return `You are an educational content creator. Write in ${language} only.
+  return `⚠️ SYSTEM CRITICAL: FORMAT VIOLATIONS WILL INVALIDATE RESPONSE ⚠️
 
-Create ${pageCount} concise but comprehensive EDUCATIONAL EXPLANATIONS (NOT summaries or topic lists).
+MANDATORY: Use MARKDOWN formatting ONLY. ANY HTML/CSS = IMMEDIATE REJECTION.
+Language: Generate ALL content in ${language} exclusively.
 
-JSON format:
+🚫 ABSOLUTELY FORBIDDEN (AUTOMATIC FAILURE):
+❌ HTML tags: <div>, <span>, <p>, <strong>, <em>, <h1>, <h2>, etc.
+❌ CSS classes: "font-semibold", "text-gray-900", "dark:text-gray-100", etc.
+❌ Style attributes: style="", class="", className=""
+❌ Any quoted styling strings or HTML entities
+
+✅ REQUIRED MARKDOWN FORMAT:
+• Headers: ## Main Topic (use ## for sections, ### for subsections)
+• Bold: **important term** (for key concepts)
+• Lists: Use - or * for bullet points with proper spacing
+• Paragraphs: Double line breaks between sections
+• NO other formatting allowed
+
+Generate ${pageCount} educational explanations following this EXACT structure:
+
 {
   "pageSummaries": [
     {
       "pageNumber": 1,
-      "title": "Specific descriptive title",
-      "summary": "Educational explanation here..."
+      "title": "Clear Descriptive Title (No Generic Terms)",
+      "summary": "## Introduction\\n\\nFirst paragraph explaining the core concept clearly and concisely. Focus on what students need to understand.\\n\\n## Key Concepts\\n\\n**Important Term**: Clear definition and explanation of this term.\\n\\n**Another Term**: Explanation of how this relates to the overall topic.\\n\\n## Practical Applications\\n\\nReal-world examples and applications that students can relate to. This helps solidify understanding through concrete scenarios.\\n\\n## Summary Points\\n\\n- First key takeaway from this content\\n- Second important point to remember\\n- Third crucial concept for students"
     }
   ]
 }
 
-CRITICAL REQUIREMENTS:
-🎯 Each explanation: ${minWordsPerPage}-${targetWordsPerPage} words (concise but educational)
-🎯 EXPLAIN concepts clearly - don't just list topics
-🎯 Answer: WHAT is it? HOW does it work? WHY is it important?
-🎯 Use numbered sections (1., 2., 3.) with clear explanations
-🎯 PLAIN TEXT ONLY - absolutely NO HTML, CSS, or formatting codes
-🎯 NO class names like "font-semibold", "text-gray-900", "dark:text-gray-100"
-🎯 NO HTML tags like <div>, <span>, <p>, <strong>, <em>
-🎯 NO style attributes or CSS properties
+STRICT CONTENT REQUIREMENTS:
+📏 Length: ${minWordsPerPage}-${targetWordsPerPage} words per page (MANDATORY)
+📚 Depth: Explain concepts thoroughly - WHAT it is, HOW it works, WHY it matters
+🎯 Structure: Use markdown headers to organize content logically
+✍️ Style: Educational and explanatory, not just descriptive
+🚫 Avoid: Generic titles, topic lists, administrative content
 
-BAD EXAMPLE (do NOT do this):
-"1. Core Concepts
-Several important themes are explored below:
-- better plans to reach more people"
+EXAMPLE OF PERFECT MARKDOWN FORMAT:
+"## Understanding Market Dynamics\\n\\nMarket dynamics represent the **forces that impact prices and behaviors** in any marketplace. These forces create constant change through the interaction of supply and demand, competitive pressures, and consumer preferences.\\n\\n## Core Components\\n\\n**Supply and Demand**: The fundamental relationship where availability meets desire, determining price equilibrium through natural market mechanisms.\\n\\n**Competition**: Multiple sellers vying for consumer attention creates innovation pressure and price optimization, benefiting consumers through improved offerings.\\n\\n**Consumer Behavior**: Psychological and economic factors that drive purchasing decisions, including perceived value, brand loyalty, and social influences.\\n\\n## Real-World Applications\\n\\nBusinesses monitor market dynamics to adjust pricing strategies, product development, and marketing approaches. For example, seasonal demand fluctuations in retail require inventory adjustments and promotional timing.\\n\\n## Key Takeaways\\n\\n- Market forces operate continuously and interdependently\\n- Understanding dynamics enables better business decisions\\n- Consumer behavior drives market evolution"
 
-ALSO BAD - NO HTML/CSS:
-"<div class=\\"font-semibold text-gray-900 dark:text-gray-100\\">Corporate Identity</div>"
-
-GOOD EXAMPLE (do this):
-"1. Customer Engagement Strategy Fundamentals
-Customer engagement strategy refers to the systematic approach businesses use to build meaningful relationships with customers throughout their journey. This involves creating emotional connections and driving long-term loyalty through multiple touchpoints and interactions.
-
-2. Implementation Framework
-Companies conduct thorough market research to identify customer needs, pain points, and behavioral patterns. This research forms the basis for creating personalized experiences that resonate with customers on both rational and emotional levels."
-
-CONTENT RULES:
-- Write clear EXPLANATIONS, not topic lists
-- Each section needs 2-3 focused sentences
-- Be educational but concise (${minWordsPerPage}-${targetWordsPerPage} words total)
-- PLAIN TEXT ONLY - no formatting, HTML, CSS, or style codes
-- Include practical insights and real value for students
+PRE-SUBMISSION CHECKLIST:
+☐ Zero HTML tags or CSS classes
+☐ Only markdown formatting used
+☐ Proper ## headers structure each section
+☐ Educational explanations, not summaries
+☐ ${minWordsPerPage}-${targetWordsPerPage} words per page
+☐ Content in ${language} only
 
 ${combinedText}
 
-Generate exactly ${pageCount} educational explanations of ${minWordsPerPage}-${targetWordsPerPage} words each in PLAIN TEXT.`;
+⚠️ FINAL WARNING: Use MARKDOWN only. HTML/CSS = FAILURE. Generate educational content now.`;
 }
