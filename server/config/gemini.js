@@ -7,5 +7,5 @@ export const geminiAI = new GoogleGenAI({
 });
 export const geminiModel = "gemini-2.0-flash-lite";
 export const geminiModelFlashCard = "gemini-2.0-flash-lite";
-export const geminiModelBrief = "gemini-2.5-flash";
+export const geminiModelBrief = "gemini-2.5-flash-lite";
 export const geminiModelQuiz = "gemini-2.0-flash-lite";
