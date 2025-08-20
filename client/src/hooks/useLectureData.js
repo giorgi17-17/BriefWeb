@@ -164,6 +164,9 @@ export function useLectureData(lectureId, userId) {
       if (isMounted.current) {
         setFiles((prev) => [...prev, fileRecord]);
 
+        // Reset file input for mobile compatibility
+        event.target.value = "";
+
         // Track successful file upload
         try {
           posthog.capture("file_upload", {

@@ -77,8 +77,13 @@ const LectureDetailPage = () => {
     if (!isMounted.current) return;
 
     setIsUploading(true);
-    await uploadFile(event);
-    setIsUploading(false);
+    try {
+      await uploadFile(event);
+    } catch (error) {
+      console.error("Mobile file upload error:", error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Handle file selection

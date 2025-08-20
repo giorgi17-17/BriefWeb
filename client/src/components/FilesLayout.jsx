@@ -231,7 +231,15 @@ const FilesLayout = ({
       <div className="theme-bg-primary p-6 rounded-xl shadow-sm theme-border">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-            <label className="relative cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm">
+            <label 
+              className="relative cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm"
+              onClick={(e) => {
+                // Ensure mobile tap events work properly
+                if (isUploading) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <FiUpload className={`${isUploading ? "animate-bounce" : ""}`} />
               <span>
                 {isUploading
@@ -240,8 +248,8 @@ const FilesLayout = ({
               </span>
               <input
                 type="file"
-                className="hidden"
-                accept=".pdf,.docx,.pptx"
+                className="sr-only"
+                accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
