@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { FiZap } from "react-icons/fi";
+import PropTypes from "prop-types";
 
 const UpgradeButton = ({ className, size = "md", text = "Upgrade Now" }) => {
   const navigate = useNavigate();
@@ -34,6 +35,12 @@ const UpgradeButton = ({ className, size = "md", text = "Upgrade Now" }) => {
       {text}
     </button>
   );
+};
+
+UpgradeButton.propTypes = {
+  className: PropTypes.string,
+  size: PropTypes.oneOf(["sm", "md", "lg"]),
+  text: PropTypes.string,
 };
 
 export default UpgradeButton;
