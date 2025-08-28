@@ -45,12 +45,13 @@ async function getPaymentToken() {
   const expiresIn = typeof data.expires_in === "number" ? data.expires_in : 3600;
 
   cachedToken = {
+    ...data,
     accessToken,
     // small safety buffer
     expiresAt: now + (expiresIn - 30) * 1000,
   };
 
-  return accessToken;
+  return data;
 }
 
 // ---------- Small helpers ----------
