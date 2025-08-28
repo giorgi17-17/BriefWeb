@@ -5,7 +5,7 @@ import {
 } from "../middleware/planValidation.js";
 import { supabaseClient } from "../config/supabaseClient.js";
 
-import { getPaymentDetails, approvePreAuthorization, cancelPreAuthorization } from '../controllers/paymentController.js'
+import { getPaymentDetails, approvePreAuthorization, cancelPreAuthorization, getToken } from '../controllers/paymentController.js'
 
 const router = express.Router();
 
@@ -103,7 +103,7 @@ router.get("/is-premium", async (req, res) => {
 
 
 // Payment endpoints
-router.get("/payments/order", getPaymentDetails);
+router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
 

@@ -61,33 +61,21 @@ function toPositiveNumber(v) {
 
 // ---------- Controller functions ----------
 export async function getPaymentDetails(req, res) {
-    const paymentApiUrl = 'https://oauth2.bog.ge/auth/realms/bog/protocol/openid-connect/token';
+  try {
+    const { orderId } = req.params;
+    const token = await getPaymentToken();
 
+    const { data } = await bogApi.get(`/receipt/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-    console.log("BOG_CLIENT_ID", BOG_CLIENT_ID)
-
-    const authHeader = 'Basic ' + Buffer.from(`${BOG_CLIENT_ID}:${BOG_SECRET_ID}`).toString('base64');
-  
-
-    console.log("authHeader", authHeader)
-
-    try {
-      // Step 1: Get the Bearer Token
-      const authResponse = await axios.post(paymentApiUrl, 
-        new URLSearchParams({
-          grant_type: 'client_credentials',
-        }).toString(), {
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        });
-      
-      return authResponse.data.access_token;
-    } catch (error) {
-      console.error('Payment API Error:', error);
-      throw new Error('Failed to retrieve payment token.');
-    }
+    res.json(data);
+  } catch (err) {
+    res.status(err?.response?.status || 502).json({
+      message: "Failed to retrieve payment details",
+      details: err?.response?.data || err?.message,
+    });
+  }
 }
 
 export async function approvePreAuthorization(req, res) {
