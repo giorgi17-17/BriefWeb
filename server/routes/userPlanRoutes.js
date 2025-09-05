@@ -107,6 +107,15 @@ router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
 
+// routes/processPayment.js
+// CommonJS; adjust imports/paths as needed for your project.
+
+const express = require("express");
+const crypto = require("crypto");
+// TODO: point this to your initialized Supabase client:
+const { supabaseClient } = require("../supabaseClient");
+
+
 /* ---------------- Helpers ---------------- */
 function requestId(req) {
   const hdr = req.headers["x-request-id"];
@@ -118,7 +127,7 @@ function requestId(req) {
 function parseIncoming(req) {
   const raw = req.body;
   if (!raw) return {};
-  if (typeof raw === "object" && !Buffer.isBuffer(raw)) return raw; // just in case
+  if (typeof raw === "object" && !Buffer.isBuffer(raw)) return raw; // already parsed
   try {
     const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : String(raw);
     return JSON.parse(text);
@@ -176,6 +185,7 @@ function msSince(start) {
 /* ---------------- Route ---------------- */
 router.post(
   "/process-payment",
+  // keep raw to accept BOG’s webhook regardless of content-type quirks
   express.raw({ type: "*/*" }),
   async (req, res) => {
     const rid = requestId(req);
@@ -201,8 +211,6 @@ router.post(
 
       // 2) extract / normalize
       const event = (incoming && incoming.event) || data.event || "order_payment";
-
-      // NOTE: removed buyer.user_id logic entirely
 
       const orderId = data.order_id ?? null;
       const externalOrderId = data.external_order_id ?? null;
@@ -235,33 +243,77 @@ router.post(
 
       const status = normalizeStatus(data?.order_status?.key, gatewayCode);
 
-      // 3) writes keyed ONLY by external_order_id
+      // 3) resolve user_id by external_order_id
       const nowIso = new Date().toISOString();
 
+      const existingPlan = await supabaseClient
+        .from("user_plans")
+        .select("id,user_id")
+        .eq("external_order_id", externalOrderId)
+        .maybeSingle();
+
+      if (existingPlan.error) {
+        dbg("error.user_plans_lookup", { error: existingPlan.error.message });
+        return res.status(500).json({ message: "Failed to lookup plan", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
+      }
+
+      const boundUserId = existingPlan.data?.user_id ?? null;
+
+      if (!boundUserId) {
+        // Race case: webhook before pre-create binding — park it
+        const pendingIns = await supabaseClient
+          .from("payment_events_pending")
+          .insert({
+            external_order_id: externalOrderId,
+            payload: data,
+            received_at: nowIso,
+          })
+          .select()
+          .maybeSingle();
+
+        if (pendingIns.error) {
+          dbg("error.pending_insert", { error: pendingIns.error.message });
+          // Even if pending insert fails, avoid re-trying the whole webhook infinitely.
+        } else {
+          dbg("pending.stored", { externalOrderId, pendingId: pendingIns.data?.id });
+        }
+
+        return res.status(202).json({
+          ok: true,
+          pending: true,
+          reason: "No user binding for external_order_id yet",
+          externalOrderId,
+          ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
+        });
+      }
+
+      // 4) update the bound plan row (idempotent by external_order_id)
       const planPayload = {
         external_order_id: externalOrderId,
-        // user_id removed
+        user_id: boundUserId,
         plan_type: planCode,
-        active: status === "completed",  // or set false here and flip later
+        active: status === "completed",
         subject_limit: 0,
         updated_at: nowIso,
       };
-      dbg("db.user_plans.upsert.payload", planPayload);
+      dbg("db.user_plans.update.payload", planPayload);
 
       const planRes = await supabaseClient
         .from("user_plans")
-        .upsert(planPayload, { onConflict: "external_order_id", defaultToNull: false })
+        .update(planPayload)
+        .eq("external_order_id", externalOrderId)
         .select()
         .maybeSingle();
 
-      if (planRes.error) {
-        dbg("error.user_plans_upsert", { error: planRes.error.message });
-        return res.status(500).json({ message: "Failed to upsert plan", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
+      if (planRes.error || !planRes.data) {
+        dbg("error.user_plans_update", { error: planRes.error?.message, missing: !planRes.data });
+        return res.status(500).json({ message: "Failed to update plan", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
       }
 
+      // 5) insert (or upsert) payment method row
       const methodPayload = {
         external_order_id: externalOrderId,
-        // user_id removed
+        user_id: boundUserId, // optional, but helpful
         method_name: "web",
         details: {
           planCode,
@@ -282,7 +334,7 @@ router.post(
         updated_at: nowIso,
         created_at: nowIso,
       };
-      dbg("db.payment_methods.upsert.payload", methodPayload);
+      dbg("db.payment_methods.insert.payload", methodPayload);
 
       const methodRes = await supabaseClient
         .from("payment_methods")
@@ -291,11 +343,11 @@ router.post(
         .maybeSingle();
 
       if (methodRes.error) {
-        dbg("error.payment_methods_upsert", { error: methodRes.error.message });
+        dbg("error.payment_methods_insert", { error: methodRes.error.message });
         return res.status(500).json({ message: "Failed to upsert payment method", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
       }
 
-      // 4) ack (userId removed)
+      // 6) ack
       const ack = {
         ok: true,
         rid,
@@ -318,7 +370,7 @@ router.post(
       return res.status(400).json({
         message: "Bad request while processing payment",
         details: err?.message ?? String(err),
-        ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
+        ...(String(req.headers["x-debug"] || "").toLowerCase() === "1" ? { debug: { rid, trail } } : {}),
       });
     }
   }
