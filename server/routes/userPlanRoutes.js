@@ -107,6 +107,14 @@ router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
 
+/* ---------------- Helpers ---------------- */
+function requestId(req) {
+  const hdr = req.headers["x-request-id"];
+  if (hdr && typeof hdr === "string") return hdr;
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "rid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
 function parseIncoming(req) {
   const raw = req.body;
   if (!raw) return {};
@@ -119,7 +127,6 @@ function parseIncoming(req) {
   }
 }
 
-/** prefer numeric if safe, but keep original string for storage */
 function parseAmount(value) {
   if (value == null) return { amountNum: null, amountStr: null };
   const str = String(value);
@@ -129,30 +136,18 @@ function parseAmount(value) {
     : { amountNum: null, amountStr: str };
 }
 
-/** normalize status from multiple places */
 function normalizeStatus(orderStatusKey, gatewayCode) {
-  // BOG often uses code "100" == success
   if (orderStatusKey && typeof orderStatusKey === "string") return orderStatusKey;
   if (String(gatewayCode) === "100") return "completed";
   return "unknown";
 }
 
-// --- Config -----------------------------------------------------------------
-const DEBUG_ENABLED = true
+const DEBUG_ENABLED = true;
 
-// Very basic redaction for potential sensitive fields
 function redact(obj) {
   if (!obj || typeof obj !== "object") return obj;
   const SENSITIVE_KEYS = new Set([
-    "card",
-    "pan",
-    "cvv",
-    "cvc",
-    "expiry",
-    "token",
-    "authorization",
-    "password",
-    "secret",
+    "card", "pan", "cvv", "cvc", "expiry", "token", "authorization", "password", "secret",
   ]);
   const seen = new WeakSet();
   function _clone(o) {
@@ -178,7 +173,7 @@ function msSince(start) {
   return (diffNs / 1_000_000).toFixed(1) + "ms";
 }
 
-// --- Route ------------------------------------------------------------------
+/* ---------------- Route ---------------- */
 router.post(
   "/process-payment",
   // MUST be before any app.use(express.json()) so req.body is a Buffer
@@ -198,7 +193,7 @@ router.post(
     };
 
     try {
-      /* 0) Request metadata */
+      // 0) Request metadata
       dbg("start", {
         ip: req.ip,
         ua: req.headers["user-agent"],
@@ -207,13 +202,10 @@ router.post(
         sig: req.headers["x-bog-signature"] || req.headers["x-signature"] || null,
       });
 
-      /* 1) Parse & flatten */
+      // 1) Parse & flatten
       const incoming = parseIncoming(req);
       dbg("parsed.incoming", redact(incoming));
-
-      const data = incoming && typeof incoming === "object" && incoming.body
-        ? incoming.body
-        : incoming;
+      const data = incoming && typeof incoming === "object" && incoming.body ? incoming.body : incoming;
       dbg("flattened.data", redact(data));
 
       if (!data || typeof data !== "object") {
@@ -224,12 +216,12 @@ router.post(
         });
       }
 
-      /* 2) Extract / normalize basics */
-      const event = incoming?.event ?? data?.event ?? "order_payment";
+      // 2) Extract / normalize basics
+      const event = (incoming && incoming.event) || data.event || "order_payment";
       dbg("field.event", { event });
 
-      const buyer = data?.buyer ?? {};
-      let user_id = buyer?.user_id ?? buyer?.id ?? buyer?.userId ?? null;
+      const buyer = data.buyer || {};
+      let user_id = buyer.user_id ?? buyer.id ?? buyer.userId ?? null;
       if (user_id != null) user_id = String(user_id);
       dbg("field.user_id", { user_id });
 
@@ -241,40 +233,40 @@ router.post(
         });
       }
 
-      const orderId = data?.order_id ?? null;
-      const externalOrderId = data?.external_order_id ?? null;
+      const orderId = data.order_id ?? null;
+      const externalOrderId = data.external_order_id ?? null;
       dbg("field.order_ids", { orderId, externalOrderId });
 
-      const pu = data?.purchase_units ?? {};
-      const items = Array.isArray(pu?.items) ? pu.items : [];
-      const first = items[0] ?? {};
+      const pu = data.purchase_units || {};
+      const items = Array.isArray(pu.items) ? pu.items : [];
+      const first = items[0] || {};
       dbg("field.items.first", redact(first));
 
-      const planCode = first?.product_id ?? "unknown";
-      const planName = first?.description ?? planCode;
+      const planCode = first.product_id ?? "unknown";
+      const planName = first.description ?? planCode;
       dbg("field.plan", { planCode, planName });
 
-      const { amountNum: reqAmtNum, amountStr: reqAmtStr } = parseAmount(pu?.request_amount);
-      const { amountNum: trfAmtNum, amountStr: trfAmtStr } = parseAmount(pu?.transfer_amount);
+      const { amountNum: reqAmtNum, amountStr: reqAmtStr } = parseAmount(pu.request_amount);
+      const { amountNum: trfAmtNum, amountStr: trfAmtStr } = parseAmount(pu.transfer_amount);
       const amountNum = trfAmtNum ?? reqAmtNum;
       const amountStr = trfAmtStr ?? reqAmtStr;
-      const currency = pu?.currency_code ?? "GEL";
+      const currency = pu.currency_code ?? "GEL";
       dbg("field.amounts", {
         request_amount: { reqAmtNum, reqAmtStr },
         transfer_amount: { trfAmtNum, trfAmtStr },
         chosen: { amountNum, amountStr, currency },
       });
 
-      const paymentDetail = data?.payment_detail ?? {};
-      const transactionId = paymentDetail?.transaction_id ?? null;
-      const gatewayCode = paymentDetail?.code ?? null;
-      const gatewayMessage = paymentDetail?.code_description ?? null;
+      const paymentDetail = data.payment_detail || {};
+      const transactionId = paymentDetail.transaction_id ?? null;
+      const gatewayCode = paymentDetail.code ?? null;
+      const gatewayMessage = paymentDetail.code_description ?? null;
       dbg("field.payment_detail", { transactionId, gatewayCode, gatewayMessage });
 
       const status = normalizeStatus(data?.order_status?.key, gatewayCode);
       dbg("field.status.normalized", { status, orderStatusKey: data?.order_status?.key });
 
-      /* 3) Idempotency-safe writes (simple upserts) */
+      // 3) Idempotency-safe writes (simple upserts)
       const nowIso = new Date().toISOString();
 
       const planPayload = {
@@ -307,7 +299,7 @@ router.post(
 
       const methodPayload = {
         user_id,
-        method_name: "web", // change to "bog_web" if you want to distinguish
+        method_name: "web",
         details: {
           planCode,
           planName,
@@ -348,12 +340,12 @@ router.post(
         });
       }
 
-      /* 4) Optional dedupe (not implemented, just logged) */
+      // 4) Optional dedupe (not implemented)
       dbg("dedupe.skipped", {
         note: "Consider webhook_events with UNIQUE(transaction_id). Insert first to dedupe.",
       });
 
-      /* 5) ACK */
+      // 5) ACK
       const ack = {
         ok: true,
         rid,
@@ -377,8 +369,7 @@ router.post(
         .json(wantDebugInResponse ? { ...ack, debug: { rid, trail } } : ack);
     } catch (err) {
       const msg = err?.message ?? String(err);
-      // keep trace in console for ops
-      console.error(`[process-payment][${rid}] exception`, err);
+      console.error(`[process-payment] exception`, err);
       return res.status(400).json({
         message: "Bad request while processing payment",
         details: msg,
@@ -387,6 +378,5 @@ router.post(
     }
   }
 );
-
 
 export default router;
