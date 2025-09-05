@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const geminiAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: "AIzaSyClGRl_js0aJwjvebgJC3NTsU36ckbIovA"
 });
 export const geminiModel = "gemini-2.0-flash-lite";
 export const geminiModelFlashCard = "gemini-2.0-flash-lite";

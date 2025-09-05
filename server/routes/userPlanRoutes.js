@@ -106,6 +106,9 @@ router.get("/is-premium", async (req, res) => {
 router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
+router.get("/process-payment", async (req, res) => {
+  res.end(req.body);
+})
 
 
 export default router;

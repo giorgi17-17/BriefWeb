@@ -1,4 +1,5 @@
 import { supabaseClient } from "../config/supabaseClient.js";
+import { parseDOCX } from "../utils/docxParser.js";
 import { parsePDF, parsePagesByPDF } from "../utils/pdfParser.js";
 import { parsePPTX, parseSlidesByPPTX } from "../utils/pptxParser.js";
 
@@ -37,11 +38,15 @@ export async function extractTextFromFile(userId, lectureId, fileId) {
     const fileBuffer = Buffer.from(await fileContent.arrayBuffer());
     const fileExt = fileId.split(".").pop().toLowerCase();
 
-    // Process based on file extension
     if (fileExt === "pdf") {
       return await parsePDF(fileBuffer);
     } else if (fileExt === "pptx") {
       return await parsePPTX(fileBuffer);
+    } else if (fileExt === "docx") {
+      return await parseDOCX(fileBuffer);
+      // If you ever need "paged" sections for DOCX:
+      // const parts = await parseBlocksByDOCX(fileBuffer);
+      // return parts.join("\n\n");
     } else {
       throw new Error(`Unsupported file type: ${fileExt}`);
     }
