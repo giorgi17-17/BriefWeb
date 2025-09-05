@@ -21,18 +21,96 @@ const DEFAULT_PLAN = {
   planType: "free",
   subjectLimit: 3,
 };
-
-// Create provider component
 export function UserPlanProvider({ children }) {
   const [userPlan, setUserPlan] = useState({
     isLoading: true,
-    ...DEFAULT_PLAN,
+    ...DEFAULT_PLAN, // must at least contain { planType: 'free', subjectLimit: 3 }
     error: null,
+    // added:
+    nextBillingAt: null,
+    daysLeftToRenew: null,
   });
 
   const { user } = useAuth();
   const isMounted = useRef(true);
   const fetchAttempts = useRef(0);
+
+  // === Billing helpers ===
+  const DEFAULT_BILLING_DAYS = 30;
+
+  const toDate = (v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const addDays = (date, days) => {
+    if (!date) return null;
+    const d = new Date(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
+  };
+
+  const diffDaysCeil = (future, now = new Date()) => {
+    if (!future) return null;
+    const ms = future.getTime() - now.getTime();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  };
+
+  /**
+   * Derive next billing date and days left.
+   * Pref order:
+   * 1) next_billing_at
+   * 2) expires_at
+   * 3) For premium+active: (activated_at || updated_at || created_at) + billing_period_days (or 30)
+   */
+  const deriveBillingFromPlan = (planRow) => {
+    if (!planRow) return { nextBillingAt: null, daysLeftToRenew: null, periodDays: null };
+
+    const type = planRow.plan_type || "free";
+    const active = planRow.active ?? false;
+
+    // If free (or not active premium), nothing to bill
+    if (type !== "premium" || !active) {
+      return { nextBillingAt: null, daysLeftToRenew: null, periodDays: null };
+    }
+
+    // DB-provided fields if you have them
+    const nextBillingAtDb = toDate(planRow.next_billing_at);
+    const expiresAtDb = toDate(planRow.expires_at);
+
+    let nextBillingAt = nextBillingAtDb || expiresAtDb || null;
+
+    // If DB doesn't provide, compute from anchors
+    if (!nextBillingAt) {
+      const periodDays =
+        Number(planRow.billing_period_days) > 0
+          ? Number(planRow.billing_period_days)
+          : DEFAULT_BILLING_DAYS;
+
+      const anchor =
+        toDate(planRow.activated_at) ||
+        toDate(planRow.updated_at) ||
+        toDate(planRow.created_at);
+
+      nextBillingAt = addDays(anchor, periodDays);
+      return {
+        nextBillingAt: nextBillingAt ? nextBillingAt.toISOString() : null,
+        daysLeftToRenew: diffDaysCeil(nextBillingAt),
+        periodDays,
+      };
+    }
+
+    return {
+      nextBillingAt: nextBillingAt.toISOString(),
+      daysLeftToRenew: diffDaysCeil(nextBillingAt),
+      periodDays:
+        Number(planRow.billing_period_days) > 0
+          ? Number(planRow.billing_period_days)
+          : DEFAULT_BILLING_DAYS,
+    };
+  };
 
   // Fetch user plan data with proper cleanup and retry
   const fetchUserPlanData = useCallback(
@@ -44,6 +122,8 @@ export function UserPlanProvider({ children }) {
             isLoading: false,
             ...DEFAULT_PLAN,
             error: null,
+            nextBillingAt: null,
+            daysLeftToRenew: null,
           });
         }
         return;
@@ -53,34 +133,42 @@ export function UserPlanProvider({ children }) {
         console.log(`Fetching user plan (attempt ${retryCount + 1})`);
         fetchAttempts.current++;
 
-        // Use the ensureUserPlan utility to get or create plan
+        // Prefer your utility (make sure it returns the full row if possible)
         const plan = await ensureUserPlan(user.id);
 
         if (plan && isMounted.current) {
           console.log("User plan found/created:", plan);
+          const billing = deriveBillingFromPlan(plan);
           setUserPlan({
             isLoading: false,
             planType: plan.plan_type,
             subjectLimit: plan.subject_limit,
             error: null,
+            nextBillingAt: billing.nextBillingAt,
+            daysLeftToRenew: billing.daysLeftToRenew,
           });
           return;
         }
 
-        // If ensureUserPlan failed to return a plan, use a direct query with maybeSingle
+        // Fallback direct query with needed columns
         console.log("Fallback to direct query after ensureUserPlan failure");
         const { data, error: supabaseError } = await supabase
           .from("user_plans")
-          .select("*")
+          .select(
+            "plan_type, subject_limit, active, created_at, updated_at, activated_at, expires_at, next_billing_at, billing_period_days"
+          )
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (!supabaseError && data && isMounted.current) {
+          const billing = deriveBillingFromPlan(data);
           setUserPlan({
             isLoading: false,
             planType: data.plan_type,
             subjectLimit: data.subject_limit,
             error: null,
+            nextBillingAt: billing.nextBillingAt,
+            daysLeftToRenew: billing.daysLeftToRenew,
           });
           return;
         }
@@ -88,6 +176,7 @@ export function UserPlanProvider({ children }) {
         // If still no plan found, try to create one
         if ((!data || supabaseError) && isMounted.current) {
           console.log("No plan found, creating one");
+          const nowIso = new Date().toISOString();
           const { data: newPlan, error: insertError } = await supabase
             .from("user_plans")
             .insert([
@@ -95,19 +184,25 @@ export function UserPlanProvider({ children }) {
                 user_id: user.id,
                 plan_type: "free",
                 subject_limit: 3,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                created_at: nowIso,
+                updated_at: nowIso,
+                active: true,
               },
             ])
-            .select()
+            .select(
+              "plan_type, subject_limit, active, created_at, updated_at, activated_at, expires_at, next_billing_at, billing_period_days"
+            )
             .maybeSingle();
 
           if (!insertError && newPlan && isMounted.current) {
+            const billing = deriveBillingFromPlan(newPlan);
             setUserPlan({
               isLoading: false,
               planType: newPlan.plan_type,
               subjectLimit: newPlan.subject_limit,
               error: null,
+              nextBillingAt: billing.nextBillingAt,
+              daysLeftToRenew: billing.daysLeftToRenew,
             });
             return;
           }
@@ -120,6 +215,8 @@ export function UserPlanProvider({ children }) {
             isLoading: false,
             ...DEFAULT_PLAN,
             error: null,
+            nextBillingAt: null,
+            daysLeftToRenew: null,
           });
         }
       } catch (error) {
@@ -139,6 +236,8 @@ export function UserPlanProvider({ children }) {
             isLoading: false,
             ...DEFAULT_PLAN,
             error: error.message,
+            nextBillingAt: null,
+            daysLeftToRenew: null,
           });
         }
       }
@@ -150,10 +249,7 @@ export function UserPlanProvider({ children }) {
   useEffect(() => {
     isMounted.current = true;
     fetchAttempts.current = 0;
-
     fetchUserPlanData();
-
-    // Cleanup function to prevent memory leaks and state updates after unmount
     return () => {
       isMounted.current = false;
     };
@@ -168,7 +264,6 @@ export function UserPlanProvider({ children }) {
     if (userPlan.isLoading) return true;
 
     try {
-      // Count existing subjects
       const { count, error: countError } = await supabase
         .from("subjects")
         .select("*", { count: "exact", head: true })
@@ -185,7 +280,7 @@ export function UserPlanProvider({ children }) {
     return true;
   };
 
-  // Check if user is premium
+  // Check if user is premium (kept same signature as your code)
   const isPremiumUser = async () => {
     if (!user) return false;
     if (userPlan.planType === "premium") return true;
@@ -197,6 +292,8 @@ export function UserPlanProvider({ children }) {
         .select("plan_type")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      console.log("============================================= entire plan data", data);
 
       if (!planError && data) {
         return data.plan_type === "premium";
@@ -215,7 +312,6 @@ export function UserPlanProvider({ children }) {
     if (userPlan.isLoading) return false;
 
     try {
-      // Count existing lectures in this subject
       const { count, error: countError } = await supabase
         .from("lectures")
         .select("*", { count: "exact", head: true })
@@ -228,7 +324,6 @@ export function UserPlanProvider({ children }) {
       console.error("Error checking lectures count:", error);
     }
 
-    // Default to false if check fails
     return false;
   };
 
@@ -241,10 +336,10 @@ export function UserPlanProvider({ children }) {
   }, [fetchUserPlanData]);
 
   const contextValue = {
-    ...userPlan,
+    ...userPlan, // includes nextBillingAt, daysLeftToRenew
     canCreateSubject,
     canCreateLecture,
-    isPremiumUser,
+    isPremiumUser,                  // async fn (unchanged API)
     isPremium: userPlan.planType === "premium",
     isFree: userPlan.planType === "free",
     MAX_FREE_LECTURES_PER_SUBJECT,

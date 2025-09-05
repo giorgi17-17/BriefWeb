@@ -45,12 +45,23 @@
       "security": "უსაფრთხოება",
       "preferences": "პრეფერენციები"
     },
+    "plan": {
+      "free": "უფასო",
+      "premium": "პრემიუმი",
+      "billingUnknown": "ბილინგის ინფორმაცია მიუწვდომელია",
+      "renewsToday": "დღეს განახლდება",
+      "renewsInDays": "{{count}} დღეში განახლდება",
+      "renewsInDays_one": "{{count}} დღეში განახლდება",
+      "renewsInDays_other": "{{count}} დღეში განახლდება",
+      "expiringSoon": "მალე იწურება"
+    },
     "fields": {
       "name": "სახელი",
       "email": "ელფოსტა",
       "memberSince": "წევრია თარიღიდან",
       "currentPassword": "მიმდინარე პაროლი",
       "newPassword": "ახალი პაროლი",
+            "subscription": "გამოწერა",
       "confirmPassword": "დაადასტურეთ ახალი პაროლი"
     },
     "errors": {

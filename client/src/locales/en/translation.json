@@ -40,6 +40,16 @@
     "darkModeEnabled": "Dark mode is currently enabled",
     "darkModeDisabled": "Dark mode is currently disabled",
     "language": "Language",
+      "plan": {
+      "free": "Free",
+      "premium": "Premium",
+      "billingUnknown": "Billing info unavailable",
+      "renewsToday": "Renews today",
+      "renewsInDays": "Renews in {{count}} day",
+      "renewsInDays_one": "Renews in {{count}} day",
+      "renewsInDays_other": "Renews in {{count}} days",
+      "expiringSoon": "Expiring soon"
+    },
     "tabs": {
       "profile": "Profile",
       "security": "Security",
@@ -51,6 +61,7 @@
       "memberSince": "Member Since",
       "currentPassword": "Current Password",
       "newPassword": "New Password",
+      "subscription": "Subscription",
       "confirmPassword": "Confirm New Password"
     },
     "errors": {

@@ -14,6 +14,7 @@ import {
   FiMoon,
   FiSun,
 } from "react-icons/fi";
+import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -26,6 +27,8 @@ const Profile = () => {
   const [success, setSuccess] = useState(null);
   const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false);
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+
+  const { daysLeftToRenew, nextBillingAt, isPremium } = useUserPlan();
 
   // Form states
   const [passwordForm, setPasswordForm] = useState({
@@ -259,33 +262,30 @@ const Profile = () => {
             <nav className="flex overflow-x-auto">
               <button
                 onClick={() => handleTabChange("profile")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "profile"
-                    ? "theme-text-primary border-b-2 border-blue-500"
-                    : "theme-text-secondary hover:theme-text-primary"
-                }`}
+                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "profile"
+                  ? "theme-text-primary border-b-2 border-blue-500"
+                  : "theme-text-secondary hover:theme-text-primary"
+                  }`}
               >
                 <FiUser className="h-4 w-4" />
                 {t("profile.tabs.profile")}
               </button>
               <button
                 onClick={() => handleTabChange("security")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "security"
-                    ? "theme-text-primary border-b-2 border-blue-500"
-                    : "theme-text-secondary hover:theme-text-primary"
-                }`}
+                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "security"
+                  ? "theme-text-primary border-b-2 border-blue-500"
+                  : "theme-text-secondary hover:theme-text-primary"
+                  }`}
               >
                 <FiLock className="h-4 w-4" />
                 {t("profile.tabs.security")}
               </button>
               <button
                 onClick={() => handleTabChange("preferences")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${
-                  activeTab === "preferences"
-                    ? "theme-text-primary border-b-2 border-blue-500"
-                    : "theme-text-secondary hover:theme-text-primary"
-                }`}
+                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "preferences"
+                  ? "theme-text-primary border-b-2 border-blue-500"
+                  : "theme-text-secondary hover:theme-text-primary"
+                  }`}
               >
                 <FiMoon className="h-4 w-4" />
                 {t("profile.tabs.preferences")}
@@ -328,6 +328,7 @@ const Profile = () => {
                       </div>
                     </div>
 
+
                     <div>
                       <label className="block text-sm font-medium theme-text-secondary mb-1">
                         {t("profile.fields.email")}
@@ -339,6 +340,42 @@ const Profile = () => {
                         </span>
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium theme-text-secondary mb-1">
+                        {t("profile.fields.subscription") || "Subscription"}
+                      </label>
+
+                      <div className="theme-input p-3 rounded flex items-center justify-between gap-3">
+                        {/* Left side: plan label */}
+                        <div className="flex items-center">
+                          {/* <FiCreditCard className="mr-2 theme-text-secondary" /> */}
+                          <span className="text-sm theme-text-primary">
+                            {isPremium ? (t("profile.plan.premium") || "Premium") : (t("profile.plan.free") || "Free")}
+                          </span>
+                        </div>
+
+                        {/* Right side: renewal info (only for premium) */}
+                        {isPremium && (
+                          <div className="flex items-center text-sm theme-text-secondary">
+                            {/* <FiCalendar className="mr-2" /> */}
+                            <span>
+                              {daysLeftToRenew == null
+                                ? (t("profile.plan.billingUnknown") || "Billing info unavailable")
+                                : daysLeftToRenew === 0
+                                  ? (t("profile.plan.renewsToday") || "Renews today")
+                                  : (t("profile.plan.renewsInDays", { count: daysLeftToRenew }) || `Renews in ${daysLeftToRenew} day${daysLeftToRenew === 1 ? "" : "s"}`)}
+                              {nextBillingAt && (
+                                <span className="ml-2 opacity-80">
+                                  ({new Date(nextBillingAt).toLocaleDateString()})
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* 
                     <div>
                       <label className="block text-sm font-medium theme-text-secondary mb-1">
@@ -378,11 +415,10 @@ const Profile = () => {
                         name="currentPassword"
                         value={passwordForm.currentPassword}
                         onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${
-                          passwordFormErrors.currentPassword
-                            ? "border-red-400"
-                            : ""
-                        }`}
+                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.currentPassword
+                          ? "border-red-400"
+                          : ""
+                          }`}
                       />
                       {passwordFormErrors.currentPassword && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -404,9 +440,8 @@ const Profile = () => {
                         name="newPassword"
                         value={passwordForm.newPassword}
                         onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${
-                          passwordFormErrors.newPassword ? "border-red-400" : ""
-                        }`}
+                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.newPassword ? "border-red-400" : ""
+                          }`}
                       />
                       {passwordFormErrors.newPassword && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -428,11 +463,10 @@ const Profile = () => {
                         name="confirmPassword"
                         value={passwordForm.confirmPassword}
                         onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${
-                          passwordFormErrors.confirmPassword
-                            ? "border-red-400"
-                            : ""
-                        }`}
+                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.confirmPassword
+                          ? "border-red-400"
+                          : ""
+                          }`}
                       />
                       {passwordFormErrors.confirmPassword && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -539,9 +573,8 @@ const Profile = () => {
                   <button
                     onClick={toggleTheme}
                     className="inline-flex items-center justify-between p-4 theme-card rounded border theme-border hover:border-blue-500 transition-colors cursor-pointer"
-                    aria-label={`Switch to ${
-                      theme === "light" ? "dark" : "light"
-                    } mode`}
+                    aria-label={`Switch to ${theme === "light" ? "dark" : "light"
+                      } mode`}
                   >
                     <div className="flex items-center gap-3 mr-4">
                       <div>
@@ -571,11 +604,10 @@ const Profile = () => {
                       <button
                         key={language.code}
                         onClick={() => handleLanguageChange(language.code)}
-                        className={`flex items-center gap-3 p-4 rounded border ${
-                          i18n.language === language.code
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                            : "theme-border hover:border-blue-500"
-                        }`}
+                        className={`flex items-center gap-3 p-4 rounded border ${i18n.language === language.code
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                          : "theme-border hover:border-blue-500"
+                          }`}
                       >
                         <span className="text-2xl">{language.flag}</span>
                         <div className="text-left">

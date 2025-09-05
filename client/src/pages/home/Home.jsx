@@ -14,6 +14,7 @@ export const Home = () => {
   // const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
+
   const currentLang = i18n.language;
 
   // Get localized SEO content
