@@ -4,7 +4,7 @@ import {
   isPremiumUser,
 } from "../middleware/planValidation.js";
 import { supabaseClient } from "../config/supabaseClient.js";
-const crypto = require("crypto");
+import crypto from 'crypto'
 
 import { getPaymentDetails, approvePreAuthorization, cancelPreAuthorization, getToken } from '../controllers/paymentController.js'
 
