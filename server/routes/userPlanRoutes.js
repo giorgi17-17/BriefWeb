@@ -189,8 +189,7 @@ router.post(
     };
 
     try {
-      // 0) meta
-      dbg("start", { /* ... */ });
+      dbg("start", { /* meta omitted */ });
 
       // 1) parse
       const incoming = parseIncoming(req);
@@ -202,14 +201,12 @@ router.post(
 
       // 2) extract / normalize
       const event = (incoming && incoming.event) || data.event || "order_payment";
-      const buyer = data.buyer || {};
-      let user_id = buyer.user_id ?? buyer.id ?? buyer.userId ?? null;
-      if (user_id != null) user_id = String(user_id);
+
+      // NOTE: removed buyer.user_id logic entirely
 
       const orderId = data.order_id ?? null;
       const externalOrderId = data.external_order_id ?? null;
 
-      // NEW: require external_order_id as the idempotency key
       if (!externalOrderId || typeof externalOrderId !== "string" || externalOrderId.trim() === "") {
         dbg("error.missing_external_order_id");
         return res.status(400).json({
@@ -218,32 +215,39 @@ router.post(
         });
       }
 
-      // (optional) still require user_id so we can attach to a user
-      if (!user_id || typeof user_id !== "string" || user_id.trim() === "") {
-        dbg("error.missing_user_id");
-        return res.status(400).json({
-          message: "buyer.user_id not found",
-          ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
-        });
-      }
+      // purchase units, amounts
+      const pu = data.purchase_units || {};
+      const items = Array.isArray(pu.items) ? pu.items : [];
+      const first = items[0] || {};
+      const planCode = first.product_id ?? "unknown";
+      const planName = first.description ?? planCode;
 
-      // ...items/amount/status extraction stays the same...
+      const { amountNum: reqAmtNum, amountStr: reqAmtStr } = parseAmount(pu.request_amount);
+      const { amountNum: trfAmtNum, amountStr: trfAmtStr } = parseAmount(pu.transfer_amount);
+      const amountNum = trfAmtNum ?? reqAmtNum;
+      const amountStr = trfAmtStr ?? reqAmtStr;
+      const currency = pu.currency_code ?? "GEL";
 
-      // 3) writes — use external_order_id for onConflict
+      const paymentDetail = data.payment_detail || {};
+      const transactionId = paymentDetail.transaction_id ?? null;
+      const gatewayCode = paymentDetail.code ?? null;
+      const gatewayMessage = paymentDetail.code_description ?? null;
+
+      const status = normalizeStatus(data?.order_status?.key, gatewayCode);
+
+      // 3) writes keyed ONLY by external_order_id
       const nowIso = new Date().toISOString();
 
-      // include external_order_id as a top-level column
       const planPayload = {
-        external_order_id: externalOrderId,   // <-- NEW
-        user_id,
+        external_order_id: externalOrderId,
+        // user_id removed
         plan_type: planCode,
-        active: true,
+        active: status === "completed",  // or set false here and flip later
         subject_limit: 0,
         updated_at: nowIso,
       };
       dbg("db.user_plans.upsert.payload", planPayload);
 
-      // conflict target changed to external_order_id
       const planRes = await supabaseClient
         .from("user_plans")
         .upsert(planPayload, { onConflict: "external_order_id", defaultToNull: false })
@@ -256,14 +260,14 @@ router.post(
       }
 
       const methodPayload = {
-        external_order_id: externalOrderId,   // <-- NEW
-        user_id,                              // keep for join/filtering
+        external_order_id: externalOrderId,
+        // user_id removed
         method_name: "web",
         details: {
           planCode,
           planName,
           lastOrderId: orderId,
-          externalOrderId, // also keep inside details if you like
+          externalOrderId,
           payment: {
             status,
             amount: amountStr ?? (amountNum != null ? String(amountNum) : null),
@@ -280,7 +284,6 @@ router.post(
       };
       dbg("db.payment_methods.upsert.payload", methodPayload);
 
-      // conflict target changed to external_order_id (you can include method_name too if your UNIQUE is composite)
       const methodRes = await supabaseClient
         .from("payment_methods")
         .upsert(methodPayload, { onConflict: "external_order_id", defaultToNull: false })
@@ -292,12 +295,11 @@ router.post(
         return res.status(500).json({ message: "Failed to upsert payment method", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
       }
 
-      // 5) ack
+      // 4) ack (userId removed)
       const ack = {
         ok: true,
         rid,
         event,
-        userId: user_id,
         orderId,
         externalOrderId,
         planCode,
@@ -312,8 +314,14 @@ router.post(
       dbg("ack", ack);
       return res.status(200).json(wantDebugInResponse ? { ...ack, debug: { rid, trail } } : ack);
     } catch (err) {
-      // ...
+      console.error(`[process-payment][${rid}] exception`, err);
+      return res.status(400).json({
+        message: "Bad request while processing payment",
+        details: err?.message ?? String(err),
+        ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
+      });
     }
   }
 );
+
 export default router;
