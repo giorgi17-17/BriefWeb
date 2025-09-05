@@ -106,9 +106,19 @@ router.get("/is-premium", async (req, res) => {
 router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
-router.get("/process-payment", async (req, res) => {
-  res.end(req.body);
-})
+router.post(
+  "/process-payment",
+  express.raw({ type: "*/*" }),
+  (req, res) => {
+    const ct = req.headers["content-type"];
+    console.log("Content-Type:", ct);
+    console.log("Raw body (Buffer):", req.body);
+    console.log("Raw body (string):", req.body.toString());
+
+    // Echo back what you got (useful while testing)
+    res.type(ct || "text/plain").send(req.body);
+  }
+);
 
 
 export default router;
