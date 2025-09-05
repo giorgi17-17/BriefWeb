@@ -114,6 +114,7 @@ router.post(
     console.log("Content-Type:", ct);
     console.log("Raw body (Buffer):", req.body);
     console.log("Raw body (string):", req.body.toString());
+    console.log('JSON string:', JSON.stringify(req.body));
 
     // Echo back what you got (useful while testing)
     res.type(ct || "text/plain").send(req.body);
