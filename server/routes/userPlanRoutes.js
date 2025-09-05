@@ -4,6 +4,7 @@ import {
   isPremiumUser,
 } from "../middleware/planValidation.js";
 import { supabaseClient } from "../config/supabaseClient.js";
+const crypto = require("crypto");
 
 import { getPaymentDetails, approvePreAuthorization, cancelPreAuthorization, getToken } from '../controllers/paymentController.js'
 
@@ -109,12 +110,6 @@ router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
 
 // routes/processPayment.js
 // CommonJS; adjust imports/paths as needed for your project.
-
-const express = require("express");
-const crypto = require("crypto");
-// TODO: point this to your initialized Supabase client:
-const { supabaseClient } = require("../supabaseClient");
-
 
 /* ---------------- Helpers ---------------- */
 function requestId(req) {
