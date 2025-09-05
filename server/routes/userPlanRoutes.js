@@ -138,36 +138,7 @@ function normalizeStatus(orderStatusKey, gatewayCode) {
 }
 
 // --- Config -----------------------------------------------------------------
-const DEBUG_ENABLED =
-  process.env.DEBUG_WEBHOOKS === "1" || process.env.NODE_ENV !== "production";
-
-// --- Helpers ----------------------------------------------------------------
-function parseIncoming(req) {
-  const raw = req.body;
-  if (!raw) return {};
-  if (typeof raw === "object" && !Buffer.isBuffer(raw)) return raw;
-  try {
-    const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : String(raw);
-    return JSON.parse(text);
-  } catch {
-    return {};
-  }
-}
-
-function parseAmount(value) {
-  if (value == null) return { amountNum: null, amountStr: null };
-  const str = String(value);
-  const num = Number(str);
-  return Number.isFinite(num)
-    ? { amountNum: num, amountStr: str }
-    : { amountNum: null, amountStr: str };
-}
-
-function normalizeStatus(orderStatusKey) {
-  if (orderStatusKey && typeof orderStatusKey === "string") return orderStatusKey;
-  if (String(gatewayCode) === "100") return "completed";
-  return "unknown";
-}
+const DEBUG_ENABLED = true
 
 // Very basic redaction for potential sensitive fields
 function redact(obj) {
