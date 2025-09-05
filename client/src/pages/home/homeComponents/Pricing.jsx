@@ -1,9 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { AuthContext } from "../../../contexts/AuthContextValue";
+import { useContext } from "react";
+import { useStartBogCheckout } from "../../../hooks/useBogAuth";
 
 const Pricing = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useContext(AuthContext)
+
+  console.log("user", user)
+
+  const { mutate: startBog } = useStartBogCheckout()
 
   // Define pricing plans with schema data
   const plans = [
@@ -69,9 +77,8 @@ const Pricing = () => {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`theme-card rounded-xl p-8 theme-border flex flex-col h-full ${
-                plan.popular ? "relative z-10 shadow-xl border-blue-500" : ""
-              }`}
+              className={`theme-card rounded-xl p-8 theme-border flex flex-col h-full ${plan.popular ? "relative z-10 shadow-xl border-blue-500" : ""
+                }`}
               itemScope
               itemType="https://schema.org/Offer"
               itemProp={plan.popular ? "highPrice" : "lowPrice"}
@@ -142,17 +149,13 @@ const Pricing = () => {
               </ul>
 
               <button
-                onClick={() =>
-                  navigate(plan.id === "free" ? "/register" : "/payments")
-                }
-                className={`w-full rounded-lg px-4 py-2 text-sm font-medium ${
-                  plan.popular
+                onClick={() => {
+                  startBog()
+                }}
+                className={`w-full rounded-lg px-4 py-2 text-sm font-medium ${plan.popular
                     ? "bg-blue-600 hover:bg-blue-700 text-white"
                     : "theme-button-secondary border border-white"
-                }`}
-                itemProp="potentialAction"
-                itemScope
-                itemType="https://schema.org/BuyAction"
+                  }`}
               >
                 <meta itemProp="name" content={plan.cta} />
                 {plan.cta}

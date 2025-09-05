@@ -366,11 +366,10 @@ export default function Dashboard() {
               <button
                 onClick={() => setIsModalOpen(true)}
                 disabled={!canAdd && isFree}
-                className={`px-6 py-3 rounded-lg transition-colors ${
-                  !canAdd && isFree
-                    ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
-                    : "theme-button-primary bg-blue-700 text-white"
-                }`}
+                className={`px-6 py-3 rounded-lg transition-colors ${!canAdd && isFree
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+                  : "theme-button-primary bg-blue-700 text-white"
+                  }`}
               >
                 {t("dashboard.createSubject")}
               </button>
@@ -423,11 +422,10 @@ export default function Dashboard() {
             <button
               onClick={() => setIsModalOpen(true)}
               disabled={!canAdd && isFree}
-              className={`px-6 py-3 rounded-lg transition-colors ${
-                !canAdd && isFree
-                  ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
-                  : "theme-button-primary bg-blue-700 text-white"
-              }`}
+              className={`px-6 py-3 rounded-lg transition-colors ${!canAdd && isFree
+                ? "bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+                : "theme-button-primary bg-blue-700 text-white"
+                }`}
             >
               {t("dashboard.addNewSubject")}
             </button>

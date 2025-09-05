@@ -24,6 +24,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthCallback from "./pages/auth/callback";
 import { UserPlanProvider, useUserPlan } from "./contexts/UserPlanContext";
 import { PostHogProvider } from "posthog-js/react";
+import PaymentsPage from "./pages/payments/payments";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -249,6 +250,14 @@ function RouterContainer() {
             element={
               <ProtectedRoute>
                 <LecturesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payments"          
+            element={
+              <ProtectedRoute>
+                <PaymentsPage />
               </ProtectedRoute>
             }
           />

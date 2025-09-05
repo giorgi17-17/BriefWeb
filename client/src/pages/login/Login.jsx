@@ -70,6 +70,8 @@ const Login = () => {
       }
 
       await signInWithGoogle();
+
+      navigate('/dashboard')
       // The redirect will be handled by Supabase OAuth flow
     } catch (error) {
       console.error(error);

@@ -1,7 +1,7 @@
 import { useUserPlan } from "../../contexts/UserPlanContext";
 import { useBrief } from "../../hooks/useBrief";
 import PropTypes from "prop-types";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { debugLog } from "../../utils/debugLogger";
 import ErrorBoundary from "../ErrorBoundary";
 
@@ -13,9 +13,14 @@ import ImportantDetails from "./ImportantDetails";
 import BriefPagination from "./BriefPagination";
 import BriefLoadingState from "./BriefLoadingState";
 import BriefErrorDisplay from "./BriefErrorDisplay";
+import TextSizeControls from "../../components/TextSizeController";
 
 const Brief = ({ selectedFile, user, lectureId }) => {
   const { isPremium } = useUserPlan();
+  const [textScale, setTextScale] = useState(() => {
+    const saved = localStorage.getItem("brief:textScale");
+    return saved ? parseFloat(saved) : 1;
+  });
 
   // Use our custom hook for brief data and operations
   const {
@@ -44,6 +49,11 @@ const Brief = ({ selectedFile, user, lectureId }) => {
     }
   }, [brief, currentPage]);
 
+  useEffect(() => {
+    localStorage.setItem("brief:textScale", String(textScale));
+  }, [textScale]);
+
+
   // Handler for generate brief button
   const handleGenerateBrief = () => {
     if (selectedFile) {
@@ -59,62 +69,67 @@ const Brief = ({ selectedFile, user, lectureId }) => {
   return (
     <ErrorBoundary message="Error loading document summary">
       <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      {/* Header with Generate button */}
-      <BriefHeader
-        brief={brief}
-        noBriefExists={noBriefExists}
-        isLoading={isLoading}
-        isPolling={isPolling}
-        selectedFile={selectedFile}
-        isPremium={isPremium}
-        onGenerateBrief={handleGenerateBrief}
-      />
+        {/* Header with Generate button */}
+        <BriefHeader
+          brief={brief}
+          noBriefExists={noBriefExists}
+          isLoading={isLoading}
+          isPolling={isPolling}
+          selectedFile={selectedFile}
+          isPremium={isPremium}
+          onGenerateBrief={handleGenerateBrief}
+        />
 
-      {/* Content area */}
-      <div className="p-4">
-        {brief ? (
-          <div key={brief.id || brief.lecture_id}>
-            {/* Pagination controls */}
-            {brief.total_pages > 1 ? (
-              <BriefPagination
+        <div className="px-4 pt-3 flex justify-end">
+          <TextSizeControls value={textScale} onChange={setTextScale} />
+        </div>
+
+        {/* Content area */}
+        <div className="p-4">
+          {brief ? (
+            <div key={brief.id || brief.lecture_id}>
+              {/* Pagination controls */}
+              {brief.total_pages > 1 ? (
+                <BriefPagination
+                  currentPage={currentPage}
+                  totalPages={brief.total_pages}
+                  onPageChange={handlePageChange}
+                />
+              ) : (
+                <div className="mb-4 text-right">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Single page document
+                  </span>
+                </div>
+              )}
+              {/* Main content - Add key to force re-render */}
+              <BriefContent
+                key={`${brief.id}-${currentPage}`}
+                brief={brief}
+                textScale={textScale}
                 currentPage={currentPage}
-                totalPages={brief.total_pages}
-                onPageChange={handlePageChange}
               />
-            ) : (
-              <div className="mb-4 text-right">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Single page document
-                </span>
-              </div>
-            )}
-            {/* Main content - Add key to force re-render */}
-            <BriefContent 
-              key={`${brief.id}-${currentPage}`}
-              brief={brief} 
-              currentPage={currentPage} 
+
+              {/* Key concepts */}
+              {brief.metadata?.key_concepts && (
+                <KeyConcepts concepts={brief.metadata.key_concepts} />
+              )}
+
+              {/* Important details */}
+              {brief.metadata?.important_details && (
+                <ImportantDetails details={brief.metadata.important_details} />
+              )}
+            </div>
+          ) : (
+            <BriefLoadingState
+              isLoading={isLoading}
+              isPolling={isPolling}
+              noBriefExists={noBriefExists}
+              selectedFile={selectedFile}
             />
-
-            {/* Key concepts */}
-            {brief.metadata?.key_concepts && (
-              <KeyConcepts concepts={brief.metadata.key_concepts} />
-            )}
-
-            {/* Important details */}
-            {brief.metadata?.important_details && (
-              <ImportantDetails details={brief.metadata.important_details} />
-            )}
-          </div>
-        ) : (
-          <BriefLoadingState
-            isLoading={isLoading}
-            isPolling={isPolling}
-            noBriefExists={noBriefExists}
-            selectedFile={selectedFile}
-          />
-        )}
+          )}
+        </div>
       </div>
-    </div>
     </ErrorBoundary>
   );
 };

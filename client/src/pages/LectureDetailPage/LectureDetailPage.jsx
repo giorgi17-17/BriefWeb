@@ -19,6 +19,8 @@ import {
   useNavigateWithCleanup,
   createBackClickHandler,
 } from "../../utils/navigationUtils";
+import { useQuiz } from "../../hooks/useQuiz";
+import PropTypes from "prop-types";
 
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
@@ -53,13 +55,20 @@ const LectureDetailPage = () => {
   } = useLectureData(lectureId, user?.id);
 
   // Use our flashcard generation hook
-  const { isGenerating, generateFlashcards } = useFlashcardGeneration(
+  const { isGenerating: isFleshCardGenerating, generateFlashcards } = useFlashcardGeneration(
     user,
     lectureId,
     isMounted,
     setError,
     setProcessedData
   );
+
+  // use Generate Quiz card
+  const {
+    isGenerating: isQuizGenerating,
+    ...quizPropTypes
+  } = useQuiz(lectureId, user);
+
 
   // Use our navigation utility
   const navigateWithCleanup = useNavigateWithCleanup(
@@ -129,9 +138,8 @@ const LectureDetailPage = () => {
   return (
     <div className="min-h-screen py-4 theme-bg-primary">
       <SEO
-        title={`${formatLectureDisplayTitle(lectureTitle, currentLang, t)}${
-          subjectTitle ? ` - ${subjectTitle}` : ""
-        }`}
+        title={`${formatLectureDisplayTitle(lectureTitle, currentLang, t)}${subjectTitle ? ` - ${subjectTitle}` : ""
+          }`}
         description={`${t("lectures.lectureDetails.seoDescription", {
           lectureTitle: formatLectureDisplayTitle(lectureTitle, currentLang, t),
           subjectTitle: subjectTitle || "",
@@ -188,7 +196,12 @@ const LectureDetailPage = () => {
           {/* Tabs & File Selector */}
           <TabNavigation
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            setActiveTab={(e) => {
+              if (isFleshCardGenerating || isQuizGenerating) return;
+
+              setActiveTab(e)
+            }}
+            isGenerating={isFleshCardGenerating || isQuizGenerating}
             files={files}
             selectedFile={selectedFile}
             onFileSelect={handleFileSelect}
@@ -207,7 +220,7 @@ const LectureDetailPage = () => {
               <FlashcardsTab
                 files={files}
                 selectedFile={selectedFile}
-                isGenerating={isGenerating}
+                isGenerating={isFleshCardGenerating}
                 handleGenerateFlashcards={handleGenerateFlashcards}
                 flashcards={getAllFlashcards()}
                 lectureId={lectureId}
@@ -249,6 +262,7 @@ const LectureDetailPage = () => {
                 selectedFile={selectedFile}
                 user={user}
                 lectureId={lectureId}
+                {...quizPropTypes}
               />
             ) : null}
           </div>

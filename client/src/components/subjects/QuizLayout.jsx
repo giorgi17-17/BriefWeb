@@ -1,10 +1,10 @@
 import PropTypes from "prop-types";
 import Quiz from "./Quiz";
 
-const QuizLayout = ({ selectedFile, user, lectureId }) => {
+const QuizLayout = ({ selectedFile, user, lectureId, ...props }) => {
   return (
     <div className="w-full max-w-4xl mx-auto py-2">
-      <Quiz selectedFile={selectedFile} user={user} lectureId={lectureId} />
+      <Quiz selectedFile={selectedFile} user={user} lectureId={lectureId} {...props} />
     </div>
   );
 };

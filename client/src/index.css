@@ -196,3 +196,29 @@
 }
 
 /* Brief content styling is now handled by Tailwind classes in components */
+
+
+/* ===== Brief typography scaling ===== */
+.brief-content {
+  /* default scale is 1 if not provided */
+  --brief-scale: 1;
+  font-size: calc(1rem * var(--brief-scale));
+  line-height: 1.7;
+}
+
+/* Headings scale proportionally */
+.brief-content h1 { font-size: calc(1.5rem * var(--brief-scale)); }
+.brief-content h2 { font-size: calc(1.25rem * var(--brief-scale)); }
+.brief-content h3 { font-size: calc(1.125rem * var(--brief-scale)); }
+
+/* Body elements */
+.brief-content p,
+.brief-content li,
+.brief-content blockquote,
+.brief-content code,
+.brief-content pre {
+  font-size: calc(1rem * var(--brief-scale));
+}
+
+/* Keep code a bit smaller relative to text if you prefer
+.brief-content code { font-size: calc(0.95rem * var(--brief-scale)); } */

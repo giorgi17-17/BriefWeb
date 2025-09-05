@@ -5,7 +5,7 @@ import {
 } from "../../utils/briefFormatters";
 import { debugWarn } from "../../utils/debugLogger";
 
-const BriefContent = ({ brief, currentPage }) => {
+const BriefContent = ({ brief, currentPage, textScale = 1 }) => {
   if (!brief) return null;
 
   // Get the current page title from standardized metadata structure
@@ -233,6 +233,8 @@ const BriefContent = ({ brief, currentPage }) => {
             prose-pre:bg-gray-100 dark:prose-pre:bg-gray-900 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto
             sm:text-sm sm:leading-relaxed
             [&>div]:mb-6 [&>div:last-child]:mb-0"
+          // ✅ provide the scale; React supports CSS vars as object keys
+          style={{ ['--brief-scale']: textScale }}
           dangerouslySetInnerHTML={{
             __html: ensureFormattingConsistency(
               formatSummaryText(brief.summaries[currentPage - 1])

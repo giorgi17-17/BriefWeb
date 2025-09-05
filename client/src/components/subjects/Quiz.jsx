@@ -15,43 +15,38 @@ import QuizLoadingState from "./QuizLoadingState";
 import QuizErrorDisplay from "./QuizErrorDisplay";
 import QuizHistory from "./QuizHistory";
 
-const Quiz = ({ selectedFile, user, lectureId }) => {
+const Quiz = ({
+  selectedFile,
+  quiz,
+  quizQuestions,
+  loading,
+  isGenerating,
+  error,
+  currentQuestionIndex,
+  userAnswers,
+  aiEvaluations,
+  showResults,
+  noQuizExists,
+  quizOptions,
+  quizHistory,
+  loadingHistory,
+  showHistory,
+  selectedHistoryQuiz,
+  handleOptionChange,
+  generateQuiz,
+  handleSelectAnswer,
+  handleOpenEndedAnswer,
+  handleSubmitQuiz,
+  navigateQuestion,
+  resetQuiz,
+  calculateScore,
+  loadHistoryQuiz,
+  toggleHistory,
+  exitHistoryQuiz
+}) => {
   const { t } = useTranslation();
   const { isPremium } = useUserPlan();
   const [showOptions, setShowOptions] = useState(false);
-
-  // Use our custom hook for quiz data and functionality
-  const {
-    quiz,
-    quizQuestions,
-    loading,
-    isGenerating,
-    error,
-    currentQuestionIndex,
-    userAnswers,
-    aiEvaluations,
-    showResults,
-    noQuizExists,
-    quizOptions,
-    // Quiz history states
-    quizHistory,
-    loadingHistory,
-    showHistory,
-    selectedHistoryQuiz,
-    // Functions
-    handleOptionChange,
-    generateQuiz,
-    handleSelectAnswer,
-    handleOpenEndedAnswer,
-    handleSubmitQuiz,
-    navigateQuestion,
-    resetQuiz,
-    calculateScore,
-    // Quiz history functions
-    loadHistoryQuiz,
-    toggleHistory,
-    exitHistoryQuiz,
-  } = useQuiz(lectureId, user);
 
   // Toggle options panel visibility
   const toggleOptionsPanel = () => {

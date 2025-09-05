@@ -26,6 +26,26 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // useEffect(() => {
+  //   const handleAuthCallback = async () => {
+  //     const { data, error } = await supabase.auth.getSession();
+      
+  //     if (data?.session && window.location.pathname !== '/dashboard') {
+  //       // Redirect to dashboard after successful authentication
+  //       window.location.href = '/dashboard';
+  //     }
+  //   };
+  
+  //   // Listen for auth state changes
+  //   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+  //     if (event === 'SIGNED_IN' && session) {
+  //       window.location.href = '/dashboard';
+  //     }
+  //   });
+  
+  //   return () => subscription.unsubscribe();
+  // }, []);  
+
   // Unified error handling function
   const handleAuthError = useCallback((operation, error) => {
     console.error(`Error during ${operation}:`, error);
@@ -365,19 +385,20 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     try {
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`;
+  
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
+        options: { redirectTo }
       });
-
+  
       if (error) throw error;
       return { success: true };
     } catch (error) {
       return handleAuthError("Google signin", error);
     }
   }, [handleAuthError]);
+  
 
   const logout = useCallback(async () => {
     try {
