@@ -286,7 +286,7 @@ router.post(
       const planPayload = {
         external_order_id: externalOrderId,
         user_id: boundUserId,
-        plan_type: planCode,
+        plan_type: planName,
         active: status === "completed",
         subject_limit: 0,
         updated_at: nowIso,
