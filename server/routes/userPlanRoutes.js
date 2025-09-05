@@ -286,7 +286,7 @@ router.post(
 
       const methodRes = await supabaseClient
         .from("payment_methods")
-        .upsert(methodPayload, { onConflict: "external_order_id", defaultToNull: false })
+        .insert(methodPayload)
         .select()
         .maybeSingle();
 
