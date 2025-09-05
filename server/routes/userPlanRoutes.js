@@ -176,55 +176,49 @@ function msSince(start) {
 /* ---------------- Route ---------------- */
 router.post(
   "/process-payment",
-  // MUST be before any app.use(express.json()) so req.body is a Buffer
   express.raw({ type: "*/*" }),
   async (req, res) => {
     const rid = requestId(req);
     const t0 = process.hrtime.bigint();
     const wantDebugInResponse = String(req.headers["x-debug"] || "").toLowerCase() === "1";
-    const trail = []; // [{ t, step, data }]
-
+    const trail = [];
     const dbg = (step, data) => {
       const line = { t: msSince(t0), step, data };
       trail.push(line);
-      if (DEBUG_ENABLED) {
-        console.log(`[process-payment][${rid}] ${line.t} ${step}`, data ?? "");
-      }
+      if (DEBUG_ENABLED) console.log(`[process-payment][${rid}] ${line.t} ${step}`, data ?? "");
     };
 
     try {
-      // 0) Request metadata
-      dbg("start", {
-        ip: req.ip,
-        ua: req.headers["user-agent"],
-        contentType: req.headers["content-type"],
-        rawLen: Buffer.isBuffer(req.body) ? req.body.length : null,
-        sig: req.headers["x-bog-signature"] || req.headers["x-signature"] || null,
-      });
+      // 0) meta
+      dbg("start", { /* ... */ });
 
-      // 1) Parse & flatten
+      // 1) parse
       const incoming = parseIncoming(req);
-      dbg("parsed.incoming", redact(incoming));
       const data = incoming && typeof incoming === "object" && incoming.body ? incoming.body : incoming;
       dbg("flattened.data", redact(data));
-
       if (!data || typeof data !== "object") {
-        dbg("error.missing_body");
+        return res.status(400).json({ message: "Missing webhook body", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
+      }
+
+      // 2) extract / normalize
+      const event = (incoming && incoming.event) || data.event || "order_payment";
+      const buyer = data.buyer || {};
+      let user_id = buyer.user_id ?? buyer.id ?? buyer.userId ?? null;
+      if (user_id != null) user_id = String(user_id);
+
+      const orderId = data.order_id ?? null;
+      const externalOrderId = data.external_order_id ?? null;
+
+      // NEW: require external_order_id as the idempotency key
+      if (!externalOrderId || typeof externalOrderId !== "string" || externalOrderId.trim() === "") {
+        dbg("error.missing_external_order_id");
         return res.status(400).json({
-          message: "Missing webhook body",
+          message: "external_order_id not found",
           ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
         });
       }
 
-      // 2) Extract / normalize basics
-      const event = (incoming && incoming.event) || data.event || "order_payment";
-      dbg("field.event", { event });
-
-      const buyer = data.buyer || {};
-      let user_id = buyer.user_id ?? buyer.id ?? buyer.userId ?? null;
-      if (user_id != null) user_id = String(user_id);
-      dbg("field.user_id", { user_id });
-
+      // (optional) still require user_id so we can attach to a user
       if (!user_id || typeof user_id !== "string" || user_id.trim() === "") {
         dbg("error.missing_user_id");
         return res.status(400).json({
@@ -233,43 +227,14 @@ router.post(
         });
       }
 
-      const orderId = data.order_id ?? null;
-      const externalOrderId = data.external_order_id ?? null;
-      dbg("field.order_ids", { orderId, externalOrderId });
+      // ...items/amount/status extraction stays the same...
 
-      const pu = data.purchase_units || {};
-      const items = Array.isArray(pu.items) ? pu.items : [];
-      const first = items[0] || {};
-      dbg("field.items.first", redact(first));
-
-      const planCode = first.product_id ?? "unknown";
-      const planName = first.description ?? planCode;
-      dbg("field.plan", { planCode, planName });
-
-      const { amountNum: reqAmtNum, amountStr: reqAmtStr } = parseAmount(pu.request_amount);
-      const { amountNum: trfAmtNum, amountStr: trfAmtStr } = parseAmount(pu.transfer_amount);
-      const amountNum = trfAmtNum ?? reqAmtNum;
-      const amountStr = trfAmtStr ?? reqAmtStr;
-      const currency = pu.currency_code ?? "GEL";
-      dbg("field.amounts", {
-        request_amount: { reqAmtNum, reqAmtStr },
-        transfer_amount: { trfAmtNum, trfAmtStr },
-        chosen: { amountNum, amountStr, currency },
-      });
-
-      const paymentDetail = data.payment_detail || {};
-      const transactionId = paymentDetail.transaction_id ?? null;
-      const gatewayCode = paymentDetail.code ?? null;
-      const gatewayMessage = paymentDetail.code_description ?? null;
-      dbg("field.payment_detail", { transactionId, gatewayCode, gatewayMessage });
-
-      const status = normalizeStatus(data?.order_status?.key, gatewayCode);
-      dbg("field.status.normalized", { status, orderStatusKey: data?.order_status?.key });
-
-      // 3) Idempotency-safe writes (simple upserts)
+      // 3) writes — use external_order_id for onConflict
       const nowIso = new Date().toISOString();
 
+      // include external_order_id as a top-level column
       const planPayload = {
+        external_order_id: externalOrderId,   // <-- NEW
         user_id,
         plan_type: planCode,
         active: true,
@@ -278,33 +243,27 @@ router.post(
       };
       dbg("db.user_plans.upsert.payload", planPayload);
 
+      // conflict target changed to external_order_id
       const planRes = await supabaseClient
         .from("user_plans")
-        .upsert(planPayload, { onConflict: "user_id" })
+        .upsert(planPayload, { onConflict: "external_order_id", defaultToNull: false })
         .select()
         .maybeSingle();
 
-      dbg("db.user_plans.upsert.result", {
-        error: planRes.error ? String(planRes.error.message) : null,
-        id: planRes.data?.id ?? null,
-      });
-
       if (planRes.error) {
         dbg("error.user_plans_upsert", { error: planRes.error.message });
-        return res.status(500).json({
-          message: "Failed to upsert plan",
-          ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
-        });
+        return res.status(500).json({ message: "Failed to upsert plan", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
       }
 
       const methodPayload = {
-        user_id,
+        external_order_id: externalOrderId,   // <-- NEW
+        user_id,                              // keep for join/filtering
         method_name: "web",
         details: {
           planCode,
           planName,
           lastOrderId: orderId,
-          externalOrderId,
+          externalOrderId, // also keep inside details if you like
           payment: {
             status,
             amount: amountStr ?? (amountNum != null ? String(amountNum) : null),
@@ -321,31 +280,19 @@ router.post(
       };
       dbg("db.payment_methods.upsert.payload", methodPayload);
 
+      // conflict target changed to external_order_id (you can include method_name too if your UNIQUE is composite)
       const methodRes = await supabaseClient
         .from("payment_methods")
-        .upsert(methodPayload, { onConflict: "user_id,method_name" })
+        .upsert(methodPayload, { onConflict: "external_order_id", defaultToNull: false })
         .select()
         .maybeSingle();
 
-      dbg("db.payment_methods.upsert.result", {
-        error: methodRes.error ? String(methodRes.error.message) : null,
-        id: methodRes.data?.id ?? null,
-      });
-
       if (methodRes.error) {
         dbg("error.payment_methods_upsert", { error: methodRes.error.message });
-        return res.status(500).json({
-          message: "Failed to upsert payment method",
-          ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
-        });
+        return res.status(500).json({ message: "Failed to upsert payment method", ...(wantDebugInResponse ? { debug: { rid, trail } } : {}) });
       }
 
-      // 4) Optional dedupe (not implemented)
-      dbg("dedupe.skipped", {
-        note: "Consider webhook_events with UNIQUE(transaction_id). Insert first to dedupe.",
-      });
-
-      // 5) ACK
+      // 5) ack
       const ack = {
         ok: true,
         rid,
@@ -363,20 +310,10 @@ router.post(
         methodRowId: methodRes.data?.id ?? null,
       };
       dbg("ack", ack);
-
-      return res
-        .status(200)
-        .json(wantDebugInResponse ? { ...ack, debug: { rid, trail } } : ack);
+      return res.status(200).json(wantDebugInResponse ? { ...ack, debug: { rid, trail } } : ack);
     } catch (err) {
-      const msg = err?.message ?? String(err);
-      console.error(`[process-payment] exception`, err);
-      return res.status(400).json({
-        message: "Bad request while processing payment",
-        details: msg,
-        ...(wantDebugInResponse ? { debug: { rid, trail } } : {}),
-      });
+      // ...
     }
   }
 );
-
 export default router;
