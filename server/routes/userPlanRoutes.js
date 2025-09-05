@@ -106,32 +106,63 @@ router.get("/is-premium", async (req, res) => {
 router.get("/payments/order", getToken);
 router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
 router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
+
+function parseIncoming(req) {
+  const raw = req.body;
+  if (!raw) return {};
+  if (typeof raw === "object" && !Buffer.isBuffer(raw)) return raw; // just in case
+  try {
+    const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : String(raw);
+    return JSON.parse(text);
+  } catch {
+    return {}; // don’t throw on bad JSON
+  }
+}
+
+/** prefer numeric if safe, but keep original string for storage */
+function parseAmount(value) {
+  if (value == null) return { amountNum: null, amountStr: null };
+  const str = String(value);
+  const num = Number(str);
+  return Number.isFinite(num)
+    ? { amountNum: num, amountStr: str }
+    : { amountNum: null, amountStr: str };
+}
+
+/** normalize status from multiple places */
+function normalizeStatus(orderStatusKey, gatewayCode) {
+  // BOG often uses code "100" == success
+  if (orderStatusKey && typeof orderStatusKey === "string") return orderStatusKey;
+  if (String(gatewayCode) === "100") return "completed";
+  return "unknown";
+}
+
 router.post(
   "/process-payment",
-  // Keep this BEFORE any global app.use(express.json())
+  // MUST be before any app.use(express.json())
   express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
-      // 1) Parse and normalize to the "inner" body you showed
+      // 1) Parse and flatten
       const incoming = parseIncoming(req);
-      const data = incoming?.body ?? incoming; // prefer nested `body`, else top-level
+      const data = incoming?.body ?? incoming;
 
-      // 2) Validate basics
-      if (!data) {
+      if (!data || typeof data !== "object") {
         return res.status(400).json({ message: "Missing webhook body" });
       }
-      const event = incoming?.event ?? data?.event ?? null;
-      const orderStatusKey = data?.order_status?.key ?? null;
+
+      // 2) Extract/normalize basics
+      const event = incoming?.event ?? data?.event ?? "order_payment";
 
       const buyer = data?.buyer ?? {};
-      const user_id =
-        buyer?.user_id || buyer?.id || buyer?.userId;
+      let user_id =
+        buyer?.user_id ?? buyer?.id ?? buyer?.userId ?? null;
+      if (user_id != null) user_id = String(user_id);
 
-      if (!user_id || typeof user_id !== "string") {
+      if (!user_id || typeof user_id !== "string" || user_id.trim() === "") {
         return res.status(400).json({ message: "buyer.user_id not found" });
       }
 
-      // 3) Extract useful fields
       const orderId = data?.order_id ?? null;
       const externalOrderId = data?.external_order_id ?? null;
 
@@ -142,34 +173,55 @@ router.post(
       const planCode = first?.product_id ?? "unknown";
       const planName = first?.description ?? planCode;
 
-      // amounts may be strings ("0.1")
-      const requestAmount = pu?.request_amount != null ? Number(pu.request_amount) : null;
-      const transferAmount = pu?.transfer_amount != null ? Number(pu.transfer_amount) : null;
-      const amount = Number.isFinite(transferAmount) ? transferAmount :
-                     Number.isFinite(requestAmount)  ? requestAmount  : null;
+      const { amountNum: reqAmtNum, amountStr: reqAmtStr } = parseAmount(
+        pu?.request_amount
+      );
+      const { amountNum: trfAmtNum, amountStr: trfAmtStr } = parseAmount(
+        pu?.transfer_amount
+      );
+
+      // prefer transfer amount; fallback to request amount
+      const amountNum = trfAmtNum ?? reqAmtNum;
+      const amountStr = trfAmtStr ?? reqAmtStr;
 
       const currency = pu?.currency_code ?? "GEL";
 
       const paymentDetail = data?.payment_detail ?? {};
       const transactionId = paymentDetail?.transaction_id ?? null;
-      const gatewayCode = paymentDetail?.code ?? null; // '100' => success per your sample
+      const gatewayCode = paymentDetail?.code ?? null;
       const gatewayMessage = paymentDetail?.code_description ?? null;
 
-      // Normalize payment status
-      const status =
-        orderStatusKey ||
-        (gatewayCode === "100" ? "completed" : "unknown");
+      const status = normalizeStatus(data?.order_status?.key, gatewayCode);
 
-      await supabaseClient.from('user_plans').insert({
+      // 3) Idempotency-safe writes (simple upserts)
+      // Assumptions:
+      // - user_plans has a unique constraint on (user_id) OR (user_id, plan_type)
+      // - payment_methods has a unique constraint on (user_id, method_name)
+      // If you don’t have these, create them, or switch to insert-only.
+      const nowIso = new Date().toISOString();
+
+      const planPayload = {
         user_id,
         plan_type: planCode,
         active: true,
-        subject_limit: 0
-      })
+        subject_limit: 0,
+        updated_at: nowIso,
+      };
 
-      await supabaseClient.from('payment_methods').insert({
+      const { data: planRow, error: planErr } = await supabaseClient
+        .from("user_plans")
+        .upsert(planPayload, { onConflict: "user_id" })
+        .select()
+        .maybeSingle();
+
+      if (planErr) {
+        console.error("user_plans upsert error:", planErr);
+        return res.status(500).json({ message: "Failed to upsert plan" });
+      }
+
+      const methodPayload = {
         user_id,
-        method_name: "web",
+        method_name: "web", // or "bog_web" if you want to distinguish
         details: {
           planCode,
           planName,
@@ -177,38 +229,49 @@ router.post(
           externalOrderId,
           payment: {
             status,
-            amount,
+            amount: amountStr ?? (amountNum != null ? String(amountNum) : null),
+            amountNumeric: amountNum,
             currency,
             transactionId,
             gatewayCode,
             gatewayMessage,
-            receivedAt: new Date().toISOString(),
-          }
+            receivedAt: nowIso,
+          },
         },
-        created_at: new Date()
-      })
+        updated_at: nowIso,
+        created_at: nowIso, // harmless if the table defaults this
+      };
 
-      if (error) {
-        console.error("Supabase admin.updateUserById error:", error);
-        return res.status(500).json({
-          message: "Failed to update user metadata",
-          details: error.message,
-        });
+      const { data: methodRow, error: methodErr } = await supabaseClient
+        .from("payment_methods")
+        .upsert(methodPayload, { onConflict: "user_id,method_name" })
+        .select()
+        .maybeSingle();
+
+      if (methodErr) {
+        console.error("payment_methods upsert error:", methodErr);
+        return res.status(500).json({ message: "Failed to upsert payment method" });
       }
 
-      // 5) Acknowledge fast
+      // 4) Optional: light dedupe guard by transactionId
+      // If you have a `webhook_events` table with unique (transaction_id), insert there first.
+      // Skipped here to keep it simple.
+
+      // 5) ACK quickly
       return res.status(200).json({
         ok: true,
-        event: event || "order_payment",
+        event,
         userId: user_id,
         orderId,
         externalOrderId,
         planCode,
         planName,
         status,
-        amount,
+        amount: amountNum ?? amountStr ?? null,
+        amountRaw: amountStr ?? null,
         currency,
-        supabaseUserId: upd?.user?.id ?? null,
+        planRowId: planRow?.id ?? null,
+        methodRowId: methodRow?.id ?? null,
       });
     } catch (err) {
       console.error("process-payment error:", err?.message || err);
@@ -219,6 +282,4 @@ router.post(
     }
   }
 );
-
-
 export default router;
