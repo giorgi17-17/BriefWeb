@@ -137,10 +137,6 @@ function normalizeStatus(orderStatusKey, gatewayCode) {
   return "unknown";
 }
 
-import express from "express";
-import crypto from "crypto";
-import { supabaseClient } from "../config/supabaseClient.js";
-
 // --- Config -----------------------------------------------------------------
 const DEBUG_ENABLED =
   process.env.DEBUG_WEBHOOKS === "1" || process.env.NODE_ENV !== "production";
