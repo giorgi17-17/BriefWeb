@@ -21,6 +21,7 @@ import {
 } from "../../utils/navigationUtils";
 import { useQuiz } from "../../hooks/useQuiz";
 import PropTypes from "prop-types";
+import { useBrief } from "../../hooks/useBrief";
 
 const LectureDetailPage = () => {
   const { lectureId } = useParams();
@@ -34,6 +35,11 @@ const LectureDetailPage = () => {
   const [activeFlashcardSetIndex, setActiveFlashcardSetIndex] = useState(0);
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
+
+  const {
+    isLoading: isBriefGenerating,
+    ...briefProps
+  } = useBrief(lectureId, user);
 
   // Use our custom hooks to manage data and state
   const {
@@ -197,11 +203,11 @@ const LectureDetailPage = () => {
           <TabNavigation
             activeTab={activeTab}
             setActiveTab={(e) => {
-              if (isFleshCardGenerating || isQuizGenerating) return;
+              if (isFleshCardGenerating || isQuizGenerating || isBriefGenerating) return;
 
               setActiveTab(e)
             }}
-            isGenerating={isFleshCardGenerating || isQuizGenerating}
+            isGenerating={isFleshCardGenerating || isQuizGenerating || isBriefGenerating}
             files={files}
             selectedFile={selectedFile}
             onFileSelect={handleFileSelect}
@@ -256,6 +262,8 @@ const LectureDetailPage = () => {
                 selectedFile={selectedFile}
                 user={user}
                 lectureId={lectureId}
+                isLoading={isBriefGenerating}
+                {...briefProps}
               />
             ) : activeTab === t("lectures.lectureDetails.tabs.quiz") ? (
               <QuizLayout

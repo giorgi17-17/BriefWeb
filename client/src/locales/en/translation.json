@@ -236,6 +236,27 @@
     },
     "copyright": "© 2025 Briefly. All rights reserved."
   },
+  "payments": {
+    "result": {
+      "tag": { "success": "Payment confirmed", "error": "Payment failed" },
+      "fields": { "orderId": "Order ID", "amount": "Amount", "email": "Email" },
+      "actions": { "copy": "Copy" }
+    },
+    "success": {
+      "title": "Thank you! Your payment is complete.",
+      "subtitle": "We’ve sent a receipt to your email.",
+      "message": "You can view your order details anytime from your dashboard.",
+      "primaryCta": "Go to dashboard",
+      "secondaryCta": "View orders"
+    },
+    "error": {
+      "title": "We couldn’t complete your payment.",
+      "subtitle": "No worries—your card wasn’t charged.",
+      "message": "Please try again or choose a different payment method. If the issue persists, contact support.",
+      "primaryCta": "Try again",
+      "secondaryCta": "Contact support"
+    }
+  },
   "lectures": {
     "title": "Lectures",
     "notFound": "Subject not found. Please go back to the home page and try again.",

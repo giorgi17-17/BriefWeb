@@ -15,24 +15,23 @@ import BriefLoadingState from "./BriefLoadingState";
 import BriefErrorDisplay from "./BriefErrorDisplay";
 import TextSizeControls from "../../components/TextSizeController";
 
-const Brief = ({ selectedFile, user, lectureId }) => {
+const Brief = ({
+  selectedFile,
+  user,
+  lectureId,
+  brief,
+  currentPage,
+  isLoading,
+  isPolling,
+  error,
+  noBriefExists,
+  generateBrief,
+  handlePageChange, }) => {
   const { isPremium } = useUserPlan();
   const [textScale, setTextScale] = useState(() => {
     const saved = localStorage.getItem("brief:textScale");
     return saved ? parseFloat(saved) : 1;
   });
-
-  // Use our custom hook for brief data and operations
-  const {
-    brief,
-    currentPage,
-    isLoading,
-    isPolling,
-    error,
-    noBriefExists,
-    generateBrief,
-    handlePageChange,
-  } = useBrief(lectureId, user);
 
   useEffect(() => {
     if (brief) {

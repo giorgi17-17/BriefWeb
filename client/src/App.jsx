@@ -25,6 +25,8 @@ import AuthCallback from "./pages/auth/callback";
 import { UserPlanProvider, useUserPlan } from "./contexts/UserPlanContext";
 import { PostHogProvider } from "posthog-js/react";
 import PaymentsPage from "./pages/payments/payments";
+import PaymentSuccess from "./pages/payments/success";
+import PaymentError from "./pages/payments/error";
 
 // Configure PostHog options
 const posthogOptions = {
@@ -56,8 +58,7 @@ function useAppVisibility() {
         // Only consider it a return from another app if hidden for more than 2 seconds
         if (hiddenDuration.current > 2000) {
           console.log(
-            `Tab was hidden for ${
-              hiddenDuration.current / 1000
+            `Tab was hidden for ${hiddenDuration.current / 1000
             }s, treating as app return`
           );
           setIsReturningFromOtherApp(true);
@@ -237,6 +238,7 @@ function RouterContainer() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/lectures"
             element={
@@ -254,7 +256,7 @@ function RouterContainer() {
             }
           />
           <Route
-            path="/payments"          
+            path="/payments"
             element={
               <ProtectedRoute>
                 <PaymentsPage />
@@ -269,6 +271,9 @@ function RouterContainer() {
               </ProtectedRoute>
             }
           />
+
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/error" element={<PaymentError />} />
 
           <Route path="*" element={<Error />} />
         </Routes>

@@ -8,13 +8,13 @@ import React, { useMemo } from 'react'
 
 export default function Pricing() {
   const { t } = useTranslation();
-  const { isPremiumUser } = useUserPlan();
+  const { isPremium } = useUserPlan();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { mutate: startBog } = useStartBogCheckout();
 
   const isLoggedIn = Boolean(user);
-  const isDisabled = isLoggedIn && isPremiumUser;
+  const isDisabled = isLoggedIn && isPremium;
 
   // Build plans once per translation change
   const plans = useMemo(
@@ -65,11 +65,11 @@ export default function Pricing() {
         navigate("/login");
         return;
       }
-      if (isPremiumUser) return; // disabled also stops click; extra guard
+      if (isPremium) return; // disabled also stops click; extra guard
       // If you add more paid tiers later, you can branch on plan.id
       startBog();
     },
-    [isLoggedIn, isPremiumUser, navigate, startBog]
+    [isLoggedIn, isPremium, navigate, startBog]
   );
 
   return (
@@ -181,7 +181,7 @@ function PlanCard({ plan, isDisabled, isLoggedIn, onCta }) {
         ].join(" ")}
       >
         <meta itemProp="name" content={plan.cta} />
-        {isLoggedIn && isDisabled ? "Current plan" : plan.cta}
+        {isDisabled ? "Current plan" : plan.cta}
       </button>
     </div>
   );

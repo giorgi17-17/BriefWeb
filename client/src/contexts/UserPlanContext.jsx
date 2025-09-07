@@ -14,7 +14,7 @@ import { useAuth } from "../utils/authHooks";
 const UserPlanContext = createContext(null);
 
 // Maximum lectures per subject for free users
-const MAX_FREE_LECTURES_PER_SUBJECT = 5;
+const MAX_FREE_LECTURES_PER_SUBJECT = 3;
 
 // Default plan values
 const DEFAULT_PLAN = {

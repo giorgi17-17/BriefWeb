@@ -1,12 +1,8 @@
 // hooks/useBrief.js
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePostHog } from "posthog-js/react";
-import {
-  getBrief,
-  upsertBrief,
-  computeProgressiveDelay,
-} from "../utils/briefsApi";
+import { getBrief, upsertBrief, computeProgressiveDelay } from "../utils/briefsApi";
 import { debugLog, debugError } from "../utils/debugLogger";
 import { handleProcessBrief } from "../utils/api"; // your existing function
 
@@ -17,7 +13,7 @@ const QK = {
 function looksLowQuality(processed) {
   if (!processed?.pageSummaries?.length) return true;
   return processed.pageSummaries.some((raw) => {
-    const summary = typeof raw === "string" ? raw : String(raw);
+    const summary = typeof raw === "string" ? raw : String(raw ?? "");
     const wc = summary.trim().split(/\s+/).length;
     return (
       summary.includes("Several important themes are explored") ||
@@ -35,10 +31,9 @@ export function useBrief(lectureId, user) {
   const [currentPage, setCurrentPage] = useState(1);
   const [uiError, setUiError] = useState(null);
 
-  // polling controls
+  // silent polling controls
   const [isPolling, setIsPolling] = useState(false);
   const pollAttemptsRef = useRef(0);
-  const maxAttempts = 30;
 
   const enabled = Boolean(lectureId);
 
@@ -47,49 +42,57 @@ export function useBrief(lectureId, user) {
     queryFn: () => getBrief(lectureId),
     enabled,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
-    // Progressive refetch while polling for creation
+    // progressive backoff while we wait for background generation
     refetchInterval: (data) => {
       if (!isPolling) return false;
-      if (data?.id) return false; // found → stop
+      if (data?.id) return false; // found -> stop polling
       return computeProgressiveDelay(pollAttemptsRef.current);
     },
     onSuccess: (data) => {
+      // reset page when brief appears; stay quiet otherwise
       if (data?.id) {
         setIsPolling(false);
         pollAttemptsRef.current = 0;
         setUiError(null);
         setCurrentPage(data.current_page ?? 1);
       } else if (isPolling) {
+        // keep the backoff growing, but no time-limit messages
         pollAttemptsRef.current += 1;
-        if (pollAttemptsRef.current >= maxAttempts) {
-          setIsPolling(false);
-          setUiError(
-            "Brief generation is taking unusually long. Please try again or contact support."
-          );
-        }
       }
     },
     onError: (err) => {
       debugError("Error fetching brief:", err);
-      if (isPolling) {
-        pollAttemptsRef.current += 1;
-        if (pollAttemptsRef.current >= maxAttempts) {
-          setIsPolling(false);
-          setUiError("Unable to check brief status. Please refresh and try again.");
-        }
-      } else {
-        setUiError("Failed to load brief");
-      }
+      // Only show an error for real failures; do not show time-pressure notices
+      setUiError("Failed to load brief");
+      // Don't force-stop polling here; let the caller decide (we expose cancel/restart)
     },
   });
 
   const brief = briefQuery.data ?? null;
   const noBriefExists = briefQuery.isSuccess && !brief;
 
+  // Track PostHog only once when the brief first lands (if generation was async)
+  const trackedFirstArrivalRef = useRef(false);
+  if (brief?.id && !trackedFirstArrivalRef.current) {
+    trackedFirstArrivalRef.current = true;
+    try {
+      if (brief?.total_pages) {
+        posthog?.capture("brief_generation_arrived", {
+          lecture_id: lectureId,
+          pages: brief.total_pages,
+          via: "polling",
+        });
+      }
+    } catch (err) {
+      debugError("PostHog arrival event error:", err);
+    }
+  }
+
   const genMutation = useMutation({
-    mutationFn: async (selectedFile) => {
+    async mutationFn(selectedFile) {
       if (!user?.id) throw new Error("No user");
       if (!lectureId) throw new Error("No lectureId");
       if (!selectedFile?.id && !selectedFile?.path) throw new Error("No file selected");
@@ -100,67 +103,70 @@ export function useBrief(lectureId, user) {
         (selectedFile.path || "").split("/").pop() || String(selectedFile.id);
 
       // 1) hit your API
-      let processed;
       try {
-        processed = await handleProcessBrief(user.id, lectureId, filePath);
+        const processed = await handleProcessBrief(user.id, lectureId, filePath);
+
+        // 2) optional quality check (non-blocking)
+        if (looksLowQuality(processed)) {
+          debugLog("⚠️ Low-quality content detected (not blocking UI).");
+        }
+
+        // 3) persist (if your API doesn't persist on its own)
+        const saved = await upsertBrief(lectureId, user.id, processed);
+
+        // 4) analytics (immediate path)
+        try {
+          posthog?.capture("brief_generation", {
+            lecture_id: lectureId,
+            pages: processed.totalPages,
+            via: "immediate",
+          });
+        } catch (err) {
+          debugError("PostHog event error:", err);
+        }
+
+        return saved;
       } catch (e) {
-        const msg = String(e?.message || "");
-        if (msg.includes("timeout")) {
-          debugLog("Timeout from /detailed-brief → start polling for completion…");
+        const msg = String(e?.message || "").toLowerCase();
+
+        // If the server indicates "still processing" (timeout/202/etc),
+        // we silently switch to polling and DO NOT throw or show time-pressure messages.
+        if (msg.includes("timeout") || msg.includes("processing") || msg.includes("202")) {
+          debugLog("Server indicates processing; enabling silent polling…");
           setIsPolling(true);
           pollAttemptsRef.current = 0;
 
-          const maybe = await getBrief(lectureId);
-          if (maybe) return maybe;
-
-          // keep polling; surface lightweight banner
-          throw new Error(
-            "Brief generation is taking longer than expected. Checking for completion..."
-          );
+          // Resolve without error; onSuccess handler will ignore falsy results,
+          // and the query will keep polling until the brief shows up.
+          return undefined;
         }
+
+        // Real error → bubble up
         throw e;
       }
-
-      // 2) optional quality check (doesn't block UI)
-      if (looksLowQuality(processed)) {
-        debugLog("⚠️ Low-quality content detected (not blocking UI).");
-      }
-
-      // 3) persist to Supabase
-      const saved = await upsertBrief(lectureId, user.id, processed);
-
-      // 4) analytics
-      try {
-        posthog?.capture("brief_generation", {
-          lecture_id: lectureId,
-          pages: processed.totalPages,
-        });
-      } catch (err) {
-        debugError("PostHog event error:", err);
-      }
-
-      return saved;
     },
     onMutate: () => {
+      // Start polling as soon as user triggers generation.
       setIsPolling(true);
       pollAttemptsRef.current = 0;
     },
     onSuccess: (saved) => {
-      qc.setQueryData(QK.brief(saved.lecture_id), saved);
-      setIsPolling(false);
-      pollAttemptsRef.current = 0;
-      setCurrentPage(saved.current_page ?? 1);
-      debugLog("✅ Brief generation successful");
+      // If we received a saved brief immediately, commit it and stop polling.
+      if (saved?.id) {
+        qc.setQueryData(QK.brief(saved.lecture_id || lectureId), saved);
+        setIsPolling(false);
+        pollAttemptsRef.current = 0;
+        setCurrentPage(saved.current_page ?? 1);
+        debugLog("✅ Brief generation successful (immediate)");
+      }
+      // Otherwise, do nothing; polling continues quietly until query finds it.
     },
     onError: (err) => {
       debugError("Error generating brief:", err);
-      setUiError(
-        String(
-          err?.message ||
-            "Brief generation encountered an issue. Checking for completion..."
-        )
-      );
-      setIsPolling(true); // continue polling as fallback
+      // Only real failure gets an error message; no time pressure text.
+      setUiError("Brief generation failed. Please try again.");
+      // Stop polling on hard failure; caller can restart if desired.
+      setIsPolling(false);
     },
     onSettled: async () => {
       if (lectureId) {
@@ -176,10 +182,31 @@ export function useBrief(lectureId, user) {
     }
   }
 
+  // Friendly status for UI
+  const status = useMemo(() => {
+    if (uiError) return "error";
+    if (briefQuery.isLoading) return "loading";
+    if (genMutation.isPending || isPolling) return "generating";
+    if (brief?.id) return "ready";
+    return "idle";
+  }, [uiError, briefQuery.isLoading, genMutation.isPending, isPolling, brief?.id]);
+
   const isLoading =
     briefQuery.isLoading ||
     genMutation.isPending ||
     (isPolling && !briefQuery.data && briefQuery.isFetching);
+
+  // Manual controls if you need them in UI
+  const cancelPolling = () => {
+    setIsPolling(false);
+  };
+  const restartPolling = () => {
+    setUiError(null);
+    pollAttemptsRef.current = 0;
+    setIsPolling(true);
+    // kick a refetch immediately
+    briefQuery.refetch();
+  };
 
   return {
     // data
@@ -187,6 +214,7 @@ export function useBrief(lectureId, user) {
     currentPage,
 
     // states
+    status,        // "idle" | "loading" | "generating" | "ready" | "error"
     isLoading,
     isPolling,
     error: uiError,
@@ -196,5 +224,7 @@ export function useBrief(lectureId, user) {
     fetchBrief: () => briefQuery.refetch(),
     generateBrief: (selectedFile) => genMutation.mutate(selectedFile),
     handlePageChange,
+    cancelPolling,
+    restartPolling,
   };
 }
