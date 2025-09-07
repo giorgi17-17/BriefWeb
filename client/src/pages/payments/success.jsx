@@ -21,7 +21,6 @@ export default function PaymentSuccess() {
             primaryTo="/dashboard"
             primaryLabel={t("payments.success.primaryCta")}
             secondaryTo="/orders"
-            secondaryLabel={t("payments.success.secondaryCta")}
         />
     );
 }
