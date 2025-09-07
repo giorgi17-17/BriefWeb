@@ -6,7 +6,7 @@ import {
 import { supabaseClient } from "../config/supabaseClient.js";
 import crypto from 'crypto'
 
-import { getPaymentDetails, approvePreAuthorization, cancelPreAuthorization, getToken } from '../controllers/paymentController.js'
+import { getToken } from '../controllers/paymentController.js'
 
 const router = express.Router();
 
@@ -105,8 +105,6 @@ router.get("/is-premium", async (req, res) => {
 
 // Payment endpoints
 router.get("/payments/order", getToken);
-router.post("/payments/:orderId/authorization/approve", approvePreAuthorization);
-router.post("/payments/:orderId/authorization/cancel", cancelPreAuthorization);
 
 // routes/processPayment.js
 // CommonJS; adjust imports/paths as needed for your project.

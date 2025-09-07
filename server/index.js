@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import apiRoutes from "./routes/api.js";
 import http from "http";
 
+import './jobs/cron.js'
+
 dotenv.config();
 
 const app = express();
