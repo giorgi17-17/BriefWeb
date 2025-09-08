@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CircleUserRound, Crown } from "lucide-react"; // removed Menu, X
+import { CircleUserRound, Crown, Home, Sparkles, BookOpen } from "lucide-react"; // removed Menu, X
 import { useAuth } from "../../utils/authHooks";
 import ThemeToggle from "../ui/ThemeToggle";
 import LanguageSwitcher from "../ui/LanguageSwitcher";
@@ -20,6 +20,24 @@ function Header() {
   const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isFree } = useUserPlan();
+
+  // const MenuItems = {
+  //   "default": [
+  //     { label: "Home", to: "/", icon: Home },
+  //     { label: "Profile", to: "/profile", icon: CircleUserRound },
+  //   ],
+  //   "/lectures": [
+  //     { label: "flashcards", label: labels.flashcards, icon: BookOpen },
+  //     { label: "briefs", label: labels.briefs, icon: FileText },
+  //     { label: "quiz", label: labels.quiz, icon: HelpCircle },
+  //     { label: "files", label: labels.files, icon: FolderOpen },
+  //   ]
+  // };
+
+  const menuItems = [
+    { label: "Home", to: "/", icon: Home, mode: "navigate" },
+    { label: "Profile", to: "/profile", icon: CircleUserRound, mode: "navigate" },
+  ]
 
   // Close mobile menu when changing routes
 
@@ -105,7 +123,13 @@ function Header() {
       </div>
 
       {/* ✅ New bottom tab bar for mobile */}
-      <MobileTabBar />
+      {/* <MobileTabBar items={MenuItems} onPlus={() => navigate('/dashboard')} /> */}
+
+      <MobileTabBar
+        onPlus={() => navigate('/dashboard')}
+        activeLocation={'/'}
+        items={menuItems}
+      />
     </header>
   );
 }
