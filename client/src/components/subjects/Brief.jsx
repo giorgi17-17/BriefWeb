@@ -26,7 +26,7 @@ const Brief = ({
   error,
   noBriefExists,
   generateBrief,
-  handlePageChange, }) => {
+  handlePageChange }) => {
   const { isPremium } = useUserPlan();
   const [textScale, setTextScale] = useState(() => {
     const saved = localStorage.getItem("brief:textScale");

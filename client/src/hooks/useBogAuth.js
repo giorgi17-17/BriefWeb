@@ -32,7 +32,7 @@ export function useStartBogCheckout(opts = {}) {
         const userObject = {
           username: user.user_metadata?.name,
           email: user.email,
-          phone: "557434206",
+          phone: user.phone || '',
           user_id: user.id
         };
 
@@ -54,7 +54,7 @@ export function useStartBogCheckout(opts = {}) {
             {
               user_id: user.id,                   
               external_order_id: externalOrderId, 
-              plan_type: "premium",
+              plan_type: "free",
               active: false,
               updated_at: new Date().toISOString(),
               created_at: new Date().toISOString(),

@@ -14,16 +14,15 @@ const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
   const pages = totalPages || 1;
 
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex items-center justify-between lg:relative lg:bg-transparent lg:backdrop-blur-0 lg:p-0 lg:rounded-none lg:bottom-0 lg:right-0 fixed z-50 bottom-24 bg-gray-700/40 backdrop-blur-md p-2 right-5 rounded-lg gap-4">
       <div className="flex items-center space-x-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           className={`p-2 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500
-            ${
-              currentPage <= 1
-                ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            ${currentPage <= 1
+              ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
           aria-label="Previous page"
         >
@@ -31,13 +30,12 @@ const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
         </button>
 
         <button
-          onClick={() => onPageChange(currentPage + 1)} 
+          onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= pages}
           className={`p-2 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500
-            ${
-              currentPage >= pages
-                ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            ${currentPage >= pages
+              ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
           aria-label="Next page"
         >

@@ -175,12 +175,26 @@ export function useBrief(lectureId, user) {
     },
   });
 
-  function handlePageChange(newPage) {
-    const total = brief?.total_pages ?? 0;
-    if (brief && newPage >= 1 && newPage <= total) {
-      setCurrentPage(newPage);
-    }
+function handlePageChange(newPage) {
+  const total = brief?.total_pages ?? 0;
+  const target = Math.max(1, Math.min(newPage, total)); // clamp
+
+  if (!brief || target === currentPage) return;
+
+  setCurrentPage(target);
+
+  // Respect reduced motion & fall back if smooth not supported
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    "matchMedia" in window &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if ("scrollBehavior" in document.documentElement.style) {
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+  } else {
+    window.scrollTo(0, 0);
   }
+}
 
   // Friendly status for UI
   const status = useMemo(() => {
