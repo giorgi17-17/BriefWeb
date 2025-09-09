@@ -15,32 +15,77 @@ const router = express.Router();
 
 // Initialize PostHog
 const posthog = new PostHog(
-  process.env.POSTHOG_API_KEY, // Your PostHog API key
+  process.env.POSTHOG_API_KEY,
   { 
     host: process.env.POSTHOG_HOST || 'https://app.posthog.com',
-    flushAt: 20, // Flush events after 20 events
-    flushInterval: 10000, // Flush events every 10 seconds
+    flushAt: 20,
+    flushInterval: 10000,
   }
 );
 
-// Helper function to track LLM usage
-const trackLLMUsage = (userId, event, data = {}) => {
+// Helper function to track LLM analytics with PostHog's LLM tracking
+const trackLLMAnalytics = (userId, operation, data = {}) => {
+  const {
+    model = 'gemini-pro',
+    prompt_tokens = 0,
+    completion_tokens = 0,
+    total_tokens = 0,
+    cost = 0,
+    response_time_ms = 0,
+    success = true,
+    error_message = null,
+    prompt = null,
+    response = null,
+    temperature = null,
+    max_tokens = null,
+    ...additionalProperties
+  } = data;
+
+  // Track LLM usage with PostHog's built-in LLM analytics
   posthog.capture({
     distinctId: userId,
-    event: event,
+    event: '$ai_generation',
     properties: {
-      ...data,
+      // Standard PostHog LLM properties
+      $ai_model: model,
+      $ai_prompt_tokens: prompt_tokens,
+      $ai_completion_tokens: completion_tokens,
+      $ai_total_tokens: total_tokens,
+      $ai_cost: cost,
+      $ai_response_time_ms: response_time_ms,
+      $ai_success: success,
+      $ai_error: error_message,
+      $ai_prompt: prompt, // Be careful with PII
+      $ai_response: response, // Be careful with PII
+      $ai_temperature: temperature,
+      $ai_max_tokens: max_tokens,
+      
+      // Custom properties
+      operation,
       timestamp: new Date().toISOString(),
       service: 'document-processing',
+      ...additionalProperties
     }
   });
 };
 
-// Helper function to estimate token usage (rough estimation)
-const estimateTokens = (text) => {
+// Helper function to estimate Gemini token usage (rough estimation)
+const estimateGeminiTokens = (text) => {
   if (!text) return 0;
-  // Rough estimation: 1 token ≈ 4 characters for English text
+  // Gemini token estimation: roughly 1 token per 4 characters for English
   return Math.ceil(text.length / 4);
+};
+
+// Helper function to calculate Gemini API cost (approximate)
+const calculateGeminiCost = (inputTokens, outputTokens) => {
+  // Gemini Pro pricing (as of 2024) - update with current rates
+  const INPUT_COST_PER_1K_TOKENS = 0.000125; // $0.000125 per 1K input tokens
+  const OUTPUT_COST_PER_1K_TOKENS = 0.000375; // $0.000375 per 1K output tokens
+  
+  const inputCost = (inputTokens / 1000) * INPUT_COST_PER_1K_TOKENS;
+  const outputCost = (outputTokens / 1000) * OUTPUT_COST_PER_1K_TOKENS;
+  
+  return inputCost + outputCost;
 };
 
 // Mount user plan routes
@@ -56,20 +101,8 @@ router.post("/process-pdf", async (req, res) => {
     fileId,
   });
 
-  // Track API call start
-  trackLLMUsage(userId, 'pdf_processing_started', {
-    lectureId,
-    fileId,
-    endpoint: '/process-pdf'
-  });
-
   if (!userId || !lectureId || !fileId) {
     console.log("Missing required parameters");
-    trackLLMUsage(userId, 'pdf_processing_error', {
-      error: 'missing_parameters',
-      lectureId,
-      fileId
-    });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
@@ -78,27 +111,25 @@ router.post("/process-pdf", async (req, res) => {
   try {
     console.log("Calling processDocument...");
     const flashcards = await processDocument(userId, lectureId, fileId);
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     
     console.log("processDocument returned:", {
       isArray: Array.isArray(flashcards),
       length: Array.isArray(flashcards) ? flashcards.length : "not an array",
     });
 
-    // Estimate tokens used
-    const totalTokens = flashcards.reduce((total, card) => {
-      return total + estimateTokens(card.question) + estimateTokens(card.answer);
-    }, 0);
-
     // Return meaningful error response if flashcards weren't generated properly
     if (!flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
       console.warn("No valid flashcards generated for document");
       
-      trackLLMUsage(userId, 'pdf_processing_failed', {
+      // Track failed LLM operation
+      trackLLMAnalytics(userId, 'pdf_to_flashcards', {
+        success: false,
+        error_message: 'No flashcards generated',
+        response_time_ms: responseTime,
         lectureId,
         fileId,
-        error: 'no_flashcards_generated',
-        processingTime
+        operation_type: 'document_processing'
       });
 
       return res.status(422).json({
@@ -114,37 +145,44 @@ router.post("/process-pdf", async (req, res) => {
       });
     }
 
-    // Track successful processing
-    trackLLMUsage(userId, 'pdf_processing_completed', {
+    // Estimate token usage and cost
+    const inputText = `Generate flashcards from document: ${fileId}`; // Simplified for estimation
+    const outputText = flashcards.map(card => `${card.question} ${card.answer}`).join(' ');
+    
+    const promptTokens = estimateGeminiTokens(inputText);
+    const completionTokens = estimateGeminiTokens(outputText);
+    const totalTokens = promptTokens + completionTokens;
+    const cost = calculateGeminiCost(promptTokens, completionTokens);
+
+    // Track successful LLM operation
+    trackLLMAnalytics(userId, 'pdf_to_flashcards', {
+      model: 'gemini-pro',
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost: cost,
+      response_time_ms: responseTime,
+      success: true,
       lectureId,
       fileId,
-      flashcardCount: flashcards.length,
-      estimatedTokens: totalTokens,
-      processingTime,
-      success: true
-    });
-
-    // Track tokens usage separately for better analytics
-    trackLLMUsage(userId, 'token_usage', {
-      operation: 'pdf_to_flashcards',
-      tokens: totalTokens,
-      lectureId,
-      fileId
+      flashcard_count: flashcards.length,
+      operation_type: 'document_processing'
     });
 
     console.log(`Sending response with ${flashcards.length} flashcards`);
     res.status(200).json({ flashcards });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error processing document:", error);
     
-    // Track error
-    trackLLMUsage(userId, 'pdf_processing_error', {
+    // Track error in LLM operation
+    trackLLMAnalytics(userId, 'pdf_to_flashcards', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
       lectureId,
       fileId,
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+      operation_type: 'document_processing'
     });
 
     // Send a fallback response with a generic flashcard
@@ -168,19 +206,7 @@ router.post("/process-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
   const startTime = Date.now();
 
-  // Track API call start
-  trackLLMUsage(userId, 'brief_processing_started', {
-    lectureId,
-    fileId,
-    endpoint: '/process-brief'
-  });
-
   if (!userId || !lectureId || !fileId) {
-    trackLLMUsage(userId, 'brief_processing_error', {
-      error: 'missing_parameters',
-      lectureId,
-      fileId
-    });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
@@ -188,22 +214,19 @@ router.post("/process-brief", async (req, res) => {
 
   try {
     const brief = await processBrief(userId, lectureId, fileId);
-    const processingTime = Date.now() - startTime;
-
-    // Estimate tokens used
-    const estimatedTokens = estimateTokens(brief?.summary || '') + 
-                           (brief?.key_concepts || []).reduce((total, concept) => total + estimateTokens(concept), 0) +
-                           (brief?.important_details || []).reduce((total, detail) => total + estimateTokens(detail), 0);
+    const responseTime = Date.now() - startTime;
 
     // Return meaningful error response if brief is invalid
     if (!brief || typeof brief !== "object" || !brief.summary) {
       console.warn("No valid brief generated for document");
       
-      trackLLMUsage(userId, 'brief_processing_failed', {
+      trackLLMAnalytics(userId, 'document_to_brief', {
+        success: false,
+        error_message: 'No brief generated',
+        response_time_ms: responseTime,
         lectureId,
         fileId,
-        error: 'no_brief_generated',
-        processingTime
+        operation_type: 'brief_generation'
       });
 
       return res.status(422).json({
@@ -217,36 +240,43 @@ router.post("/process-brief", async (req, res) => {
       });
     }
 
-    // Track successful processing
-    trackLLMUsage(userId, 'brief_processing_completed', {
+    // Estimate token usage and cost
+    const inputText = `Generate brief summary for document: ${fileId}`;
+    const outputText = `${brief.summary} ${(brief.key_concepts || []).join(' ')} ${(brief.important_details || []).join(' ')}`;
+    
+    const promptTokens = estimateGeminiTokens(inputText);
+    const completionTokens = estimateGeminiTokens(outputText);
+    const totalTokens = promptTokens + completionTokens;
+    const cost = calculateGeminiCost(promptTokens, completionTokens);
+
+    // Track successful LLM operation
+    trackLLMAnalytics(userId, 'document_to_brief', {
+      model: 'gemini-pro',
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost: cost,
+      response_time_ms: responseTime,
+      success: true,
       lectureId,
       fileId,
-      estimatedTokens,
-      processingTime,
-      keyConceptsCount: brief.key_concepts?.length || 0,
-      importantDetailsCount: brief.important_details?.length || 0,
-      success: true
-    });
-
-    // Track tokens usage
-    trackLLMUsage(userId, 'token_usage', {
-      operation: 'document_to_brief',
-      tokens: estimatedTokens,
-      lectureId,
-      fileId
+      key_concepts_count: brief.key_concepts?.length || 0,
+      important_details_count: brief.important_details?.length || 0,
+      operation_type: 'brief_generation'
     });
 
     res.status(200).json({ brief });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error processing brief:", error);
     
-    trackLLMUsage(userId, 'brief_processing_error', {
+    trackLLMAnalytics(userId, 'document_to_brief', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
       lectureId,
       fileId,
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+      operation_type: 'brief_generation'
     });
 
     res.status(500).json({
@@ -266,18 +296,7 @@ router.post("/test-document-content", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
   const startTime = Date.now();
 
-  trackLLMUsage(userId, 'content_extraction_started', {
-    lectureId,
-    fileId,
-    endpoint: '/test-document-content'
-  });
-
   if (!userId || !lectureId || !fileId) {
-    trackLLMUsage(userId, 'content_extraction_error', {
-      error: 'missing_parameters',
-      lectureId,
-      fileId
-    });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
@@ -285,15 +304,17 @@ router.post("/test-document-content", async (req, res) => {
 
   try {
     const pages = await testContentExtraction(userId, lectureId, fileId);
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
 
     // Check if pages were extracted successfully
     if (!pages || !Array.isArray(pages) || pages.length === 0) {
-      trackLLMUsage(userId, 'content_extraction_failed', {
+      trackLLMAnalytics(userId, 'content_extraction', {
+        success: false,
+        error_message: 'No content extracted',
+        response_time_ms: responseTime,
         lectureId,
         fileId,
-        error: 'no_content_extracted',
-        processingTime
+        operation_type: 'content_extraction'
       });
 
       return res.status(422).json({
@@ -304,29 +325,31 @@ router.post("/test-document-content", async (req, res) => {
       });
     }
 
-    // Estimate total content size
+    // This operation might not use LLM directly, but track for completeness
     const totalContentLength = pages.reduce((total, page) => total + (page?.length || 0), 0);
     
-    trackLLMUsage(userId, 'content_extraction_completed', {
+    trackLLMAnalytics(userId, 'content_extraction', {
+      success: true,
+      response_time_ms: responseTime,
       lectureId,
       fileId,
-      pageCount: pages.length,
-      totalContentLength,
-      processingTime,
-      success: true
+      page_count: pages.length,
+      total_content_length: totalContentLength,
+      operation_type: 'content_extraction'
     });
 
     res.status(200).json({ pages });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error in test endpoint:", error);
     
-    trackLLMUsage(userId, 'content_extraction_error', {
+    trackLLMAnalytics(userId, 'content_extraction', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
       lectureId,
       fileId,
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+      operation_type: 'content_extraction'
     });
 
     res.status(500).json({
@@ -343,18 +366,7 @@ router.post("/detailed-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
   const startTime = Date.now();
 
-  trackLLMUsage(userId, 'detailed_brief_started', {
-    lectureId,
-    fileId,
-    endpoint: '/detailed-brief'
-  });
-
   if (!userId || !lectureId || !fileId) {
-    trackLLMUsage(userId, 'detailed_brief_error', {
-      error: 'missing_parameters',
-      lectureId,
-      fileId
-    });
     return res.status(400).json({
       error: "Missing required parameters",
     });
@@ -362,7 +374,7 @@ router.post("/detailed-brief", async (req, res) => {
 
   try {
     const result = await processDetailedContent(userId, lectureId, fileId);
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
 
     // Check if result is valid
     if (
@@ -373,11 +385,13 @@ router.post("/detailed-brief", async (req, res) => {
     ) {
       console.warn("Invalid detailed brief result:", result);
       
-      trackLLMUsage(userId, 'detailed_brief_failed', {
+      trackLLMAnalytics(userId, 'detailed_brief', {
+        success: false,
+        error_message: 'Invalid detailed brief result',
+        response_time_ms: responseTime,
         lectureId,
         fileId,
-        error: 'invalid_result',
-        processingTime
+        operation_type: 'detailed_brief'
       });
 
       const fallbackBrief = {
@@ -427,10 +441,16 @@ Please try the following steps to resolve this issue:
       });
     }
 
-    // Estimate tokens used
-    const estimatedTokens = result.summaries.reduce((total, summary) => total + estimateTokens(summary), 0) +
-                           (result.metadata?.key_concepts || []).reduce((total, concept) => total + estimateTokens(concept), 0) +
-                           (result.metadata?.important_details || []).reduce((total, detail) => total + estimateTokens(detail), 0);
+    // Estimate token usage and cost
+    const inputText = `Generate detailed brief for document: ${fileId}`;
+    const outputText = result.summaries.join(' ') + 
+                      (result.metadata?.key_concepts || []).join(' ') + 
+                      (result.metadata?.important_details || []).join(' ');
+    
+    const promptTokens = estimateGeminiTokens(inputText);
+    const completionTokens = estimateGeminiTokens(outputText);
+    const totalTokens = promptTokens + completionTokens;
+    const cost = calculateGeminiCost(promptTokens, completionTokens);
 
     // Transform the response to match frontend expectations
     const brief = {
@@ -445,38 +465,35 @@ Please try the following steps to resolve this issue:
       important_details: result.metadata?.important_details || [],
     };
 
-    // Track successful processing
-    trackLLMUsage(userId, 'detailed_brief_completed', {
+    // Track successful LLM operation
+    trackLLMAnalytics(userId, 'detailed_brief', {
+      model: 'gemini-pro',
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost: cost,
+      response_time_ms: responseTime,
+      success: true,
       lectureId,
       fileId,
-      totalPages: result.total_pages,
-      estimatedTokens,
-      processingTime,
-      keyConceptsCount: brief.key_concepts?.length || 0,
-      importantDetailsCount: brief.important_details?.length || 0,
-      mainThemesCount: brief.overview.mainThemes?.length || 0,
-      success: true
-    });
-
-    // Track tokens usage
-    trackLLMUsage(userId, 'token_usage', {
-      operation: 'detailed_brief',
-      tokens: estimatedTokens,
-      lectureId,
-      fileId
+      total_pages: result.total_pages,
+      key_concepts_count: brief.key_concepts?.length || 0,
+      important_details_count: brief.important_details?.length || 0,
+      operation_type: 'detailed_brief'
     });
 
     res.json({ success: true, brief });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error generating detailed brief:", error);
 
-    trackLLMUsage(userId, 'detailed_brief_error', {
+    trackLLMAnalytics(userId, 'detailed_brief', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
       lectureId,
       fileId,
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+      operation_type: 'detailed_brief'
     });
 
     const fallbackBrief = {
@@ -505,20 +522,8 @@ router.post("/process-quiz", async (req, res) => {
   try {
     const { userId, lectureId, fileId, quizOptions } = req.body;
 
-    trackLLMUsage(userId, 'quiz_processing_started', {
-      lectureId,
-      fileId,
-      quizOptions,
-      endpoint: '/process-quiz'
-    });
-
     // Validate required parameters
     if (!userId || !lectureId || !fileId) {
-      trackLLMUsage(userId, 'quiz_processing_error', {
-        error: 'missing_parameters',
-        lectureId,
-        fileId
-      });
       return res.status(400).json({
         error: "Missing required parameters: userId, lectureId, or fileId",
       });
@@ -531,7 +536,7 @@ router.post("/process-quiz", async (req, res) => {
       fileId,
       quizOptions || {}
     );
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
 
     // Check if result is valid
     if (
@@ -542,12 +547,14 @@ router.post("/process-quiz", async (req, res) => {
     ) {
       console.warn("No valid quiz generated for document");
       
-      trackLLMUsage(userId, 'quiz_processing_failed', {
+      trackLLMAnalytics(userId, 'document_to_quiz', {
+        success: false,
+        error_message: 'No quiz questions generated',
+        response_time_ms: responseTime,
         lectureId,
         fileId,
-        quizOptions,
-        error: 'no_questions_generated',
-        processingTime
+        quiz_options: quizOptions,
+        operation_type: 'quiz_generation'
       });
 
       return res.status(200).json({
@@ -577,36 +584,39 @@ router.post("/process-quiz", async (req, res) => {
       });
     }
 
-    // Estimate tokens used
-    const estimatedTokens = result.questions.reduce((total, question) => {
-      let questionTokens = estimateTokens(question.text);
-      if (question.options) {
-        questionTokens += question.options.reduce((optTotal, opt) => optTotal + estimateTokens(opt.text), 0);
+    // Estimate token usage and cost
+    const inputText = `Generate quiz questions for document: ${fileId} with options: ${JSON.stringify(quizOptions)}`;
+    const outputText = result.questions.map(q => {
+      let text = q.text;
+      if (q.options) {
+        text += ' ' + q.options.map(opt => opt.text).join(' ');
       }
-      if (question.answer) {
-        questionTokens += estimateTokens(question.answer);
+      if (q.answer) {
+        text += ' ' + q.answer;
       }
-      return total + questionTokens;
-    }, 0);
+      return text;
+    }).join(' ');
+    
+    const promptTokens = estimateGeminiTokens(inputText);
+    const completionTokens = estimateGeminiTokens(outputText);
+    const totalTokens = promptTokens + completionTokens;
+    const cost = calculateGeminiCost(promptTokens, completionTokens);
 
-    // Track successful processing
-    trackLLMUsage(userId, 'quiz_processing_completed', {
+    // Track successful LLM operation
+    trackLLMAnalytics(userId, 'document_to_quiz', {
+      model: 'gemini-pro',
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost: cost,
+      response_time_ms: responseTime,
+      success: true,
       lectureId,
       fileId,
-      questionCount: result.questions.length,
-      quizOptions,
-      estimatedTokens,
-      processingTime,
-      questionTypes: result.questions.map(q => q.type),
-      success: true
-    });
-
-    // Track tokens usage
-    trackLLMUsage(userId, 'token_usage', {
-      operation: 'document_to_quiz',
-      tokens: estimatedTokens,
-      lectureId,
-      fileId
+      question_count: result.questions.length,
+      quiz_options: quizOptions,
+      question_types: result.questions.map(q => q.type),
+      operation_type: 'quiz_generation'
     });
 
     res.status(200).json({
@@ -614,15 +624,17 @@ router.post("/process-quiz", async (req, res) => {
       questions: result.questions,
     });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error processing quiz:", error);
     
-    trackLLMUsage(userId, 'quiz_processing_error', {
+    trackLLMAnalytics(userId, 'document_to_quiz', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
       lectureId: req.body.lectureId,
       fileId: req.body.fileId,
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+      quiz_options: req.body.quizOptions,
+      operation_type: 'quiz_generation'
     });
 
     // Send a fallback response with a generic question
@@ -650,17 +662,7 @@ router.post("/evaluate-answer", async (req, res) => {
   const { questionText, modelAnswer, userAnswer, userId } = req.body;
   const startTime = Date.now();
 
-  trackLLMUsage(userId, 'answer_evaluation_started', {
-    questionLength: questionText?.length || 0,
-    modelAnswerLength: modelAnswer?.length || 0,
-    userAnswerLength: userAnswer?.length || 0,
-    endpoint: '/evaluate-answer'
-  });
-
   if (!questionText || !modelAnswer || userAnswer === undefined) {
-    trackLLMUsage(userId, 'answer_evaluation_error', {
-      error: 'missing_parameters'
-    });
     return res.status(400).json({
       error:
         "Missing required parameters: questionText, modelAnswer, or userAnswer",
@@ -673,40 +675,42 @@ router.post("/evaluate-answer", async (req, res) => {
       modelAnswer,
       userAnswer
     );
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
 
-    // Estimate tokens used
-    const estimatedTokens = estimateTokens(questionText) + 
-                           estimateTokens(modelAnswer) + 
-                           estimateTokens(userAnswer) +
-                           estimateTokens(evaluation?.feedback || '') +
-                           50; // Rough estimate for evaluation prompt overhead
+    // Estimate token usage and cost
+    const inputText = `Question: ${questionText} Model Answer: ${modelAnswer} User Answer: ${userAnswer}`;
+    const outputText = evaluation?.feedback || '';
+    
+    const promptTokens = estimateGeminiTokens(inputText);
+    const completionTokens = estimateGeminiTokens(outputText);
+    const totalTokens = promptTokens + completionTokens;
+    const cost = calculateGeminiCost(promptTokens, completionTokens);
 
-    // Track successful evaluation
-    trackLLMUsage(userId, 'answer_evaluation_completed', {
-      score: evaluation?.score,
-      estimatedTokens,
-      processingTime,
-      hasUserAnswer: !!userAnswer,
-      userAnswerLength: userAnswer?.length || 0,
-      success: true
-    });
-
-    // Track tokens usage
-    trackLLMUsage(userId, 'token_usage', {
-      operation: 'answer_evaluation',
-      tokens: estimatedTokens
+    // Track successful LLM operation
+    trackLLMAnalytics(userId, 'answer_evaluation', {
+      model: 'gemini-pro',
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      cost: cost,
+      response_time_ms: responseTime,
+      success: true,
+      evaluation_score: evaluation?.score,
+      has_user_answer: !!userAnswer,
+      user_answer_length: userAnswer?.length || 0,
+      operation_type: 'answer_evaluation'
     });
 
     res.status(200).json({ evaluation });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
+    const responseTime = Date.now() - startTime;
     console.error("Error evaluating answer:", error);
     
-    trackLLMUsage(userId, 'answer_evaluation_error', {
-      error: error.message,
-      processingTime,
-      errorType: error.constructor.name
+    trackLLMAnalytics(userId, 'answer_evaluation', {
+      success: false,
+      error_message: error.message,
+      response_time_ms: responseTime,
+      operation_type: 'answer_evaluation'
     });
 
     res.status(500).json({
