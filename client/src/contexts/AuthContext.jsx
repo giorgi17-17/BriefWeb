@@ -26,26 +26,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // useEffect(() => {
-  //   const handleAuthCallback = async () => {
-  //     const { data, error } = await supabase.auth.getSession();
-      
-  //     if (data?.session && window.location.pathname !== '/dashboard') {
-  //       // Redirect to dashboard after successful authentication
-  //       window.location.href = '/dashboard';
-  //     }
-  //   };
-  
-  //   // Listen for auth state changes
-  //   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-  //     if (event === 'SIGNED_IN' && session) {
-  //       window.location.href = '/dashboard';
-  //     }
-  //   });
-  
-  //   return () => subscription.unsubscribe();
-  // }, []);  
-
   // Unified error handling function
   const handleAuthError = useCallback((operation, error) => {
     console.error(`Error during ${operation}:`, error);
@@ -91,18 +71,18 @@ export function AuthProvider({ children }) {
     [updateAuthState, handleAuthError]
   );
 
-  // Session check to handle timeouts
+  // Session check to handle timeouts - MODIFIED to be less aggressive
   const checkSessionTimeout = useCallback(() => {
-    // If it's been more than 5 minutes since last activity, refresh the session
+    // Only refresh if it's been more than 30 minutes since last activity
     const inactiveTime = Date.now() - lastActiveTime.current;
-    if (inactiveTime > 5 * 60 * 1000) {
+    if (inactiveTime > 30 * 60 * 1000) { // Changed from 5 minutes to 30 minutes
       console.log("Session inactive for too long, refreshing");
       refreshSession();
     }
 
-    // Schedule next check
+    // Schedule next check - check less frequently
     if (isMounted.current) {
-      sessionCheckTimeout.current = setTimeout(checkSessionTimeout, 60 * 1000);
+      sessionCheckTimeout.current = setTimeout(checkSessionTimeout, 5 * 60 * 1000); // Changed from 1 minute to 5 minutes
     }
   }, [refreshSession]);
 
@@ -226,20 +206,37 @@ export function AuthProvider({ children }) {
     [handleAuthError]
   );
 
-  // Handle visibility change to refresh auth
+  // REMOVED: Handle visibility change to refresh auth - THIS WAS CAUSING THE ISSUE
+  // The original code was refreshing session every time you switched tabs
+  // useEffect(() => {
+  //   const handleVisibilityChange = () => {
+  //     if (document.visibilityState === "visible") {
+  //       console.log("Tab became visible, refreshing auth state");
+  //       lastActiveTime.current = Date.now();
+  //       refreshSession();
+  //     }
+  //   };
+
+  //   document.addEventListener("visibilitychange", handleVisibilityChange);
+  //   return () =>
+  //     document.removeEventListener("visibilitychange", handleVisibilityChange);
+  // }, [refreshSession]);
+
+  // NEW: Optional visibility change handler that only updates last active time
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("Tab became visible, refreshing auth state");
+        // Only update last active time, don't refresh session
         lastActiveTime.current = Date.now();
-        refreshSession();
+        console.log("Tab became visible, updated last active time");
       }
     };
 
+    // Only add listener if you want to track activity, but don't refresh session
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [refreshSession]);
+  }, []);
 
   // Start session timeout checker
   useEffect(() => {
@@ -386,19 +383,19 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = useCallback(async () => {
     try {
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`;
-  
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo }
       });
-  
+
       if (error) throw error;
       return { success: true };
     } catch (error) {
       return handleAuthError("Google signin", error);
     }
   }, [handleAuthError]);
-  
+
 
   const logout = useCallback(async () => {
     try {

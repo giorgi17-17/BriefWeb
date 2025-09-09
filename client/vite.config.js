@@ -20,5 +20,8 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:5000", // Proxy API requests to backend
     },
+    hmr: {
+      overlay: false 
+    }
   },
 }); 

@@ -6,13 +6,13 @@ import {
   useLocation,
 } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { PostHogProvider } from "posthog-js/react";
+
+// Components
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
 import Header from "./components/Header/Header";
-import { AuthProvider } from "./contexts/AuthContext";
-import { useAuth } from "./utils/authHooks";
-import PropTypes from "prop-types";
 import LecturesPage from "./pages/LecturesPage/LecturesPage";
 import LectureDetailPage from "./pages/LectureDetailPage/LectureDetailPage";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -20,175 +20,110 @@ import { Home } from "./pages/home/Home";
 import Profile from "./pages/profile/Profile";
 import { Error } from "./pages/error/Error";
 import DesignSystem from "./components/design/DesignSystem";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthCallback from "./pages/auth/callback";
-import { UserPlanProvider, useUserPlan } from "./contexts/UserPlanContext";
-import { PostHogProvider } from "posthog-js/react";
 import PaymentsPage from "./pages/payments/payments";
 import PaymentSuccess from "./pages/payments/success";
 import PaymentError from "./pages/payments/error";
 
-// Configure PostHog options
+// Contexts
+import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { UserPlanProvider } from "./contexts/UserPlanContext";
+
+// Hooks
+import { useAuth } from "./utils/authHooks";
+
+// Utils
+import PropTypes from "prop-types";
+
+// PostHog Configuration - Fixed to prevent hard refresh
 const posthogOptions = {
   api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
-  capture_pageview: true,
+  capture_pageview: false, // Changed: Disable automatic pageview capture
+  capture_pageleave: false, // Changed: Disable page leave capture
   debug: import.meta.env.DEV,
+  autocapture: false, // Changed: Disable autocapture to prevent tab switch triggers
+  // LLM analytics specific options
+  capture_performance: false, // Changed: Disable performance capture
+  session_recording: {
+    maskAllInputs: true,
+    maskAllText: false,
+  },
+  // Add these options to prevent refresh on visibility change
+  capture_heatmaps: false,
+  disable_session_recording: !import.meta.env.VITE_ENABLE_SESSION_RECORDING, // Only enable if explicitly set
   loaded: (posthog) => {
     if (import.meta.env.DEV) {
-      console.log("PostHog initialized", posthog);
+      console.log("PostHog initialized for LLM analytics", posthog);
     }
+
+    // Disable automatic page tracking that might cause refreshes
+    posthog.config.capture_pageview = false;
+    posthog.config.capture_pageleave = false;
   },
 };
 
-// Add a helper function to check if the app is returning from another app
-function useAppVisibility() {
-  const [wasHidden, setWasHidden] = useState(false);
-  const [isReturningFromOtherApp, setIsReturningFromOtherApp] = useState(false);
-  const lastVisible = useRef(Date.now());
-  const hiddenDuration = useRef(0);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        setWasHidden(true);
-        lastVisible.current = Date.now();
-      } else if (wasHidden && document.visibilityState === "visible") {
-        hiddenDuration.current = Date.now() - lastVisible.current;
-
-        // Only consider it a return from another app if hidden for more than 2 seconds
-        if (hiddenDuration.current > 2000) {
-          console.log(
-            `Tab was hidden for ${hiddenDuration.current / 1000
-            }s, treating as app return`
-          );
-          setIsReturningFromOtherApp(true);
-          // Reset after a short delay
-          setTimeout(() => setIsReturningFromOtherApp(false), 3000);
-        }
-        setWasHidden(false);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [wasHidden]);
-
-  return isReturningFromOtherApp;
+// Simple loading component
+function LoadingScreen({ message = "Loading...", showRetry = false, onRetry = null }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center theme-bg-primary">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <p className="theme-text-primary text-lg">{message}</p>
+        {showRetry && onRetry && (
+          <button
+            onClick={onRetry}
+            className="px-6 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
+LoadingScreen.propTypes = {
+  message: PropTypes.string,
+  showRetry: PropTypes.bool,
+  onRetry: PropTypes.func,
+};
+
+// Clean protected route component
 function ProtectedRoute({ children }) {
-  const { user, loading, refreshSession } = useAuth();
-  const isReturningFromOtherApp = useAppVisibility();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const { refreshPlan } = useUserPlan();
-  const refreshTimerRef = useRef(null);
+  const { user, loading } = useAuth();
+  const [authTimeout, setAuthTimeout] = useState(false);
 
-  // Force a session check when returning from another app
+  // Set timeout for auth loading
   useEffect(() => {
-    if (isReturningFromOtherApp) {
-      console.log(
-        "Returning from another app, refreshing session and user plan"
-      );
+    if (loading) {
+      const timer = setTimeout(() => {
+        setAuthTimeout(true);
+      }, 10000); // 10 second timeout
 
-      const doRefresh = async () => {
-        try {
-          const session = await refreshSession();
-          if (session) {
-            console.log("Session successfully refreshed after app return");
-            // Also refresh the user plan
-            refreshPlan();
-          } else {
-            console.log("No session found after returning from app");
-          }
-          setAuthChecked(true);
-        } catch (error) {
-          console.error("Error refreshing session after app return:", error);
-          setAuthChecked(true);
-        }
-      };
-
-      doRefresh();
+      return () => clearTimeout(timer);
     }
-  }, [isReturningFromOtherApp, refreshSession, refreshPlan]);
+  }, [loading]);
 
-  // If loading for too long, try to refresh the session
-  useEffect(() => {
-    if (loading && retryCount < 3 && !authChecked) {
-      refreshTimerRef.current = setTimeout(() => {
-        console.log(`Auth loading timeout reached, retry #${retryCount + 1}`);
-        setRetryCount((prev) => prev + 1);
+  // Show loading state
+  if (loading && !authTimeout) {
+    return <LoadingScreen message="Authenticating..." />;
+  }
 
-        const doRetryRefresh = async () => {
-          try {
-            const session = await refreshSession();
-            if (!session && retryCount >= 2) {
-              console.log(
-                "No session found after retries, redirecting to login"
-              );
-              setAuthChecked(true);
-            }
-          } catch (error) {
-            console.error("Error in retry session check:", error);
-            if (retryCount >= 2) {
-              setAuthChecked(true);
-            }
-          }
-        };
-
-        doRetryRefresh();
-      }, 3000); // Wait 3 seconds before retry
-    }
-
-    return () => {
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-    };
-  }, [loading, retryCount, authChecked, refreshSession]);
-
-  // Clear the URL hash when dashboard loads to clean up OAuth fragments
-  useEffect(() => {
-    // If there's a hash in the URL (from OAuth callback), clean it up
-    if (window.location.hash) {
-      // Remove the hash without causing a page reload
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState(null, null, " ");
-      }
-    }
-  }, []);
-
-  if (loading && !authChecked && retryCount < 3) {
+  // Show timeout error
+  if (loading && authTimeout) {
     return (
-      <div className="min-h-screen flex items-center justify-center theme-bg-primary">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-          <p className="theme-text-primary">Authenticating...</p>
-          {retryCount > 0 && (
-            <p className="text-sm text-gray-500 mt-2">
-              Retry {retryCount}/3...
-            </p>
-          )}
-          {retryCount >= 2 && (
-            <button
-              onClick={() => {
-                setRetryCount(0);
-                refreshSession();
-              }}
-              className="mt-4 px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors"
-            >
-              Refresh Now
-            </button>
-          )}
-        </div>
-      </div>
+      <LoadingScreen
+        message="Authentication is taking longer than expected"
+        showRetry
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;
@@ -198,83 +133,144 @@ ProtectedRoute.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
-function RouterContainer() {
+// Clean URL hash on mount (for OAuth cleanup)
+function useCleanUrl() {
+  useEffect(() => {
+    if (window.location.hash && window.history?.replaceState) {
+      window.history.replaceState(null, null, window.location.pathname);
+    }
+  }, []);
+}
+
+// Add visibility change handler to prevent refresh on tab switching
+function usePreventRefreshOnTabSwitch() {
+  useEffect(() => {
+    let isVisible = true;
+
+    const handleVisibilityChange = (event) => {
+      // Prevent default behavior that might trigger refresh
+      if (event) {
+        event.preventDefault();
+      }
+
+      const wasVisible = isVisible;
+      isVisible = !document.hidden;
+
+      // Don't allow any refresh triggers when switching tabs
+      if (wasVisible !== isVisible) {
+        // Optionally log for debugging
+        if (import.meta.env.DEV) {
+          console.log('Tab visibility changed:', isVisible ? 'visible' : 'hidden');
+        }
+      }
+    };
+
+    const handleBeforeUnload = (event) => {
+      // Only show confirmation for actual navigation, not tab switches
+      if (document.hidden) {
+        event.preventDefault();
+        return;
+      }
+    };
+
+    const handleFocus = () => {
+      // Prevent any refresh logic on window focus
+      if (import.meta.env.DEV) {
+        console.log('Window focused - preventing refresh');
+      }
+    };
+
+    const handleBlur = () => {
+      // Prevent any refresh logic on window blur
+      if (import.meta.env.DEV) {
+        console.log('Window blurred - preventing refresh');
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: false });
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+}
+
+// Main router component
+function AppRoutes() {
   const location = useLocation();
-  const isAuthRoute =
-    location.pathname.startsWith("/login") ||
-    location.pathname.startsWith("/register") ||
-    location.pathname.startsWith("/auth/callback");
+  useCleanUrl();
+  usePreventRefreshOnTabSwitch(); // Add this hook
+
+  const isAuthRoute = ['/login', '/register', '/auth/callback'].some(route =>
+    location.pathname.startsWith(route)
+  );
+
+  const isPaymentRoute = ['/payment/success', '/payment/error'].some(route =>
+    location.pathname.startsWith(route)
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main
-        className={
-          isAuthRoute
-            ? "flex-1 w-full min-h-[calc(100svh-4rem)] grid place-items-center p-0 m-0 overflow-hidden"
-            : "container mx-auto px-4 py-8 flex-1"
-        }
-      >
+      <main className={getMainClassName(isAuthRoute, isPaymentRoute)}>
         <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-
-          <Route path="/" element={<Home />} />
           <Route path="/design-system" element={<DesignSystem />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
 
-          <Route
-            path="/lectures"
-            element={
-              <ProtectedRoute>
-                <LecturesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/subjects/:name"
-            element={
-              <ProtectedRoute>
-                <LecturesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/payments"
-            element={
-              <ProtectedRoute>
-                <PaymentsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/subjects/:name/lectures/:lectureId"
-            element={
-              <ProtectedRoute>
-                <LectureDetailPage />
-              </ProtectedRoute>
-            }
-          />
-
+          {/* Payment Routes */}
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/error" element={<PaymentError />} />
 
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/lectures" element={
+            <ProtectedRoute>
+              <LecturesPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/subjects/:name" element={
+            <ProtectedRoute>
+              <LecturesPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/subjects/:name/lectures/:lectureId" element={
+            <ProtectedRoute>
+              <LectureDetailPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/payments" element={
+            <ProtectedRoute>
+              <PaymentsPage />
+            </ProtectedRoute>
+          } />
+
+          {/* 404 Route */}
           <Route path="*" element={<Error />} />
         </Routes>
       </main>
@@ -282,21 +278,46 @@ function RouterContainer() {
   );
 }
 
+// Helper function for main className
+function getMainClassName(isAuthRoute, isPaymentRoute) {
+  if (isAuthRoute) {
+    return "flex-1 w-full min-h-[calc(100svh-4rem)] grid place-items-center p-0 m-0 overflow-hidden";
+  }
+  if (isPaymentRoute) {
+    return "flex-1 w-full min-h-[calc(100svh-4rem)] grid place-items-center";
+  }
+  return "container mx-auto px-4 py-8 flex-1";
+}
+
+// Main App component
 function App() {
-  // No redirection logic in the App component
+  const posthogKey = import.meta.env.VITE_POSTHOG_KEY;
+
+  // Don't render if PostHog key is missing in production
+  if (!posthogKey && !import.meta.env.DEV) {
+    console.error("PostHog API key is required for production");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
+          <p className="text-red-500">Analytics configuration is missing. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
           <PostHogProvider
-            apiKey={import.meta.env.VITE_POSTHOG_KEY}
+            apiKey={posthogKey}
             options={posthogOptions}
           >
             <UserPlanProvider>
               <BrowserRouter>
-                {/* Full-page background wrapper */}
                 <div className="min-h-screen w-full theme-bg-primary">
-                  <RouterContainer />
+                  <AppRoutes />
                 </div>
               </BrowserRouter>
             </UserPlanProvider>
