@@ -9,20 +9,46 @@ import {
 } from "../controllers/documentController.js";
 import userPlanRoutes from "./userPlanRoutes.js";
 import { evaluateOpenEndedAnswer } from "../services/ai/aiService.js";
-import { phCapture, durationMsFrom } from "../utils/postHog.js";
-import { startReqTimer, baseProps } from "../utils/reqMeta.js";
-
+import { PostHog } from 'posthog-node';
 
 const router = express.Router();
 
-// Mount payment routes
+// Initialize PostHog
+const posthog = new PostHog(
+  process.env.POSTHOG_API_KEY, // Your PostHog API key
+  { 
+    host: process.env.POSTHOG_HOST || 'https://app.posthog.com',
+    flushAt: 20, // Flush events after 20 events
+    flushInterval: 10000, // Flush events every 10 seconds
+  }
+);
+
+// Helper function to track LLM usage
+const trackLLMUsage = (userId, event, data = {}) => {
+  posthog.capture({
+    distinctId: userId,
+    event: event,
+    properties: {
+      ...data,
+      timestamp: new Date().toISOString(),
+      service: 'document-processing',
+    }
+  });
+};
+
+// Helper function to estimate token usage (rough estimation)
+const estimateTokens = (text) => {
+  if (!text) return 0;
+  // Rough estimation: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4);
+};
 
 // Mount user plan routes
 router.use("/user-plans", userPlanRoutes);
 
 router.post("/process-pdf", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  startReqTimer(req, res);
+  const startTime = Date.now();
 
   console.log("process-pdf endpoint called with:", {
     userId,
@@ -30,50 +56,51 @@ router.post("/process-pdf", async (req, res) => {
     fileId,
   });
 
+  // Track API call start
+  trackLLMUsage(userId, 'pdf_processing_started', {
+    lectureId,
+    fileId,
+    endpoint: '/process-pdf'
+  });
+
   if (!userId || !lectureId || !fileId) {
-    phCapture(userId, "llm_process_pdf:error", {
-      ...baseProps(req),
-      reason: "missing_params",
+    console.log("Missing required parameters");
+    trackLLMUsage(userId, 'pdf_processing_error', {
+      error: 'missing_parameters',
+      lectureId,
+      fileId
     });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
   }
-  
-  const props = { ...baseProps(req), lectureId, fileId };
-  phCapture(userId, "llm_process_pdf:request", props);
 
   try {
     console.log("Calling processDocument...");
     const flashcards = await processDocument(userId, lectureId, fileId);
-
-    const dur = durationMsFrom(req.t0);
-    if (!flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
-      phCapture(userId, "llm_process_pdf:empty", {
-        ...props,
-        duration_ms: dur,
-      });
-      return res.status(422).json({
-        error: "Could not generate flashcards from the document content",
-        flashcards: [
-          {
-            id: "error-fallback",
-            question: "Error processing document",
-            answer:
-              "The system couldn't generate valid flashcards from this document. Please try with a different file or contact support.",
-          },
-        ],
-      });
-    }
-
+    const processingTime = Date.now() - startTime;
+    
     console.log("processDocument returned:", {
       isArray: Array.isArray(flashcards),
       length: Array.isArray(flashcards) ? flashcards.length : "not an array",
     });
 
+    // Estimate tokens used
+    const totalTokens = flashcards.reduce((total, card) => {
+      return total + estimateTokens(card.question) + estimateTokens(card.answer);
+    }, 0);
+
     // Return meaningful error response if flashcards weren't generated properly
     if (!flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
       console.warn("No valid flashcards generated for document");
+      
+      trackLLMUsage(userId, 'pdf_processing_failed', {
+        lectureId,
+        fileId,
+        error: 'no_flashcards_generated',
+        processingTime
+      });
+
       return res.status(422).json({
         error: "Could not generate flashcards from the document content",
         flashcards: [
@@ -87,24 +114,41 @@ router.post("/process-pdf", async (req, res) => {
       });
     }
 
-    phCapture(userId, "llm_process_pdf:success", {
-      ...props,
-      duration_ms: dur,
-      count: flashcards.length,
+    // Track successful processing
+    trackLLMUsage(userId, 'pdf_processing_completed', {
+      lectureId,
+      fileId,
+      flashcardCount: flashcards.length,
+      estimatedTokens: totalTokens,
+      processingTime,
+      success: true
+    });
+
+    // Track tokens usage separately for better analytics
+    trackLLMUsage(userId, 'token_usage', {
+      operation: 'pdf_to_flashcards',
+      tokens: totalTokens,
+      lectureId,
+      fileId
     });
 
     console.log(`Sending response with ${flashcards.length} flashcards`);
     res.status(200).json({ flashcards });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error("Error processing document:", error);
+    
+    // Track error
+    trackLLMUsage(userId, 'pdf_processing_error', {
+      lectureId,
+      fileId,
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
+    });
+
     // Send a fallback response with a generic flashcard
     console.log("Sending error response with fallback flashcard");
-    phCapture(userId, "llm_process_pdf:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
-    });
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
@@ -122,27 +166,46 @@ router.post("/process-pdf", async (req, res) => {
 
 router.post("/process-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  startReqTimer(req, res);
+  const startTime = Date.now();
+
+  // Track API call start
+  trackLLMUsage(userId, 'brief_processing_started', {
+    lectureId,
+    fileId,
+    endpoint: '/process-brief'
+  });
 
   if (!userId || !lectureId || !fileId) {
-    phCapture(userId, "llm_process_brief:error", {
-      ...baseProps(req),
-      reason: "missing_params",
+    trackLLMUsage(userId, 'brief_processing_error', {
+      error: 'missing_parameters',
+      lectureId,
+      fileId
     });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
   }
 
-  const props = { ...baseProps(req), lectureId, fileId };
-  phCapture(userId, "llm_process_brief:request", props);
-
   try {
     const brief = await processBrief(userId, lectureId, fileId);
-    const dur = durationMsFrom(req.t0);
+    const processingTime = Date.now() - startTime;
 
+    // Estimate tokens used
+    const estimatedTokens = estimateTokens(brief?.summary || '') + 
+                           (brief?.key_concepts || []).reduce((total, concept) => total + estimateTokens(concept), 0) +
+                           (brief?.important_details || []).reduce((total, detail) => total + estimateTokens(detail), 0);
+
+    // Return meaningful error response if brief is invalid
     if (!brief || typeof brief !== "object" || !brief.summary) {
-      phCapture(userId, "llm_process_brief:empty", { ...props, duration_ms: dur });
+      console.warn("No valid brief generated for document");
+      
+      trackLLMUsage(userId, 'brief_processing_failed', {
+        lectureId,
+        fileId,
+        error: 'no_brief_generated',
+        processingTime
+      });
+
       return res.status(422).json({
         error: "Could not generate brief from the document content",
         brief: {
@@ -154,21 +217,38 @@ router.post("/process-brief", async (req, res) => {
       });
     }
 
-    phCapture(userId, "llm_process_brief:success", {
-      ...props,
-      duration_ms: dur,
-      has_key_concepts: Array.isArray(brief.key_concepts) && brief.key_concepts.length > 0,
+    // Track successful processing
+    trackLLMUsage(userId, 'brief_processing_completed', {
+      lectureId,
+      fileId,
+      estimatedTokens,
+      processingTime,
+      keyConceptsCount: brief.key_concepts?.length || 0,
+      importantDetailsCount: brief.important_details?.length || 0,
+      success: true
+    });
+
+    // Track tokens usage
+    trackLLMUsage(userId, 'token_usage', {
+      operation: 'document_to_brief',
+      tokens: estimatedTokens,
+      lectureId,
+      fileId
     });
 
     res.status(200).json({ brief });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error("Error processing brief:", error);
-    phCapture(userId, "llm_process_brief:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
+    
+    trackLLMUsage(userId, 'brief_processing_error', {
+      lectureId,
+      fileId,
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
     });
+
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
@@ -184,27 +264,38 @@ router.post("/process-brief", async (req, res) => {
 
 router.post("/test-document-content", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  startReqTimer(req, res);
+  const startTime = Date.now();
+
+  trackLLMUsage(userId, 'content_extraction_started', {
+    lectureId,
+    fileId,
+    endpoint: '/test-document-content'
+  });
 
   if (!userId || !lectureId || !fileId) {
-    phCapture(userId, "llm_test_content:error", {
-      ...baseProps(req),
-      reason: "missing_params",
+    trackLLMUsage(userId, 'content_extraction_error', {
+      error: 'missing_parameters',
+      lectureId,
+      fileId
     });
     return res.status(400).json({
       error: "Missing required parameters: userId, lectureId, or fileId",
     });
   }
 
-  const props = { ...baseProps(req), lectureId, fileId };
-  phCapture(userId, "llm_test_content:request", props);
-
   try {
     const pages = await testContentExtraction(userId, lectureId, fileId);
-    const dur = durationMsFrom(req.t0);
+    const processingTime = Date.now() - startTime;
 
+    // Check if pages were extracted successfully
     if (!pages || !Array.isArray(pages) || pages.length === 0) {
-      phCapture(userId, "llm_test_content:empty", { ...props, duration_ms: dur });
+      trackLLMUsage(userId, 'content_extraction_failed', {
+        lectureId,
+        fileId,
+        error: 'no_content_extracted',
+        processingTime
+      });
+
       return res.status(422).json({
         error: "No content could be extracted from the document",
         pages: [
@@ -213,21 +304,31 @@ router.post("/test-document-content", async (req, res) => {
       });
     }
 
-    phCapture(userId, "llm_test_content:success", {
-      ...props,
-      duration_ms: dur,
-      pages: pages.length,
+    // Estimate total content size
+    const totalContentLength = pages.reduce((total, page) => total + (page?.length || 0), 0);
+    
+    trackLLMUsage(userId, 'content_extraction_completed', {
+      lectureId,
+      fileId,
+      pageCount: pages.length,
+      totalContentLength,
+      processingTime,
+      success: true
     });
 
     res.status(200).json({ pages });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error("Error in test endpoint:", error);
-     phCapture(userId, "llm_test_content:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
+    
+    trackLLMUsage(userId, 'content_extraction_error', {
+      lectureId,
+      fileId,
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
     });
+
     res.status(500).json({
       error: "Failed to process the document",
       details: error.message,
@@ -240,21 +341,28 @@ router.post("/test-document-content", async (req, res) => {
 
 router.post("/detailed-brief", async (req, res) => {
   const { userId, lectureId, fileId } = req.body;
-  startReqTimer(req, res);
+  const startTime = Date.now();
+
+  trackLLMUsage(userId, 'detailed_brief_started', {
+    lectureId,
+    fileId,
+    endpoint: '/detailed-brief'
+  });
 
   if (!userId || !lectureId || !fileId) {
-    phCapture(userId, "llm_detailed_brief:error", {
-      ...baseProps(req),
-      reason: "missing_params",
+    trackLLMUsage(userId, 'detailed_brief_error', {
+      error: 'missing_parameters',
+      lectureId,
+      fileId
     });
-    return res.status(400).json({ error: "Missing required parameters" });
+    return res.status(400).json({
+      error: "Missing required parameters",
+    });
   }
-
-  const props = { ...baseProps(req), lectureId, fileId };
-  phCapture(userId, "llm_detailed_brief:request", props);
 
   try {
     const result = await processDetailedContent(userId, lectureId, fileId);
+    const processingTime = Date.now() - startTime;
 
     // Check if result is valid
     if (
@@ -264,8 +372,13 @@ router.post("/detailed-brief", async (req, res) => {
       result.summaries.length === 0
     ) {
       console.warn("Invalid detailed brief result:", result);
-      phCapture(userId, "llm_detailed_brief:empty", { ...props, duration_ms: dur });
-    
+      
+      trackLLMUsage(userId, 'detailed_brief_failed', {
+        lectureId,
+        fileId,
+        error: 'invalid_result',
+        processingTime
+      });
 
       const fallbackBrief = {
         totalPages: 1,
@@ -314,6 +427,11 @@ Please try the following steps to resolve this issue:
       });
     }
 
+    // Estimate tokens used
+    const estimatedTokens = result.summaries.reduce((total, summary) => total + estimateTokens(summary), 0) +
+                           (result.metadata?.key_concepts || []).reduce((total, concept) => total + estimateTokens(concept), 0) +
+                           (result.metadata?.important_details || []).reduce((total, detail) => total + estimateTokens(detail), 0);
+
     // Transform the response to match frontend expectations
     const brief = {
       totalPages: result.total_pages,
@@ -327,20 +445,38 @@ Please try the following steps to resolve this issue:
       important_details: result.metadata?.important_details || [],
     };
 
-    phCapture(userId, "llm_detailed_brief:success", {
-      ...props,
-      duration_ms: dur,
-      pages: brief.totalPages,
+    // Track successful processing
+    trackLLMUsage(userId, 'detailed_brief_completed', {
+      lectureId,
+      fileId,
+      totalPages: result.total_pages,
+      estimatedTokens,
+      processingTime,
+      keyConceptsCount: brief.key_concepts?.length || 0,
+      importantDetailsCount: brief.important_details?.length || 0,
+      mainThemesCount: brief.overview.mainThemes?.length || 0,
+      success: true
+    });
+
+    // Track tokens usage
+    trackLLMUsage(userId, 'token_usage', {
+      operation: 'detailed_brief',
+      tokens: estimatedTokens,
+      lectureId,
+      fileId
     });
 
     res.json({ success: true, brief });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error("Error generating detailed brief:", error);
-    phCapture(userId, "llm_detailed_brief:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
+
+    trackLLMUsage(userId, 'detailed_brief_error', {
+      lectureId,
+      fileId,
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
     });
 
     const fallbackBrief = {
@@ -364,30 +500,29 @@ Please try the following steps to resolve this issue:
 });
 
 router.post("/process-quiz", async (req, res) => {
+  const startTime = Date.now();
+  
   try {
     const { userId, lectureId, fileId, quizOptions } = req.body;
-    startReqTimer(req, res);
 
-    if (!userId || !lectureId || !fileId) {
-      phCapture(userId, "llm_quiz:error", {
-        ...baseProps(req),
-        reason: "missing_params",
-      });
-      return res.status(400).json({
-        error: "Missing required parameters: userId, lectureId, or fileId",
-      });
-    }
+    trackLLMUsage(userId, 'quiz_processing_started', {
+      lectureId,
+      fileId,
+      quizOptions,
+      endpoint: '/process-quiz'
+    });
 
     // Validate required parameters
     if (!userId || !lectureId || !fileId) {
+      trackLLMUsage(userId, 'quiz_processing_error', {
+        error: 'missing_parameters',
+        lectureId,
+        fileId
+      });
       return res.status(400).json({
         error: "Missing required parameters: userId, lectureId, or fileId",
       });
     }
-
-    const props = { ...baseProps(req), lectureId, fileId };
-    phCapture(userId, "llm_quiz:request", { ...props, has_options: !!quizOptions });
-
 
     // Process the quiz with the options
     const result = await processQuiz(
@@ -396,7 +531,7 @@ router.post("/process-quiz", async (req, res) => {
       fileId,
       quizOptions || {}
     );
-    const dur = durationMsFrom(req.t0);
+    const processingTime = Date.now() - startTime;
 
     // Check if result is valid
     if (
@@ -405,8 +540,16 @@ router.post("/process-quiz", async (req, res) => {
       !Array.isArray(result.questions) ||
       result.questions.length === 0
     ) {
-      phCapture(userId, "llm_quiz:empty", { ...props, duration_ms: dur });
       console.warn("No valid quiz generated for document");
+      
+      trackLLMUsage(userId, 'quiz_processing_failed', {
+        lectureId,
+        fileId,
+        quizOptions,
+        error: 'no_questions_generated',
+        processingTime
+      });
+
       return res.status(200).json({
         success: true,
         questions: [
@@ -434,11 +577,36 @@ router.post("/process-quiz", async (req, res) => {
       });
     }
 
+    // Estimate tokens used
+    const estimatedTokens = result.questions.reduce((total, question) => {
+      let questionTokens = estimateTokens(question.text);
+      if (question.options) {
+        questionTokens += question.options.reduce((optTotal, opt) => optTotal + estimateTokens(opt.text), 0);
+      }
+      if (question.answer) {
+        questionTokens += estimateTokens(question.answer);
+      }
+      return total + questionTokens;
+    }, 0);
 
-     phCapture(userId, "llm_quiz:success", {
-      ...props,
-      duration_ms: dur,
-      count: result.questions.length,
+    // Track successful processing
+    trackLLMUsage(userId, 'quiz_processing_completed', {
+      lectureId,
+      fileId,
+      questionCount: result.questions.length,
+      quizOptions,
+      estimatedTokens,
+      processingTime,
+      questionTypes: result.questions.map(q => q.type),
+      success: true
+    });
+
+    // Track tokens usage
+    trackLLMUsage(userId, 'token_usage', {
+      operation: 'document_to_quiz',
+      tokens: estimatedTokens,
+      lectureId,
+      fileId
     });
 
     res.status(200).json({
@@ -446,12 +614,15 @@ router.post("/process-quiz", async (req, res) => {
       questions: result.questions,
     });
   } catch (error) {
+    const processingTime = Date.now() - startTime;
     console.error("Error processing quiz:", error);
-     phCapture(userId, "llm_quiz:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
+    
+    trackLLMUsage(userId, 'quiz_processing_error', {
+      lectureId: req.body.lectureId,
+      fileId: req.body.fileId,
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
     });
 
     // Send a fallback response with a generic question
@@ -476,21 +647,25 @@ router.post("/process-quiz", async (req, res) => {
 
 // New endpoint for evaluating open-ended answers
 router.post("/evaluate-answer", async (req, res) => {
-  const { questionText, modelAnswer, userAnswer } = req.body;
-  startReqTimer(req, res);
+  const { questionText, modelAnswer, userAnswer, userId } = req.body;
+  const startTime = Date.now();
+
+  trackLLMUsage(userId, 'answer_evaluation_started', {
+    questionLength: questionText?.length || 0,
+    modelAnswerLength: modelAnswer?.length || 0,
+    userAnswerLength: userAnswer?.length || 0,
+    endpoint: '/evaluate-answer'
+  });
 
   if (!questionText || !modelAnswer || userAnswer === undefined) {
-    phCapture("anonymous", "llm_eval:error", {
-      ...baseProps(req),
-      reason: "missing_params",
+    trackLLMUsage(userId, 'answer_evaluation_error', {
+      error: 'missing_parameters'
     });
     return res.status(400).json({
-      error: "Missing required parameters: questionText, modelAnswer, or userAnswer",
+      error:
+        "Missing required parameters: questionText, modelAnswer, or userAnswer",
     });
   }
-
-  const props = { ...baseProps(req) };
-  phCapture("anonymous", "llm_eval:request", props);
 
   try {
     const evaluation = await evaluateOpenEndedAnswer(
@@ -498,28 +673,60 @@ router.post("/evaluate-answer", async (req, res) => {
       modelAnswer,
       userAnswer
     );
+    const processingTime = Date.now() - startTime;
 
-    phCapture("anonymous", "llm_eval:success", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      // optional: include rubric score if your evaluator returns one
-      score: typeof evaluation?.score === "number" ? evaluation.score : undefined,
+    // Estimate tokens used
+    const estimatedTokens = estimateTokens(questionText) + 
+                           estimateTokens(modelAnswer) + 
+                           estimateTokens(userAnswer) +
+                           estimateTokens(evaluation?.feedback || '') +
+                           50; // Rough estimate for evaluation prompt overhead
+
+    // Track successful evaluation
+    trackLLMUsage(userId, 'answer_evaluation_completed', {
+      score: evaluation?.score,
+      estimatedTokens,
+      processingTime,
+      hasUserAnswer: !!userAnswer,
+      userAnswerLength: userAnswer?.length || 0,
+      success: true
+    });
+
+    // Track tokens usage
+    trackLLMUsage(userId, 'token_usage', {
+      operation: 'answer_evaluation',
+      tokens: estimatedTokens
     });
 
     res.status(200).json({ evaluation });
   } catch (error) {
-    phCapture("anonymous", "llm_eval:error", {
-      ...props,
-      duration_ms: durationMsFrom(req.t0),
-      error_class: error?.name || "Error",
-      error_message: String(error?.message || "").slice(0, 300),
-    });
+    const processingTime = Date.now() - startTime;
     console.error("Error evaluating answer:", error);
+    
+    trackLLMUsage(userId, 'answer_evaluation_error', {
+      error: error.message,
+      processingTime,
+      errorType: error.constructor.name
+    });
+
     res.status(500).json({
       error: "Failed to evaluate the answer",
       details: error.message,
     });
   }
+});
+
+// Graceful shutdown - ensure all events are flushed
+process.on('SIGTERM', async () => {
+  await posthog.flush();
+  await posthog.shutdown();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  await posthog.flush();
+  await posthog.shutdown();
+  process.exit(0);
 });
 
 export default router;
