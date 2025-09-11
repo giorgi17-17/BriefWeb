@@ -9,7 +9,7 @@ import {
 } from "../controllers/documentController.js";
 import userPlanRoutes from "./userPlanRoutes.js";
 import { evaluateOpenEndedAnswer } from "../services/ai/aiService.js";
-import { posthog } from "../config/gemini.js";
+import { geminiModelFlashCard, posthog } from "../config/gemini.js";
 
 
 const router = express.Router();
@@ -147,7 +147,7 @@ router.post("/process-pdf", async (req, res) => {
 
     // Track successful LLM operation
     trackLLMAnalytics(userId, 'pdf_to_flashcards', {
-      model: 'gemini-pro',
+      model: geminiModelFlashCard,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
@@ -242,7 +242,7 @@ router.post("/process-brief", async (req, res) => {
 
     // Track successful LLM operation
     trackLLMAnalytics(userId, 'document_to_brief', {
-      model: 'gemini-pro',
+      model: geminiModelFlashCard,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
@@ -458,7 +458,7 @@ Please try the following steps to resolve this issue:
 
     // Track successful LLM operation
     trackLLMAnalytics(userId, 'detailed_brief', {
-      model: 'gemini-pro',
+      model: geminiModelFlashCard,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
@@ -595,7 +595,7 @@ router.post("/process-quiz", async (req, res) => {
 
     // Track successful LLM operation
     trackLLMAnalytics(userId, 'document_to_quiz', {
-      model: 'gemini-pro',
+      model: geminiModelFlashCard,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
@@ -679,7 +679,7 @@ router.post("/evaluate-answer", async (req, res) => {
 
     // Track successful LLM operation
     trackLLMAnalytics(userId, 'answer_evaluation', {
-      model: 'gemini-pro',
+      model: geminiModelFlashCard,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
