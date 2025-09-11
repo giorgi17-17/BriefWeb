@@ -1,10 +1,10 @@
 // hooks/useBrief.js
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePostHog } from "posthog-js/react";
 import { getBrief, upsertBrief, computeProgressiveDelay } from "../utils/briefsApi";
 import { debugLog, debugError } from "../utils/debugLogger";
-import { handleProcessBrief } from "../utils/api"; // your existing function
+import { handleProcessBrief } from "../utils/api";
 
 const QK = {
   brief: (lectureId) => ["brief", lectureId],
@@ -34,6 +34,7 @@ export function useBrief(lectureId, user) {
   // silent polling controls
   const [isPolling, setIsPolling] = useState(false);
   const pollAttemptsRef = useRef(0);
+  const trackedFirstArrivalRef = useRef(false);
 
   const enabled = Boolean(lectureId);
 
@@ -48,48 +49,59 @@ export function useBrief(lectureId, user) {
     // progressive backoff while we wait for background generation
     refetchInterval: (data) => {
       if (!isPolling) return false;
-      if (data?.id) return false; // found -> stop polling
-      return computeProgressiveDelay(pollAttemptsRef.current);
-    },
-    onSuccess: (data) => {
-      // reset page when brief appears; stay quiet otherwise
-      if (data?.id) {
-        setIsPolling(false);
-        pollAttemptsRef.current = 0;
-        setUiError(null);
-        setCurrentPage(data.current_page ?? 1);
-      } else if (isPolling) {
-        // keep the backoff growing, but no time-limit messages
-        pollAttemptsRef.current += 1;
+      // Stop polling if we have a brief with valid content
+      if (data?.id && data?.summaries?.length > 0) {
+        return false;
       }
-    },
-    onError: (err) => {
-      debugError("Error fetching brief:", err);
-      // Only show an error for real failures; do not show time-pressure notices
-      setUiError("Failed to load brief");
-      // Don't force-stop polling here; let the caller decide (we expose cancel/restart)
+      return computeProgressiveDelay(pollAttemptsRef.current);
     },
   });
 
   const brief = briefQuery.data ?? null;
-  const noBriefExists = briefQuery.isSuccess && !brief;
+  const noBriefExists = briefQuery.isSuccess && !brief?.id;
 
-  // Track PostHog only once when the brief first lands (if generation was async)
-  const trackedFirstArrivalRef = useRef(false);
-  if (brief?.id && !trackedFirstArrivalRef.current) {
-    trackedFirstArrivalRef.current = true;
-    try {
-      if (brief?.total_pages) {
-        posthog?.capture("brief_generation_arrived", {
-          lecture_id: lectureId,
-          pages: brief.total_pages,
-          via: "polling",
-        });
+  // Effect to handle polling state changes based on brief data
+  useEffect(() => {
+    if (brief?.id && brief?.summaries?.length > 0 && isPolling) {
+      debugLog("✅ Brief found during polling, stopping polling");
+      setIsPolling(false);
+      pollAttemptsRef.current = 0;
+      setUiError(null);
+      setCurrentPage(brief.current_page ?? 1);
+      
+      // Track PostHog event if this is the first time we're seeing this brief
+      if (!trackedFirstArrivalRef.current) {
+        trackedFirstArrivalRef.current = true;
+        try {
+          if (brief?.total_pages) {
+            posthog?.capture("brief_generation_arrived", {
+              lecture_id: lectureId,
+              pages: brief.total_pages,
+              via: "polling",
+            });
+          }
+        } catch (err) {
+          debugError("PostHog arrival event error:", err);
+        }
       }
-    } catch (err) {
-      debugError("PostHog arrival event error:", err);
     }
-  }
+  }, [brief?.id, brief?.summaries?.length, isPolling, lectureId, posthog]);
+
+  // Handle query errors
+  useEffect(() => {
+    if (briefQuery.isError && briefQuery.error) {
+      debugError("Error fetching brief:", briefQuery.error);
+      setUiError("Failed to load brief");
+      // Don't stop polling here - let it continue trying
+    }
+  }, [briefQuery.isError, briefQuery.error]);
+
+  // Handle polling increment
+  useEffect(() => {
+    if (isPolling && briefQuery.isSuccess && !brief?.id) {
+      pollAttemptsRef.current += 1;
+    }
+  }, [isPolling, briefQuery.isSuccess, brief?.id]);
 
   const genMutation = useMutation({
     async mutationFn(selectedFile) {
@@ -102,19 +114,18 @@ export function useBrief(lectureId, user) {
       const filePath =
         (selectedFile.path || "").split("/").pop() || String(selectedFile.id);
 
-      // 1) hit your API
       try {
         const processed = await handleProcessBrief(user.id, lectureId, filePath);
 
-        // 2) optional quality check (non-blocking)
+        // optional quality check (non-blocking)
         if (looksLowQuality(processed)) {
           debugLog("⚠️ Low-quality content detected (not blocking UI).");
         }
 
-        // 3) persist (if your API doesn't persist on its own)
+        // persist (if your API doesn't persist on its own)
         const saved = await upsertBrief(lectureId, user.id, processed);
 
-        // 4) analytics (immediate path)
+        // analytics (immediate path)
         try {
           posthog?.capture("brief_generation", {
             lecture_id: lectureId,
@@ -133,11 +144,7 @@ export function useBrief(lectureId, user) {
         // we silently switch to polling and DO NOT throw or show time-pressure messages.
         if (msg.includes("timeout") || msg.includes("processing") || msg.includes("202")) {
           debugLog("Server indicates processing; enabling silent polling…");
-          setIsPolling(true);
-          pollAttemptsRef.current = 0;
-
-          // Resolve without error; onSuccess handler will ignore falsy results,
-          // and the query will keep polling until the brief shows up.
+          // Don't throw error, just return undefined to indicate polling mode
           return undefined;
         }
 
@@ -146,27 +153,32 @@ export function useBrief(lectureId, user) {
       }
     },
     onMutate: () => {
-      // Start polling as soon as user triggers generation.
+      // Start polling as soon as user triggers generation
       setIsPolling(true);
       pollAttemptsRef.current = 0;
+      trackedFirstArrivalRef.current = false; // Reset tracking for new generation
     },
     onSuccess: (saved) => {
-      // If we received a saved brief immediately, commit it and stop polling.
-      if (saved?.id) {
+      // If we received a saved brief immediately, commit it and stop polling
+      if (saved?.id && saved?.summaries?.length > 0) {
         qc.setQueryData(QK.brief(saved.lecture_id || lectureId), saved);
         setIsPolling(false);
         pollAttemptsRef.current = 0;
         setCurrentPage(saved.current_page ?? 1);
         debugLog("✅ Brief generation successful (immediate)");
       }
-      // Otherwise, do nothing; polling continues quietly until query finds it.
+      // If saved is undefined, polling will continue automatically
+      else if (saved === undefined) {
+        debugLog("📡 Brief generation in progress, polling enabled");
+        // Polling state is already set in onMutate
+      }
     },
     onError: (err) => {
       debugError("Error generating brief:", err);
-      // Only real failure gets an error message; no time pressure text.
       setUiError("Brief generation failed. Please try again.");
-      // Stop polling on hard failure; caller can restart if desired.
+      // Stop polling on hard failure
       setIsPolling(false);
+      pollAttemptsRef.current = 0;
     },
     onSettled: async () => {
       if (lectureId) {
@@ -175,45 +187,49 @@ export function useBrief(lectureId, user) {
     },
   });
 
-function handlePageChange(newPage) {
-  const total = brief?.total_pages ?? 0;
-  const target = Math.max(1, Math.min(newPage, total)); // clamp
+  function handlePageChange(newPage) {
+    const total = brief?.total_pages ?? 0;
+    const target = Math.max(1, Math.min(newPage, total)); // clamp
 
-  if (!brief || target === currentPage) return;
+    if (!brief || target === currentPage) return;
 
-  setCurrentPage(target);
+    setCurrentPage(target);
 
-  // Respect reduced motion & fall back if smooth not supported
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    "matchMedia" in window &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Respect reduced motion & fall back if smooth not supported
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      "matchMedia" in window &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  if ("scrollBehavior" in document.documentElement.style) {
-    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  } else {
-    window.scrollTo(0, 0);
+    if ("scrollBehavior" in document.documentElement.style) {
+      window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+    } else {
+      window.scrollTo(0, 0);
+    }
   }
-}
 
-  // Friendly status for UI
+  // Improved status calculation
   const status = useMemo(() => {
     if (uiError) return "error";
-    if (briefQuery.isLoading) return "loading";
-    if (genMutation.isPending || isPolling) return "generating";
-    if (brief?.id) return "ready";
+    if (briefQuery.isLoading && !brief) return "loading";
+    if (genMutation.isPending) return "generating";
+    if (isPolling) return "generating";
+    if (brief?.id && brief?.summaries?.length > 0) return "ready";
     return "idle";
-  }, [uiError, briefQuery.isLoading, genMutation.isPending, isPolling, brief?.id]);
+  }, [uiError, briefQuery.isLoading, genMutation.isPending, isPolling, brief?.id, brief?.summaries?.length]);
 
-  const isLoading =
-    briefQuery.isLoading ||
-    genMutation.isPending ||
-    (isPolling && !briefQuery.data && briefQuery.isFetching);
+  // Improved loading calculation - avoid flickering
+  const isLoading = useMemo(() => {
+    // Show loading if we're actively generating or if we're polling without any brief data yet
+    return genMutation.isPending || (isPolling && !brief?.id);
+  }, [genMutation.isPending, isPolling, brief?.id]);
 
   // Manual controls if you need them in UI
   const cancelPolling = () => {
     setIsPolling(false);
+    pollAttemptsRef.current = 0;
   };
+
   const restartPolling = () => {
     setUiError(null);
     pollAttemptsRef.current = 0;

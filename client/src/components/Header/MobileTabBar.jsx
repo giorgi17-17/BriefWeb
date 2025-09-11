@@ -41,11 +41,11 @@ export default function MobileTabBar({
 
     const commonClasses = "flex flex-col items-center gap-1 px-2 py-1 min-w-16";
     const iconClasses = isActive
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? "text-indigo-600 dark:text-indigo-600"
       : "text-zinc-600 dark:text-zinc-400";
     const textClasses = [
       "text-[11px]",
-      isActive ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-400",
+      isActive ? "text-indigo-700 dark:text-indigo-600" : "text-zinc-700 dark:text-zinc-400",
       mode === "tab" && isGenerating ? "opacity-60" : "",
     ].join(" ");
 

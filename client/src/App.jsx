@@ -39,10 +39,10 @@ import PropTypes from "prop-types";
 // PostHog Configuration - Fixed to prevent hard refresh
 const posthogOptions = {
   api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
-  capture_pageview: false, // Changed: Disable automatic pageview capture
+  capture_pageview: true, // Changed: Disable automatic pageview capture
   capture_pageleave: false, // Changed: Disable page leave capture
   debug: import.meta.env.DEV,
-  autocapture: false, // Changed: Disable autocapture to prevent tab switch triggers
+  autocapture: true, // Changed: Disable autocapture to prevent tab switch triggers
   // LLM analytics specific options
   capture_performance: false, // Changed: Disable performance capture
   session_recording: {
