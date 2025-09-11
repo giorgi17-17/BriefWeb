@@ -9,19 +9,10 @@ import {
 } from "../controllers/documentController.js";
 import userPlanRoutes from "./userPlanRoutes.js";
 import { evaluateOpenEndedAnswer } from "../services/ai/aiService.js";
-import { PostHog } from 'posthog-node';
+import { posthog } from "../config/gemini.js";
+
 
 const router = express.Router();
-
-// Initialize PostHog
-const posthog = new PostHog(
-  process.env.POSTHOG_API_KEY,
-  { 
-    host: process.env.POSTHOG_HOST || 'https://app.posthog.com',
-    flushAt: 20,
-    flushInterval: 10000,
-  }
-);
 
 // Helper function to track LLM analytics with PostHog's LLM tracking
 const trackLLMAnalytics = (userId, operation, data = {}) => {
