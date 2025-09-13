@@ -86,44 +86,64 @@ export function createFallbackFlashcards(language = "English") {
 }
 
 /**
- * Creates fallback evaluation when AI evaluation fails
- * @param {string} language - Target language
- * @param {boolean} hasUserAnswer - Whether user provided an answer
- * @returns {Object} Fallback evaluation
+ * Create a consistent fallback evaluation object that matches the expected schema.
+ * @param {{language?: string, hasUserAnswer?: boolean, modelAnswer?: string}} p
  */
-export function createFallbackEvaluation(
-  language = "English",
-  hasUserAnswer = true
-) {
-  if (!hasUserAnswer) {
-    return {
-      score: 0,
-      feedback:
-        language === "Georgian"
-          ? "პასუხი არ არის მოწოდებული. გთხოვთ დაწეროთ პასუხი შეფასების მისაღებად."
-          : "No answer provided. Please write an answer to receive feedback.",
-      isCorrect: false,
-    };
-  }
+export function createFallbackEvaluation(p = {}) {
+  const language = p.language || "English";
+  const hasUserAnswer = !!p.hasUserAnswer;
+  const modelAnswer = String(p.modelAnswer || "").trim();
 
-  const fallbacks = {
-    Georgian: {
-      score: 70,
-      feedback:
-        "თქვენი პასუხი შეფასებულია. მასში კარგად არის წარმოდგენილი საკვანძო აზრები. გააუმჯობესეთ დეტალების ხარისხი და ლოგიკური კავშირები მომავალში.",
-      isCorrect: true,
-    },
+  const STRINGS = {
     English: {
-      score: 70,
-      feedback:
-        "Your answer has been evaluated. It presents key ideas well. In the future, improve the quality of details and logical connections.",
-      isCorrect: true,
+      noAnswerFeedback: "No answer provided. Please write a response to receive feedback.",
+      genericFeedback:
+        "Your answer has been received, but I could not evaluate it reliably. Focus on accuracy and completeness, and explain the key points clearly.",
+      suggestions: [
+        "Address each key point from the question directly.",
+        "Use precise terms and include important numbers or definitions.",
+      ],
+      verdictNoAnswer: "no_answer",
+      verdictGeneric: "incorrect",
+    },
+    Georgian: {
+      noAnswerFeedback: "პასუხი არ არის მოწოდებული. გთხოვთ დაწეროთ პასუხი შეფასების მისაღებად.",
+      genericFeedback:
+        "თქვენი პასუხი მიღებულია, მაგრამ მისი საიმედოდ შეფასება ვერ მოხერხდა. გაამახვილეთ ყურადღება სიზუსტესა და სრულყოფილებაზე და განმარტეთ ძირითადი პუნქტები.",
+      suggestions: [
+        "პირდაპირ უპასუხეთ თითოეულ საკვანძო პუნქტს კითხვაში.",
+        "გამოიყენეთ ზუსტი ტერმინები და ჩართეთ მნიშვნელოვანი რიცხვები ან განმარტებები.",
+      ],
+      verdictNoAnswer: "no_answer",
+      verdictGeneric: "incorrect",
     },
   };
 
-  return fallbacks[language] || fallbacks.English;
-}
+  const L = STRINGS[language] || STRINGS.English;
 
+  if (!hasUserAnswer) {
+    return {
+      score: 0,
+      verdict: L.verdictNoAnswer,
+      matched_key_points: [],
+      missing_key_points: [],
+      feedback: L.noAnswerFeedback,
+      suggestions: L.suggestions,
+      improved_answer: modelAnswer || "", // show the correct answer so the student learns
+    };
+  }
+
+  // Generic fallback when model output is unusable
+  return {
+    score: 60,
+    verdict: L.verdictGeneric,
+    matched_key_points: [],
+    missing_key_points: [],
+    feedback: L.genericFeedback,
+    suggestions: L.suggestions,
+    improved_answer: modelAnswer || "",
+  };
+}
 /**
  * Creates fallback brief summaries when generation fails
  * @param {Array} pages - Original pages to summarize
