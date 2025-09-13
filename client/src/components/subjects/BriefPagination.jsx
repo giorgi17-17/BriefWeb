@@ -14,7 +14,7 @@ const BriefPagination = ({ currentPage, totalPages, onPageChange }) => {
   const pages = totalPages || 1;
 
   return (
-    <div className="mb-4 flex items-center justify-between lg:relative lg:bg-transparent lg:backdrop-blur-0 lg:p-0 lg:rounded-none lg:bottom-0 lg:right-0 fixed z-50 bottom-24 bg-gray-700/40 backdrop-blur-md p-2 right-5 rounded-lg gap-4">
+    <div className="mb-4 flex items-center justify-between lg:relative lg:bg-transparent lg:backdrop-blur-0 lg:p-0 lg:rounded-none lg:bottom-0 lg:right-0 fixed z-50lg:z-0 bottom-24 bg-gray-700/40 backdrop-blur-md p-2 right-5 rounded-lg gap-4">
       <div className="flex items-center space-x-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <button
           onClick={() => onPageChange(currentPage - 1)}

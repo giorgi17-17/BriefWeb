@@ -98,9 +98,9 @@ const Quiz = ({
   );
 
   return (
-    <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 relative">
+    <div className="w-full relative">
       {/* Header with Generate button */}
-      <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+      <div className="border-b border-gray-200 dark:border-gray-700 ">
         <div className="flex items-center justify-between">
           <QuizHeader
             quiz={quiz}

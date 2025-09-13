@@ -3,7 +3,7 @@ import Quiz from "./Quiz";
 
 const QuizLayout = ({ selectedFile, user, lectureId, ...props }) => {
   return (
-    <div className="w-full max-w-4xl mx-auto py-2">
+    <div className="w-full mx-auto">
       <Quiz selectedFile={selectedFile} user={user} lectureId={lectureId} {...props} />
     </div>
   );

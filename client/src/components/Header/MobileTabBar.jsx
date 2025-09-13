@@ -91,9 +91,9 @@ export default function MobileTabBar({
         bottom-[calc(12px+env(safe-area-inset-bottom,0))]
         w-[min(720px,calc(100%-16px))]
         rounded-3xl
-        bg-white/90 dark:bg-neutral-900/90
+        bg-white/50 dark:bg-neutral-900/50
         border border-black/5 dark:border-white/10
-        backdrop-blur
+        backdrop-blur-md
         px-4 py-2
         shadow-lg dark:shadow-black/30
         z-[60]

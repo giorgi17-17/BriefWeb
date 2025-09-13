@@ -67,7 +67,7 @@ const Brief = ({
 
   return (
     <ErrorBoundary message="Error loading document summary">
-      <div className="w-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="w-full">
         {/* Header with Generate button */}
         <BriefHeader
           brief={brief}
@@ -84,7 +84,7 @@ const Brief = ({
         </div>
 
         {/* Content area */}
-        <div className="p-4">
+        <div className="py-4 lg:p-4">
           {brief ? (
             <div key={brief.id || brief.lecture_id}>
               {/* Pagination controls */}
