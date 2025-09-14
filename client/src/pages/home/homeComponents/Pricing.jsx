@@ -40,7 +40,7 @@ export default function Pricing() {
       {
         id: "pro",
         name: t("landing.pricing.pro.title"),
-        price: "5",
+        price: "6.99",
         period: t("landing.pricing.pro.period"),
         description: t("landing.pricing.pro.subtitle"),
         features: [

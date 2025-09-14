@@ -40,7 +40,7 @@ export function useStartBogCheckout(opts = {}) {
           user: userObject,
           planCode: "premium",
           planName: "premium plan",
-          price: 0.10,
+          price: 6.99,
           successUrl: "https://briefly.ge/payment/success",
           failUrl: "https://briefly.ge/payment/error"
         });
