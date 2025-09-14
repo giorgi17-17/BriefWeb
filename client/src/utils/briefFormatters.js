@@ -1,377 +1,421 @@
 /**
- * Enhanced formatter for AI-generated brief content
- * Handles various text patterns and structures that AI commonly generates
+ * Enhanced BriefFormatter with better cleanup and markdown handling
+ * - Fixes mixed markdown/HTML formatting issues
+ * - Removes CSS class leakage 
+ * - Handles Georgian text properly
+ * - Cleans up malformed HTML attributes
  */
 
-/**
- * Format summary text to improve readability with proper HTML structure
- * @param {string} text - The raw AI-generated text to format
- * @returns {string} - Formatted HTML
- */
-export function formatSummaryText(text) {
-  if (!text || typeof text !== 'string') return "";
+const OUTPUT_MODE = "tailwind"; // "semantic" | "tailwind"
+const PREFER_BULLETS_FOR_DEFINITIONS = true;
 
-  // Clean the text first
-  let cleanedText = cleanAIGeneratedText(text);
-  
-  // Normalize line breaks and whitespace
-  cleanedText = normalizeWhitespace(cleanedText);
-  
-  // Parse the content into structured blocks
-  const contentBlocks = parseContentBlocks(cleanedText);
-  
-  // Format each block appropriately
-  const formattedBlocks = contentBlocks.map(block => formatContentBlock(block));
-  
-  // Join with proper spacing
-  return formattedBlocks.filter(block => block.trim()).join('\n\n');
+/** Allow only safe tags; keep class attr in tailwind mode */
+const ALLOWED_TAGS = new Set([
+  "h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol", "li", "strong", "em", "code", "dl", "dt", "dd", "div", "span"
+]);
+
+function escapeHtml(s = "") {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
- * Clean AI-generated text of common formatting issues
+ * Pre-process text to fix common formatting issues
  */
-function cleanAIGeneratedText(text) {
-  return text
-    // Remove any existing HTML tags that might be malformed
-    .replace(/<[^>]*>/g, '')
-    
-    // Fix common AI formatting artifacts
-    .replace(/\*\*\*([^*]+)\*\*\*/g, '**$1**') // Triple asterisks to double
-    .replace(/\*\*([^*]*)\*\*([^*\s])/g, '**$1** $2') // Add space after bold
-    .replace(/([^\s])\*\*([^*]+)\*\*/g, '$1 **$2**') // Add space before bold
-    
-    // Clean up numbered lists that might be malformed
-    .replace(/(\d+)\.([^\s])/g, '$1. $2') // Add space after number
-    .replace(/(\d+)\)\s*/g, '$1. ') // Convert ) to .
-    
-    // Clean up bullet points
-    .replace(/[•·▪▫]/g, '•') // Normalize bullet characters
-    .replace(/^[\s]*[-*]\s*/gm, '• ') // Convert dashes to bullets
-    
-    // Fix spacing issues
-    .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Ensure space after sentences
-    .replace(/\s{3,}/g, '  ') // Reduce multiple spaces to double
-    .trim();
+function preprocessText(text) {
+  if (!text || typeof text !== "string") return "";
+  
+  let cleaned = text;
+  
+  // Fix mixed markdown headers: **## Text** -> ## Text
+  cleaned = cleaned.replace(/\*\*(#{1,6})\s*([^*]+?)\*\*/g, '$1 $2');
+  
+  // Fix mixed markdown headers: ##**Text** -> ## Text
+  cleaned = cleaned.replace(/(#{1,6})\*\*([^*]+?)\*\*/g, '$1 $2');
+  
+  // Remove orphaned CSS classes that appear as text
+  // Pattern: "class-names"> at start of line or after whitespace
+  cleaned = cleaned.replace(/(?:^|\s)"[\w\s-]*(?:font-|text-|bg-|border-|dark:|hover:)[\w\s-]*">\s*/gm, ' ');
+  
+  // Remove standalone CSS class strings that leaked
+  cleaned = cleaned.replace(/"(?:font-|text-|bg-|border-|dark:|hover:)[\w\s-]*">/g, '');
+  
+  // Clean up malformed HTML attributes in text
+  cleaned = cleaned.replace(/(?<!=)"[\w\s-]+"(?=\s*[>:])/g, '');
+  
+  // Fix broken bold formatting: **text: -> **text:**
+  cleaned = cleaned.replace(/\*\*([^*:]+?):\s*(?!\*)/g, '**$1:**');
+  
+  // Remove extra whitespace but preserve intentional spacing
+  cleaned = cleaned.replace(/[ \t]+/g, ' ');
+  cleaned = cleaned.replace(/\n[ \t]+/g, '\n');
+  cleaned = cleaned.replace(/[ \t]+\n/g, '\n');
+  
+  return cleaned.trim();
 }
 
-/**
- * Normalize whitespace and line breaks
- */
 function normalizeWhitespace(text) {
   return text
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n\s*\n\s*\n+/g, '\n\n') // Max 2 consecutive line breaks
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/**
- * Parse content into structured blocks
- */
+/** Enhanced line type identification */
+function identifyLineType(line) {
+  // Clean the line first
+  const cleanLine = line.replace(/^["'\s]*|["'\s]*$/g, '').trim();
+  if (!cleanLine) return { type: "paragraph" };
+  
+  // Markdown headers (# ## ### etc.)
+  if (/^#{1,6}\s+/.test(cleanLine)) return { type: "markdown-header" };
+  
+  // Ordered lists
+  if (/^\s*\d+[.)]\s+/.test(cleanLine)) return { type: "ordered-list" };
+  
+  // Bullets
+  if (/^\s*[•\-\*\u2013\u2014]\s+/.test(cleanLine)) return { type: "unordered-list" };
+  
+  // Roman / Lettered
+  if (/^\s*[ivxlcdm]+\.\s+/i.test(cleanLine)) return { type: "roman-list" };
+  if (/^\s*[a-z]\.\s+/i.test(cleanLine)) return { type: "lettered-list" };
+  
+  // Numbered main heading like "1. Title" (but not lists)
+  if (/^\s*\d+\.\s+[\p{L}]{3,}/u.test(cleanLine) && cleanLine.length > 15) {
+    return { type: "main-heading" };
+  }
+
+  // Definition patterns (supports bold-first like **Term:** text)
+  if (
+    /^\s*\p{L}[\p{L}\p{N}\s,().\-–—]+[:：]\s+/u.test(cleanLine) ||
+    /^\s*\*\*[^*]+?\*\*[:：]\s+/.test(cleanLine) ||
+    /^\s*__[^_]+?__[:：]\s+/.test(cleanLine)
+  ) {
+    return { type: "definition" };
+  }
+
+  // Short heading-ish lines
+  if ((cleanLine.length <= 80 && /[:：]$/.test(cleanLine)) ||
+      (cleanLine.length <= 80 && !/[.!?]$/.test(cleanLine) && cleanLine.length > 3)) {
+    return { type: "sub-heading" };
+  }
+
+  return { type: "paragraph" };
+}
+
 function parseContentBlocks(text) {
   const blocks = [];
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line);
-  
-  let currentBlock = {
-    type: 'paragraph',
-    content: [],
-    level: 0
-  };
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const blockType = identifyLineType(line);
-    
-    // If we encounter a new block type, save the current one and start fresh
-    if (blockType.type !== currentBlock.type && currentBlock.content.length > 0) {
-      blocks.push(currentBlock);
-      currentBlock = {
-        type: blockType.type,
-        content: [line],
-        level: blockType.level || 0
-      };
-    } else {
-      currentBlock.content.push(line);
-      if (blockType.level !== undefined) {
-        currentBlock.level = blockType.level;
-      }
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  let current = null;
+  const push = () => { if (current?.content?.length) blocks.push(current); current = null; };
+
+  for (const line of lines) {
+    const t = identifyLineType(line);
+
+    // Group list items by type
+    if (["ordered-list","unordered-list","roman-list","lettered-list"].includes(t.type)) {
+      if (!current || current.type !== t.type) { push(); current = { type: t.type, content: [] }; }
+      current.content.push(line);
+      continue;
     }
+
+    // Group consecutive definitions together
+    if (t.type === "definition") {
+      if (!current || current.type !== "definition") { push(); current = { type: "definition", content: [] }; }
+      current.content.push(line);
+      continue;
+    }
+
+    // Handle markdown headers
+    if (t.type === "markdown-header") {
+      push();
+      current = { type: "markdown-header", content: [line] };
+      continue;
+    }
+
+    // New non-list/definition block resets unless paragraph continues
+    if (!current || current.type !== t.type || t.type !== "paragraph") {
+      push(); current = { type: t.type, content: [] };
+    }
+    current.content.push(line);
   }
-  
-  // Don't forget the last block
-  if (currentBlock.content.length > 0) {
-    blocks.push(currentBlock);
-  }
-  
+  push();
   return blocks;
 }
 
-/**
- * Identify what type of content a line contains
- */
-function identifyLineType(line) {
-  // Main headings (numbered sections like "1. Introduction")
-  if (/^\d+\.\s+[A-Z]/.test(line)) {
-    return { type: 'main-heading', level: 1 };
-  }
+/** Enhanced inline formatting with better cleanup */
+function formatInlineText(text) {
+  if (!text) return "";
   
-  // Sub headings (short capitalized phrases without periods)
-  if (line.length < 80 && 
-      /^[A-Z][A-Za-z\s]+$/.test(line) && 
-      !line.endsWith('.') &&
-      !/\b(the|and|or|of|in|on|at|to|for|with|by)\b/i.test(line.toLowerCase())) {
-    return { type: 'sub-heading', level: 2 };
-  }
+  // Clean the text first
+  let cleaned = text.replace(/^["'\s]*|["'\s]*$/g, '').trim();
   
-  // Numbered lists
-  if (/^\d+\.\s+/.test(line)) {
-    return { type: 'ordered-list' };
-  }
+  // Remove any remaining CSS class artifacts
+  cleaned = cleaned.replace(/"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*">/g, '');
   
-  // Bullet points
-  if (/^[•\-*]\s+/.test(line)) {
-    return { type: 'unordered-list' };
-  }
+  let out = escapeHtml(cleaned);
+
+  const strongOpen = `<strong class="font-semibold text-gray-900 dark:text-gray-100">`;
+  const emOpen = `<em class="italic text-gray-800 dark:text-gray-200">`;
+  const codeOpen = `<code class="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-sm font-mono">`;
+
+  // **bold** / __bold__
+  out = out
+    .replace(/(?<!\*)\*\*([\s\S]+?)\*\*(?!\*)/g, `${strongOpen}$1</strong>`)
+    .replace(/__([^_]+?)__/g, `${strongOpen}$1</strong>`);
   
-  // Lettered lists (a., b., c.)
-  if (/^[a-z]\.\s+/i.test(line)) {
-    return { type: 'lettered-list' };
-  }
+  // *italic* / _italic_
+  out = out
+    .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, `${emOpen}$1</em>`)
+    .replace(/(?<!_)_([^_]+?)_(?!_)/g, `${emOpen}$1</em>`);
   
-  // Roman numerals
-  if (/^[ivx]+\.\s+/i.test(line)) {
-    return { type: 'roman-list' };
-  }
+  // `code`
+  out = out.replace(/`([^`]+?)`/g, `${codeOpen}$1</code>`);
   
-  // Definition-like patterns
-  if (/^[A-Z][a-zA-Z\s]+:\s+/.test(line)) {
-    return { type: 'definition' };
-  }
+  // "quoted" highlight (optional)
+  out = out.replace(/"([^"]+)"/g, `<span class="font-medium text-blue-700 dark:text-blue-300">"$1"</span>`);
   
-  // Regular paragraph
-  return { type: 'paragraph' };
+  // (1) parentheticals accented
+  out = out.replace(/\((\d+)\)/g, `<span class="font-medium text-blue-600 dark:text-blue-400">($1)</span>`);
+
+  return out.replace(/\s{2,}/g, " ").trim();
 }
 
-/**
- * Format a content block based on its type
- */
-function formatContentBlock(block) {
-  switch (block.type) {
-    case 'main-heading':
-      return formatMainHeading(block.content.join(' '));
-      
-    case 'sub-heading':
-      return formatSubHeading(block.content.join(' '));
-      
-    case 'ordered-list':
-      return formatOrderedList(block.content);
-      
-    case 'unordered-list':
-      return formatUnorderedList(block.content);
-      
-    case 'lettered-list':
-      return formatLetteredList(block.content);
-      
-    case 'roman-list':
-      return formatRomanList(block.content);
-      
-    case 'definition':
-      return formatDefinitions(block.content);
-      
-    case 'paragraph':
-    default:
-      return formatParagraphs(block.content);
+function stripPrefix(line, re) { return line.replace(re, "").trim(); }
+
+/** Enhanced heading formatters */
+function formatMarkdownHeader(text) {
+  const match = text.match(/^(#{1,6})\s+(.+)$/);
+  if (!match) return formatMainHeading(text);
+  
+  const level = match[1].length;
+  const content = formatInlineText(match[2]);
+  
+  if (level === 1) {
+    return `<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-6 pb-3 border-b-2 border-gray-300 dark:border-gray-600">${content}</h1>`;
+  } else if (level === 2) {
+    return `<h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">${content}</h2>`;
+  } else if (level === 3) {
+    return `<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-6 mb-3">${content}</h3>`;
+  } else {
+    return `<h4 class="text-base font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">${content}</h4>`;
   }
 }
 
-/**
- * Format main headings
- */
 function formatMainHeading(text) {
-  const cleanText = formatInlineText(text);
-  return `<h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 first:mt-0">${cleanText}</h2>`;
+  const t = formatInlineText(text.replace(/^\s*\d+\.\s+/, ""));
+  return `<h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">${t}</h2>`;
 }
 
-/**
- * Format sub headings
- */
 function formatSubHeading(text) {
-  const cleanText = formatInlineText(text);
-  return `<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-6 mb-3 first:mt-0">${cleanText}</h3>`;
+  const t = formatInlineText(text.replace(/[:：]\s*$/, ""));
+  return `<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-6 mb-3">${t}</h3>`;
 }
 
-/**
- * Format ordered lists
- */
+/** List formatters */
 function formatOrderedList(items) {
-  const listItems = items.map(item => {
-    // Remove the number prefix and format the content
-    const content = item.replace(/^\d+\.\s*/, '');
-    return `<li class="mb-2 leading-relaxed">${formatInlineText(content)}</li>`;
-  }).join('\n');
-  
-  return `<ol class="list-decimal list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300">\n${listItems}\n</ol>`;
+  const lis = items.map(l => `<li class="mb-2 leading-relaxed">${formatInlineText(stripPrefix(l, /^\s*\d+[.)]\s+/))}</li>`).join("\n");
+  return `<ol class="list-decimal list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300">\n${lis}\n</ol>`;
 }
 
-/**
- * Format unordered lists
- */
 function formatUnorderedList(items) {
-  const listItems = items.map(item => {
-    // Remove the bullet prefix and format the content
-    const content = item.replace(/^[•\-*]\s*/, '');
-    return `<li class="mb-2 leading-relaxed">${formatInlineText(content)}</li>`;
-  }).join('\n');
-  
-  return `<ul class="list-disc list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300">\n${listItems}\n</ul>`;
+  const lis = items.map(l => `<li class="mb-2 leading-relaxed">${formatInlineText(stripPrefix(l, /^\s*[•\-\*\u2013\u2014]\s+/))}</li>`).join("\n");
+  return `<ul class="list-disc list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300">\n${lis}\n</ul>`;
 }
 
-/**
- * Format lettered lists
- */
 function formatLetteredList(items) {
-  const listItems = items.map(item => {
-    const content = item.replace(/^[a-z]\.\s*/i, '');
-    return `<li class="mb-2 leading-relaxed">${formatInlineText(content)}</li>`;
-  }).join('\n');
-  
-  return `<ol class="list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300" style="list-style-type: lower-alpha;">\n${listItems}\n</ol>`;
+  const lis = items.map(l => `<li class="mb-2 leading-relaxed">${formatInlineText(stripPrefix(l, /^\s*[a-z]\.\s+/i))}</li>`).join("\n");
+  return `<ol class="list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300" style="list-style-type: lower-alpha;">\n${lis}\n</ol>`;
 }
 
-/**
- * Format roman numeral lists
- */
 function formatRomanList(items) {
-  const listItems = items.map(item => {
-    const content = item.replace(/^[ivx]+\.\s*/i, '');
-    return `<li class="mb-2 leading-relaxed">${formatInlineText(content)}</li>`;
-  }).join('\n');
-  
-  return `<ol class="list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300" style="list-style-type: lower-roman;">\n${listItems}\n</ol>`;
+  const lis = items.map(l => `<li class="mb-2 leading-relaxed">${formatInlineText(stripPrefix(l, /^\s*[ivxlcdm]+\.\s+/i))}</li>`).join("\n");
+  return `<ol class="list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300" style="list-style-type: lower-roman;">\n${lis}\n</ol>`;
 }
 
-/**
- * Format definition-style content
- */
-function formatDefinitions(items) {
-  return items.map(item => {
-    const [term, ...definition] = item.split(':');
-    if (definition.length > 0) {
-      return `<div class="mb-4">
-        <dt class="font-semibold text-gray-900 dark:text-gray-100 mb-1">${formatInlineText(term.trim())}:</dt>
-        <dd class="text-gray-700 dark:text-gray-300 ml-4 leading-relaxed">${formatInlineText(definition.join(':').trim())}</dd>
-      </div>`;
-    } else {
-      return `<p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">${formatInlineText(item)}</p>`;
-    }
-  }).join('\n');
-}
-
-/**
- * Format regular paragraphs
- */
-function formatParagraphs(lines) {
-  // Join lines that belong to the same paragraph
-  const paragraphText = lines.join(' ');
-  
-  // Split into sentences for better formatting
-  const sentences = paragraphText.split(/(?<=[.!?])\s+/).filter(s => s.trim());
-  
-  // Group sentences into paragraphs (every 3-5 sentences or logical breaks)
-  const paragraphs = [];
-  let currentParagraph = [];
-  
-  sentences.forEach((sentence, index) => {
-    currentParagraph.push(sentence);
+/** Enhanced definition parsing and formatting */
+function parseDefinitionPairs(lines) {
+  return lines.map(l => {
+    // Clean the line first
+    const cleanLine = l.replace(/^["'\s]*|["'\s]*$/g, '').trim();
     
-    // Create paragraph breaks at logical points or every 4-5 sentences
-    if (currentParagraph.length >= 4 || 
-        sentence.includes('However,') || 
-        sentence.includes('Furthermore,') ||
-        sentence.includes('In addition,') ||
-        sentence.includes('On the other hand,') ||
-        index === sentences.length - 1) {
-      paragraphs.push(currentParagraph.join(' '));
-      currentParagraph = [];
+    // Bold-first: **Term:** Explanation
+    let m = cleanLine.match(/^\s*\*\*([^*]+?)\*\*[:：]\s*(.+)$/);
+    if (m) return { term: m[1].trim(), def: m[2].trim() };
+
+    // Underscore bold: __Term__: Explanation
+    m = cleanLine.match(/^\s*__([^_]+?)__[:：]\s*(.+)$/);
+    if (m) return { term: m[1].trim(), def: m[2].trim() };
+
+    // Plain: Term: Explanation
+    m = cleanLine.match(/^\s*([^:：]+)[:：]\s*(.+)$/);
+    if (m) return { term: m[1].trim(), def: m[2].trim() };
+
+    return null;
+  }).filter(Boolean);
+}
+
+function formatDefinitions(lines) {
+  const pairs = parseDefinitionPairs(lines);
+
+  if (!pairs.length) {
+    return lines.map(l => formatParagraph(l)).join("\n");
+  }
+
+  if (PREFER_BULLETS_FOR_DEFINITIONS && pairs.length >= 2) {
+    const lis = pairs.map(({ term, def }) => {
+      const termHtml = `<strong class="font-semibold text-gray-900 dark:text-gray-100">${formatInlineText(term)}</strong>`;
+      return `<li class="mb-2 leading-relaxed">${termHtml}: ${formatInlineText(def)}</li>`;
+    }).join("\n");
+    return `<ul class="list-disc list-outside ml-6 my-4 space-y-1 text-gray-700 dark:text-gray-300">\n${lis}\n</ul>`;
+  }
+
+  const dtdd = pairs.map(({ term, def }) =>
+    `<dt class="font-semibold text-gray-900 dark:text-gray-100 mb-1">${formatInlineText(term)}</dt>\n<dd class="text-gray-700 dark:text-gray-300 ml-4 leading-relaxed">${formatInlineText(def)}</dd>`
+  ).join("\n");
+
+  return `<dl class="mb-4 space-y-2">\n${dtdd}\n</dl>`;
+}
+
+/** Paragraph formatters */
+function formatParagraph(text) {
+  const cleaned = text.replace(/^["'\s]*|["'\s]*$/g, '').trim();
+  if (!cleaned) return "";
+  return `<p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">${formatInlineText(cleaned)}</p>`;
+}
+
+function formatParagraphBlock(lines) {
+  const cleanedLines = lines.map(l => l.replace(/^["'\s]*|["'\s]*$/g, '').trim()).filter(Boolean);
+  
+  if (cleanedLines.every(l => /^\s*(\*\*[^*]+?\*\*|__[^_]+__|[^:：]+)[:：]\s+.+$/.test(l))) {
+    return formatDefinitions(cleanedLines);
+  }
+  
+  const joined = cleanedLines.join(" ");
+  const sentences = joined.split(/(?<=[.!?…])\s+/u).filter(Boolean);
+  const paras = [];
+  let cur = [];
+  
+  sentences.forEach((s, i) => {
+    cur.push(s);
+    if (cur.length >= 4 || i === sentences.length - 1) {
+      paras.push(cur.join(" "));
+      cur = [];
     }
   });
   
-  // Don't forget the last paragraph
-  if (currentParagraph.length > 0) {
-    paragraphs.push(currentParagraph.join(' '));
-  }
-  
-  return paragraphs
-    .filter(p => p.trim())
-    .map(paragraph => `<p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">${formatInlineText(paragraph.trim())}</p>`)
-    .join('\n');
+  return paras.map(p => formatParagraph(p.trim())).filter(Boolean).join("\n");
 }
 
-/**
- * Apply inline text formatting (bold, italic, etc.)
- */
-function formatInlineText(text) {
-  if (!text) return '';
+/** Enhanced HTML sanitization */
+function sanitizeHtml(html) {
+  // Remove script, style, and other dangerous tags
+  html = html.replace(/<\/?(?:script|style|iframe|object|embed|svg|math)[^>]*>/gi, "");
   
-  return text
-    // Bold text (double asterisks or underscores)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>')
-    .replace(/__([^_]+)__/g, '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>')
+  // Remove orphaned CSS class strings that appear as text content
+  html = html.replace(/>"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*"</g, "><");
+  html = html.replace(/>"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*"/g, ">");
+
+  // Clean up tags and attributes
+  html = html.replace(/<([a-z0-9]+)(\s[^>]*)?>/gi, (m, tag, attrs) => {
+    tag = tag.toLowerCase();
+    if (!ALLOWED_TAGS.has(tag)) return "";
+    if (!attrs) return `<${tag}>`;
+
+    if (OUTPUT_MODE === "tailwind") {
+      const classMatch = attrs.match(/\sclass=(?:"([^"]*)"|'([^']*)')/i);
+      const klass = classMatch ? (classMatch[1] ?? classMatch[2]) : "";
+      return klass ? `<${tag} class="${klass}">` : `<${tag}>`;
+    }
+    return `<${tag}>`;
+  });
+
+  // Clean up closing tags
+  html = html.replace(/<\/([a-z0-9]+)>/gi, (m, tag) =>
+    ALLOWED_TAGS.has(tag.toLowerCase()) ? `</${tag.toLowerCase()}>` : ""
+  );
+
+  return healOrphanedAttributes(html);
+}
+
+/** Enhanced orphaned attribute healing */
+function healOrphanedAttributes(html) {
+  // Remove orphaned attribute values and CSS class strings
+  html = html
+    // Remove standalone quoted strings that look like CSS classes
+    .replace(/(?<![=\w])"[\w\s-]*(?:font-|text-|bg-|border-|dark:|hover:)[\w\s-]*"(?!\w)/g, "")
+    // Remove orphaned attribute values right before a tag close
+    .replace(/(?<![a-zA-Z0-9_:-]+=)"[^"]*"\s*>/g, ">")
+    // Remove orphaned attribute values followed by text
+    .replace(/(?<![a-zA-Z0-9_:-]+=)"[^"]*"\s+(?=[^\s<])/g, "")
+    // Clean up extra spaces
+    .replace(/\s{2,}/g, " ")
+    .replace(/>\s+</g, "><");
     
-    // Italic text (single asterisks or underscores)
-    .replace(/\*([^*]+)\*/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>')
-    .replace(/_([^_]+)_/g, '<em class="italic text-gray-800 dark:text-gray-200">$1</em>')
-    
-    // Quoted text
-    .replace(/"([^"]+)"/g, '<span class="font-medium text-blue-700 dark:text-blue-300">"$1"</span>')
-    
-    // Technical terms or code-like text (text in backticks)
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-sm font-mono">$1</code>')
-    
-    // Numbers at the start of lines (for emphasis)
-    .replace(/^(\d+):\s*/gm, '<span class="font-semibold text-gray-900 dark:text-gray-100">$1:</span> ')
-    
-    // Parenthetical numbers like (1), (2), etc.
-    .replace(/\((\d+)\)/g, '<span class="font-medium text-blue-600 dark:text-blue-400">($1)</span>')
-    
-    // Clean up any double spaces
-    .replace(/\s{2,}/g, ' ')
+  return html;
+}
+
+/** Main formatting function */
+export function formatSummaryText(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  
+  // Pre-process to fix common issues
+  const preprocessed = preprocessText(raw);
+  const cleaned = normalizeWhitespace(preprocessed);
+  const blocks = parseContentBlocks(cleaned);
+
+  const html = blocks.map(b => {
+    switch (b.type) {
+      case "markdown-header":  return formatMarkdownHeader(b.content.join(" "));
+      case "main-heading":     return formatMainHeading(b.content.join(" "));
+      case "sub-heading":      return formatSubHeading(b.content.join(" "));
+      case "ordered-list":     return formatOrderedList(b.content);
+      case "unordered-list":   return formatUnorderedList(b.content);
+      case "lettered-list":    return formatLetteredList(b.content);
+      case "roman-list":       return formatRomanList(b.content);
+      case "definition":       return formatDefinitions(b.content);
+      case "paragraph":
+      default:                 return formatParagraphBlock(b.content);
+    }
+  }).filter(Boolean).join("\n\n");
+
+  return sanitizeHtml(html)
+    .replace(/>\s+\n</g, ">\n<")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/**
- * Enhanced formatter that ensures all content is properly structured
- * This is the main export that replaces ensureFormattingConsistency
- */
-export function ensureFormattingConsistency(html) {
-  if (!html || !html.includes('<')) {
-    // If no HTML formatting exists, treat as plain text and format
-    return formatSummaryText(html);
+/** Enhanced consistency checking */
+export function ensureFormattingConsistency(htmlOrText) {
+  if (!htmlOrText || typeof htmlOrText !== "string") return "";
+  
+  if (!htmlOrText.includes("<")) {
+    return formatSummaryText(htmlOrText);
   }
-
-  // Clean up spacing between elements
-  return html
-    .replace(/>\s*\n\s*</g, '>\n<') // Clean up whitespace between tags
-    .replace(/(<\/(?:h[1-6]|p|ul|ol|div)>)\s*(<(?:h[1-6]|p|ul|ol|div))/g, '$1\n\n$2') // Add spacing between major elements
-    .replace(/^\s+|\s+$/gm, '') // Trim lines
-    .replace(/\n{3,}/g, '\n\n') // Max 2 consecutive line breaks
-    .trim();
+  
+  return sanitizeHtml(
+    htmlOrText
+      .replace(/>\s*\n\s*</g, ">\n<")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
-/**
- * Utility function to detect if content needs reformatting
- */
 export function shouldReformat(text) {
   if (!text) return false;
-  
-  // Check for common AI formatting patterns that need cleanup
-  const needsFormatting = [
-    /\*\*\*/, // Triple asterisks
-    /\d+\)[^\s]/, // Numbers without proper spacing
-    /[•·▪▫]/, // Various bullet characters
-    /[A-Z][a-z]+[A-Z]/, // CamelCase that should be separated
-    /\s{3,}/, // Multiple consecutive spaces
-  ];
-  
-  return needsFormatting.some(pattern => pattern.test(text));
+  return [
+    /\*\*\*/, 
+    /\d+\)[^\s]/, 
+    /[•·▪▫]/, 
+    /\s{3,}/, 
+    /__[^_]+__/,
+    /"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*">/,  // CSS class leakage
+    /\*\*#{1,6}/,  // Mixed markdown headers
+  ].some(p => p.test(text));
 }
