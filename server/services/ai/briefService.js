@@ -141,6 +141,10 @@ function getEnhancedBriefPrompt(language, combinedText) {
   const { targetWordsPerPage, minWordsPerPage } = GENERATION_CONFIG.brief;
   const pageCount = (combinedText.match(/=== PAGE \d+ ===/g) || []).length || 1;
 
+  // Override with longer word counts
+  const minWords = 300;
+  const targetWords = 500;
+
   const languageInstructions = language === "Georgian" ? 
     `
 CRITICAL LANGUAGE REQUIREMENT - GEORGIAN OUTPUT:
@@ -163,7 +167,7 @@ CRITICAL LANGUAGE REQUIREMENT - ENGLISH OUTPUT:
 
   return `
 SYSTEM ROLE:
-You are a brief generation AI that produces ONLY valid JSON with educational summaries. You must follow language requirements EXACTLY.
+You are a brief generation AI that produces ONLY valid JSON with comprehensive educational summaries. You must follow language requirements EXACTLY.
 
 ${languageInstructions}
 
@@ -181,33 +185,54 @@ Return EXACTLY this JSON structure:
     {
       "pageNumber": 1,
       "title": "Specific topic title in ${language} only",
-      "summary": "## Main Section\\n\\nDetailed educational content in ${language}..."
+      "summary": "## Main Section\\n\\nDetailed educational content in ${language}...\\n\\n### Subsection 1\\n\\nDetailed explanation...\\n\\n### Subsection 2\\n\\nMore comprehensive content..."
     }
   ]
 }
 
 CONTENT REQUIREMENTS:
 - Generate exactly ${pageCount} page summaries
-- Each summary: ${minWordsPerPage}-${targetWordsPerPage} words in ${language}
-- Use Markdown formatting within summary strings
-- Educational focus: explain concepts, provide examples, show applications
+- Each summary: ${minWords}-${targetWords} words in ${language} (MANDATORY MINIMUM: ${minWords} words)
+- Use extensive Markdown formatting within summary strings (##, ###, **bold**, *italic*, lists, etc.)
+- Educational focus with deep explanations: 
+  * Explain core concepts thoroughly
+  * Provide multiple relevant examples
+  * Show practical applications and use cases
+  * Include context and background information
+  * Add detailed analysis and insights
+- Break content into multiple subsections using ### headers
+- Include bullet points or numbered lists where appropriate
 - Titles must be specific and descriptive (not generic like "Page 1" or "Content")
+- Aim for comprehensive coverage that fully explores the topic
+
+CONTENT EXPANSION STRATEGIES:
+- Add background context and historical perspective
+- Include step-by-step explanations
+- Provide multiple examples and case studies
+- Explain implications and consequences
+- Add comparative analysis
+- Include practical tips and recommendations
+- Elaborate on key terms and concepts
+- Connect ideas to broader themes
 
 ABSOLUTELY FORBIDDEN IN OUTPUT:
 - HTML tags or CSS classes
 - Mixed languages (stick to ${language} only)
 - Code fences outside JSON structure
 - Administrative/meta content
+- Summaries shorter than ${minWords} words
 
 FINAL VERIFICATION:
-After generating, scan your entire response for forbidden characters. If found, regenerate the affected sections in correct language.
+After generating, scan your entire response for:
+1. Forbidden characters (regenerate if found)
+2. Word count compliance (each summary must be ${minWords}-${targetWords} words)
+3. Proper JSON structure and Markdown formatting
 
 SOURCE CONTENT:
 ${combinedText}
 
-Generate the brief in ${language} only:`;
+Generate the comprehensive brief in ${language} only with ${minWords}-${targetWords} words per page summary:`;
 }
-
 /**
  * Processes AI response with language validation and retry logic
  * @param {string} responseText - Raw AI response
@@ -363,68 +388,68 @@ function generateLanguageCorrectTitle(originalTitle, language, pageNumber) {
  * @returns {string} Language-correct summary
  */
 function generateLanguageCorrectSummary(originalSummary, pageText, language, pageNumber) {
-  const { minWordsPerPage } = GENERATION_CONFIG.brief;
+  const { minWordsPerPage, maxWordsPerPage } = GENERATION_CONFIG.brief;
   
   if (language === "Georgian") {
-    return `## განმარტება
+    return `შექმენი განმარტება ზუსტად ${minWordsPerPage}-${maxWordsPerPage} სიტყვით. აუცილებელია დაიცვა ეს სიტყვების რაოდენობა.
 
-ეს მასალა შეიცავს მნიშვნელოვან საგანმანათლებლო ინფორმაციას, რომელიც სტუდენტებისთვის საჭიროა ღრმა ცოდნის შესაძენად. 
+## განმარტება - გვერდი ${pageNumber}
 
-## ძირითადი კონცეფციები
+მოცემული მასალიდან გამომდინარე, შექმენი სრული და ღია განმარტება, რომელიც:
 
-წარმოდგენილი თემები მოიცავს ფუნდამენტურ პრინციპებს, რომლებიც აუცილებელია შემდგომი სწავლისთვის. სტუდენტებმა უნდა გაიგონ და გააანალიზონ თითოეული კონცეფცია.
+**სავალდებულო მოთხოვნები:**
+- შედგება ზუსტად ${minWordsPerPage}-${maxWordsPerPage} სიტყვისგან
+- მოიცავს ძირითად კონცეფციებს
+- ხსნის პრაქტიკულ გამოყენებას
+- იძლევა სასწავლო რეკომენდაციებს
 
-## პრაქტიკული გამოყენება
+**შინაარსობრივი სტრუქტურა:**
+1. ძირითადი თემების წარდგენა
+2. კლუჩური კონცეფციების ახსნა
+3. პრაქტიკული მნიშვნელობის განხილვა
+4. სწავლის სტრატეგიების რეკომენდაცია
 
-ამ ცოდნის პრაქტიკაში გამოყენება შესაძლებელია:
-- რეალური პრობლემების გადაჭრისას
-- კრიტიკული აზროვნების განვითარებისას  
-- ანალიტიკური უნარების გაძლიერებისას
+**ტონი და სტილი:**
+- აკადემიური, მაგრამ გასაგები
+- ლოგიკური თანმიმდევრობა
+- კონკრეტული და პრაქტიკული
+- სტუდენტებისთვის მოტივირებული
 
-## რეკომენდაციები
-
-ეფექტური სწავლისთვის რეკომენდებულია:
-- მასალის რამდენჯერმე გადახედვა
-- კონცეფციების რუკების შექმნა
-- პრაქტიკული ვარჯიშების შესრულება
-- თანაკურსდელებთან განხილვა
-
-ეს მასალა მოითხოვს აქტიურ ჩართულობას და კრიტიკულ აზროვნებას ღრმა გაგების მისაღწევად.`;
+მნიშვნელოვანია: გამოყენე ზუსტად ${minWordsPerPage}-${maxWordsPerPage} სიტყვა. არ გამოტოვო არცერთი მოთხოვნა.`;
   } else {
-    return `## Overview
+    return `Create a summary using exactly ${minWordsPerPage}-${maxWordsPerPage} words. Strict adherence to this word count is mandatory.
 
-This content presents essential educational material that students need to develop comprehensive understanding of key concepts and principles.
+## Educational Summary - Page ${pageNumber}
 
-## Core Concepts
+Based on the provided material, create a comprehensive and clear summary that:
 
-The material covers fundamental principles that form the foundation for advanced learning. Students should carefully analyze each concept and understand the relationships between different ideas.
+**Mandatory Requirements:**
+- Contains exactly ${minWordsPerPage}-${maxWordsPerPage} words
+- Covers core concepts and principles
+- Explains practical applications
+- Provides study recommendations
 
-## Key Learning Points
+**Content Structure:**
+1. Introduction to main topics
+2. Explanation of key concepts
+3. Discussion of practical significance
+4. Learning strategy recommendations
 
-Important aspects include:
-- Theoretical foundations and their applications
-- Critical analysis techniques and methodologies
-- Problem-solving approaches and strategies
+**Tone and Style:**
+- Academic yet accessible
+- Logically structured
+- Concrete and practical
+- Motivating for students
 
-## Practical Applications
+**Quality Standards:**
+- Clear and concise explanations
+- Relevant examples where appropriate
+- Actionable learning advice
+- Engaging educational content
 
-Students can apply this knowledge through:
-- Analysis of real-world scenarios
-- Development of analytical thinking skills
-- Implementation of learned principles in practice
-
-## Study Recommendations
-
-For effective learning, students should:
-- Review the material multiple times for retention
-- Create concept maps and summaries
-- Practice applying concepts through exercises
-- Engage in discussions with peers
-
-This material requires active engagement and critical thinking to achieve deep understanding and long-term retention.`;
+Important: Use exactly ${minWordsPerPage}-${maxWordsPerPage} words. Do not exceed or fall short of this range. Every word must add value to student understanding.`;
   }
 }
-
 /**
  * Generates a multi-page brief using parallel batch processing with enhanced language control
  * @param {Array<string>} allPages - Array of page texts

@@ -14,7 +14,7 @@ export const posthog = new PostHog(
 );
 
 export const geminiAI = new GoogleGenAI({
-  apiKey: "AIzaSyClGRl_js0aJwjvebgJC3NTsU36ckbIovA",
+  apiKey: process.env.GEMINI_API_KEY,
   posthog: posthog,
 });
 
