@@ -456,6 +456,10 @@ Important: Use exactly ${minWordsPerPage}-${maxWordsPerPage} words. Do not excee
  * @returns {Promise<Object>} Brief with page summaries in correct language
  */
 export async function generateMultiPageBrief(allPages) {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY
+
+  if(!GEMINI_KEY) throw new Error("Gemini key is not provided");
+
   debugAI('Gemini', 'generateMultiPageBrief', { pageCount: allPages.length });
 
   const expectedPageCount = allPages.length;

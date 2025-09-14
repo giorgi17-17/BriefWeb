@@ -85,7 +85,7 @@ export async function processBrief(userId, lectureId, fileId) {
     console.log("Successfully extracted text, generating brief...");
 
     // Use generateMultiPageBrief for single page processing
-    const result = await generateMultiPageBrief([extractedText]);
+    const result = await generateMultiPageBrief(extractedText);
 
     // Return the first (and only) summary in the expected format
     if (
