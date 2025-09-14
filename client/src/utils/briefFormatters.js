@@ -153,11 +153,15 @@ function parseContentBlocks(text) {
 function formatInlineText(text) {
   if (!text) return "";
   
-  // Clean the text first
+  // Clean the text first - REMOVE ">" SYMBOLS BEFORE HTML ESCAPING
   let cleaned = text.replace(/^["'\s]*|["'\s]*$/g, '').trim();
   
   // Remove any remaining CSS class artifacts
   cleaned = cleaned.replace(/"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*">/g, '');
+  
+  // CRITICAL: Remove ">" symbols BEFORE HTML escaping to prevent &gt; encoding
+  cleaned = cleaned.replace(/>\s*/g, '');
+  cleaned = cleaned.replace(/\s*>/g, '');
   
   let out = escapeHtml(cleaned);
 
@@ -417,5 +421,7 @@ export function shouldReformat(text) {
     /__[^_]+__/,
     /"[\w\s-]*(?:font-|text-|bg-|border-|dark:)[\w\s-]*">/,  // CSS class leakage
     /\*\*#{1,6}/,  // Mixed markdown headers
+    /\*\*\s*>/,    // Quote markers after bold formatting
+    /^\s*>/m,      // Lines starting with quote markers
   ].some(p => p.test(text));
 }

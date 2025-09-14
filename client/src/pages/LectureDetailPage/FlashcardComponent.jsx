@@ -365,28 +365,26 @@ const FlashcardComponent = ({
   }
 
   return (
-    <div className="flex flex-col items-center w-full max-w-3xl mx-auto">
-      {/* Set deletion confirmation */}
+    <div className="relative flex flex-col items-center w-full mx-auto max-w-3xl px-3 sm:px-4 md:px-6 pb-20 md:pb-8">
+      {/* Deletion confirmation (overlay stays fixed, everything else is normal flow) */}
       {deleteConfirmation && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1a1a22] rounded-lg shadow-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4 theme-text-primary">
-              {t("lectures.lectureDetails.flashcards.deleteConfirmTitle", {
-                name: deleteConfirmation.name,
-              })}
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1a1a22] rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-md">
+            <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 theme-text-primary">
+              {t("lectures.lectureDetails.flashcards.deleteConfirmTitle", { name: deleteConfirmation.name })}
             </h3>
-            <p className="mb-6 theme-text-secondary">
+            <p className="mb-4 sm:mb-6 theme-text-secondary text-sm sm:text-base">
               {t("lectures.lectureDetails.flashcards.deleteConfirmMessage")}
             </p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-2 sm:gap-3">
               <button
-                className="px-4 py-2 theme-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                className="px-3 sm:px-4 py-2 theme-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-sm sm:text-base"
                 onClick={cancelDelete}
               >
                 {t("common.cancel")}
               </button>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm sm:text-base"
                 onClick={confirmDelete}
               >
                 {t("common.delete")}
@@ -396,148 +394,154 @@ const FlashcardComponent = ({
         </div>
       )}
 
-      {/* Dropdown for Flashcard Sets */}
+      {/* Header: Dropdown + (mobile-only) Card Count to the right */}
       {flashcardSets.length > 0 && (
-        <div className="mb-6 w-full">
-          <h3 className="text-lg font-semibold mb-2 theme-text-primary">
-            {t("lectures.lectureDetails.flashcards.setsCount", {
-              count: flashcardSets.length,
-            })}
-          </h3>
-          <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center justify-between w-full px-4 py-2 theme-border rounded-lg text-sm theme-text-primary bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          >
-            <span>
-              {currentSet.isUploaded === false && (
-                <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                  {t("lectures.lectureDetails.flashcards.pending")}
-                </span>
-              )}
-              {flashcardSets[activeSetIndex]?.name ||
-                t("lectures.lectureDetails.flashcards.selectSet")}
-            </span>
-            {dropdownOpen ? (
-              <ChevronUp className="w-5 h-5" />
-            ) : (
-              <ChevronDown className="w-5 h-5" />
-            )}
-          </button>
-          <div
-            className={`transition-all duration-300 overflow-hidden ${
-              dropdownOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-            }`}
-          >
-            <div className="mt-1 border theme-border rounded-lg divide-y theme-divide overflow-y-auto max-h-60">
-              {flashcardSets.map((set, index) => (
-                <div
-                  key={set.id}
-                  className={`flex items-center justify-between p-3 cursor-pointer ${
-                    activeSetIndex === index
-                      ? "bg-blue-50 dark:bg-blue-900/30"
-                      : "hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
-                  }`}
-                  onClick={() => handleSetChange(index)}
-                >
-                  <div className="flex items-center">
-                    {/* Show edit interface or set name */}
-                    {editingSetId === set.id ? (
-                      <input
-                        type="text"
-                        value={editingSetName}
-                        onChange={(e) => setEditingSetName(e.target.value)}
-                        className="px-2 py-1 theme-border rounded text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleEditSetName(set.id);
-                          } else if (e.key === "Escape") {
-                            setEditingSetId(null);
-                            setEditingSetName("");
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="flex items-center">
-                        {set.isUploaded === false && (
-                          <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                            {t("lectures.lectureDetails.flashcards.pending")}
-                          </span>
-                        )}
-                        <span className="theme-text-primary">{set.name}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Only show edit/delete buttons for uploaded sets */}
-                  {set.isUploaded !== false && (
-                    <div
-                      className="flex space-x-2 opacity-50 hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* Edit Button */}
-                      {editingSetId === set.id ? (
-                        <button
-                          className="text-blue-600 dark:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                          onClick={() => handleEditSetName(set.id)}
-                        >
-                          {t("common.save")}
-                        </button>
-                      ) : (
-                        <button
-                          className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSetId(set.id);
-                            setEditingSetName(set.name);
-                          }}
-                          title={t(
-                            "lectures.lectureDetails.flashcards.editSetTitle"
-                          )}
-                        >
-                          <FiEdit2 className="w-4 h-4 theme-text-primary" />
-                        </button>
-                      )}
-
-                      {/* Delete Button */}
-                      <button
-                        className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          initiateDelete(set.id, set.name);
-                        }}
-                        title={t(
-                          "lectures.lectureDetails.flashcards.deleteSetTitle"
-                        )}
-                      >
-                        <FiTrash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    </div>
+        <div className="mb-4 sm:mb-6 w-full">
+          <div className="flex items-center gap-2 justify-between md:justify-start">
+            <div className="flex-1">
+              <h3 className="text-base sm:text-lg font-semibold mb-2 theme-text-primary">
+                {t("lectures.lectureDetails.flashcards.setsCount", { count: flashcardSets.length })}
+              </h3>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center justify-between w-full px-3 sm:px-4 py-2 theme-border rounded-lg text-sm theme-text-primary
+                         bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a]
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <span className="truncate">
+                  {currentSet.isUploaded === false && (
+                    <span className="inline-block mr-2 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
+                      {t("lectures.lectureDetails.flashcards.pending")}
+                    </span>
                   )}
+                  {flashcardSets[activeSetIndex]?.name ||
+                    t("lectures.lectureDetails.flashcards.selectSet")}
+                </span>
+                {dropdownOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
+
+              <div
+                className={`transition-all duration-300 overflow-hidden ${dropdownOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                  }`}
+              >
+                <div className="mt-1 border theme-border rounded-lg divide-y theme-divide overflow-y-auto max-h-60">
+                  {flashcardSets.map((set, index) => (
+                    <div
+                      key={set.id}
+                      className={`flex items-center justify-between p-3 cursor-pointer ${activeSetIndex === index
+                        ? "bg-blue-50 dark:bg-blue-900/30"
+                        : "hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
+                        }`}
+                      onClick={() => handleSetChange(index)}
+                    >
+                      <div className="flex items-center min-w-0">
+                        {editingSetId === set.id ? (
+                          <input
+                            type="text"
+                            value={editingSetName}
+                            onChange={(e) => setEditingSetName(e.target.value)}
+                            className="px-2 py-1 theme-border rounded text-sm w-44 sm:w-56"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleEditSetName(set.id);
+                              else if (e.key === "Escape") {
+                                setEditingSetId(null);
+                                setEditingSetName("");
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 min-w-0">
+                            {set.isUploaded === false && (
+                              <span className="inline-block px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded shrink-0">
+                                {t("lectures.lectureDetails.flashcards.pending")}
+                              </span>
+                            )}
+                            <span className="theme-text-primary truncate">{set.name}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {set.isUploaded !== false && (
+                        <div
+                          className="flex gap-2 opacity-60 hover:opacity-100 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {editingSetId === set.id ? (
+                            <button
+                              className="text-blue-600 dark:text-blue-400 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-sm"
+                              onClick={() => handleEditSetName(set.id)}
+                            >
+                              {t("common.save")}
+                            </button>
+                          ) : (
+                            <button
+                              className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingSetId(set.id);
+                                setEditingSetName(set.name);
+                              }}
+                              title={t("lectures.lectureDetails.flashcards.editSetTitle")}
+                            >
+                              <FiEdit2 className="w-4 h-4 theme-text-primary" />
+                            </button>
+                          )}
+                          <button
+                            className="p-1 rounded hover:bg-[#f5f7ff] dark:hover:bg-[#2a2a3a]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              initiateDelete(set.id, set.name);
+                            }}
+                            title={t("lectures.lectureDetails.flashcards.deleteSetTitle")}
+                          >
+                            <FiTrash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* MOBILE-ONLY card count beside dropdown */}
+            <div className="md:hidden shrink-0 ml-2 self-start mt-8">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium theme-text-secondary bg-gray-100 dark:bg-gray-800">
+                {t("lectures.lectureDetails.flashcards.cardCount", {
+                  current: activeCardIndex + 1,
+                  total: currentSet.cards.length,
+                })}
+                {currentSet.isUploaded === false &&
+                  ` (${t("lectures.lectureDetails.flashcards.pendingStatus")})`}
+              </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Flashcard Display */}
-      <div className="w-full max-w-md md:max-w-lg lg:max-w-xl mx-auto">
+      {/* Flashcard Display (kept in normal flow; only inner faces use absolute for flip) */}
+      <div className="w-full">
         <div
-          className={`relative w-full h-auto aspect-[4/3] min-h-[24rem] flashcard-display ${
-            isFlipped ? "is-flipped" : ""
-          }`}
+          className={[
+            "relative w-full mx-auto",
+            "aspect-[3/4] sm:aspect-[4/3]",
+            "min-h-[22rem] sm:min-h-[24rem]",
+            "flashcard-display",
+            isFlipped ? "is-flipped" : "",
+          ].join(" ")}
+          style={{ perspective: "1200px" }}
         >
-          {/* Show pending notice for un-uploaded sets */}
+          {/* Pending notice */}
           {currentSet.isUploaded === false && (
-            <div className="absolute top-0 left-0 right-0 z-20 bg-blue-500 text-white text-center text-sm py-1 rounded-t-lg">
+            <div className="rounded-t-lg bg-blue-500 text-white text-center text-xs sm:text-sm py-1">
               {t("lectures.lectureDetails.flashcards.pendingNotice")}
             </div>
           )}
 
           <div
-            className="w-full h-full transition-transform duration-700 preserve-3d"
+            className="w-full h-full transition-transform duration-700"
             style={{
               transformStyle: "preserve-3d",
               transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
@@ -545,45 +549,46 @@ const FlashcardComponent = ({
           >
             {/* Question Side */}
             <div
-              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-3 theme-border overflow-hidden backface-hidden"
+              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-2 sm:p-3 md:p-4 theme-border overflow-hidden"
+              style={{ backfaceVisibility: "hidden" }}
               onClick={() => setIsFlipped(true)}
             >
-              <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
+              <div className="self-end text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                 {t("lectures.lectureDetails.flashcards.questionSide")}
               </div>
-              <div className="flex items-center justify-center flex-grow p-2">
+              <div className="flex items-center justify-center flex-grow p-1 sm:p-2">
                 <div className="w-full h-full flex items-center justify-center">
-                  <div className="max-h-[22rem] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                    <h3 className="text-xl font-semibold theme-text-primary text-center">
+                  <div className="max-h-[60vh] sm:max-h-[22rem] overflow-y-auto p-3 sm:p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold theme-text-primary text-center leading-snug">
                       {currentCard.question}
                     </h3>
                   </div>
                 </div>
               </div>
-              <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
+              <div className="text-center p-1.5 sm:p-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
                 {t("lectures.lectureDetails.flashcards.clickForAnswer")}
               </div>
             </div>
 
             {/* Answer Side */}
             <div
-              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-3 theme-border overflow-hidden backface-hidden"
-              style={{ transform: "rotateY(180deg)" }}
+              className="absolute inset-0 w-full h-full bg-white dark:bg-[#1a1a22] rounded-xl shadow-xl flex flex-col p-2 sm:p-3 md:p-4 theme-border overflow-hidden"
+              style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
               onClick={() => setIsFlipped(false)}
             >
-              <div className="absolute top-2 right-3 text-xs text-gray-500 dark:text-gray-400">
+              <div className="self-end text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                 {t("lectures.lectureDetails.flashcards.answerSide")}
               </div>
-              <div className="flex items-center justify-center flex-grow p-2">
+              <div className="flex items-center justify-center flex-grow p-1 sm:p-2">
                 <div className="w-full h-full flex items-center justify-center">
-                  <div className="max-h-[22rem] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                    <p className="text-base theme-text-primary whitespace-pre-line">
+                  <div className="max-h-[60vh] sm:max-h-[22rem] overflow-y-auto p-3 sm:p-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                    <p className="text-sm sm:text-base theme-text-primary whitespace-pre-line leading-relaxed">
                       {currentCard.answer}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="text-center p-2 text-sm text-blue-600 dark:text-blue-400">
+              <div className="text-center p-1.5 sm:p-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400">
                 {t("lectures.lectureDetails.flashcards.clickForQuestion")}
               </div>
             </div>
@@ -591,34 +596,38 @@ const FlashcardComponent = ({
         </div>
       </div>
 
-      <div className="flex space-x-4 mt-6">
-        <button
-          onClick={() => {
-            setIsFlipped(false);
-            setActiveCardIndex(
-              (prevIndex) =>
-                (prevIndex - 1 + currentSet.cards.length) %
-                currentSet.cards.length
-            );
-          }}
-          className="px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] theme-text-primary rounded theme-border transition-colors"
-        >
-          {t("lectures.lectureDetails.flashcards.previous")}
-        </button>
-        <button
-          onClick={() => {
-            setIsFlipped(false);
-            setActiveCardIndex(
-              (prevIndex) => (prevIndex + 1) % currentSet.cards.length
-            );
-          }}
-          className="px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35] hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a] theme-text-primary rounded theme-border transition-colors"
-        >
-          {t("lectures.lectureDetails.flashcards.next")}
-        </button>
+      {/* Prev / Next (normal flow, no fixed) */}
+      <div className="w-full max-w-3xl">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:flex md:space-x-4 md:justify-center mt-4">
+          <button
+            onClick={() => {
+              setIsFlipped(false);
+              setActiveCardIndex(
+                (prevIndex) => (prevIndex - 1 + currentSet.cards.length) % currentSet.cards.length
+              );
+            }}
+            className="w-full md:w-auto px-3 sm:px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35]
+                     hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a]
+                     theme-text-primary rounded theme-border transition-colors text-sm sm:text-base"
+          >
+            {t("lectures.lectureDetails.flashcards.previous")}
+          </button>
+          <button
+            onClick={() => {
+              setIsFlipped(false);
+              setActiveCardIndex((prevIndex) => (prevIndex + 1) % currentSet.cards.length);
+            }}
+            className="w-full md:w-auto px-3 sm:px-4 py-2 bg-[#ebebeb] dark:bg-[#2a2a35]
+                     hover:bg-[#e0e7ff] dark:hover:bg-[#3a3a8a]
+                     theme-text-primary rounded theme-border transition-colors text-sm sm:text-base"
+          >
+            {t("lectures.lectureDetails.flashcards.next")}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4 theme-text-secondary">
+      {/* DESKTOP card count (separate spot on md+) */}
+      <div className="hidden md:block mt-4 theme-text-secondary">
         {t("lectures.lectureDetails.flashcards.cardCount", {
           current: activeCardIndex + 1,
           total: currentSet.cards.length,
@@ -628,12 +637,13 @@ const FlashcardComponent = ({
       </div>
 
       {uploadError && (
-        <div className="mt-4 text-red-500 bg-red-500/10 px-4 py-2 rounded-lg border border-red-500/30">
+        <div className="mt-3 sm:mt-4 text-red-500 bg-red-500/10 px-3 sm:px-4 py-2 rounded-lg border border-red-500/30 text-sm sm:text-base">
           {uploadError}
         </div>
       )}
     </div>
   );
+
 };
 
 FlashcardComponent.propTypes = {

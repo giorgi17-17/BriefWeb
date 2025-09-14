@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { ChevronLeft, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const QuizNavigation = ({
@@ -17,65 +17,80 @@ const QuizNavigation = ({
 
   if (totalQuestions === 0) return null;
 
+  const baseBtn =
+    "flex items-center justify-center rounded text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40";
+  const ghost =
+    "px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:text-gray-300 disabled:dark:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed";
+  const primary =
+    "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400 disabled:cursor-not-allowed";
+
   return (
-    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-      <button
-        onClick={() => onNavigateQuestion(-1)}
-        disabled={currentQuestionIndex === 0 || loading}
-        className={`flex items-center p-2 rounded text-sm font-medium ${
-          currentQuestionIndex === 0 || loading
-            ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-        }`}
-      >
-        <ChevronLeft className="h-4 w-4 mr-1" />
-        {t("quiz.navigation.previous")}
-      </button>
+    <div
+      className="
+        mt-6 pt-4 border-t border-gray-200 dark:border-gray-700
+        /* keep space above mobile bottom nav (edit the CSS var if needed) */
+        mb-[calc(var(--mobileBottomBar,72px)+env(safe-area-inset-bottom))]
+        sm:mb-0
+      "
+    >
+      {/* Mobile-first: wrap + reorder; Desktop: row */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+        {/* Prev */}
+        <button
+          onClick={() => onNavigateQuestion(-1)}
+          disabled={currentQuestionIndex === 0 || loading}
+          className={`${baseBtn} ${ghost} order-1`}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          {t("quiz.navigation.previous")}
+        </button>
 
-      <span className="text-sm text-gray-600 dark:text-gray-400">
-        Question {currentQuestionIndex + 1} of {totalQuestions}
-      </span>
+        {/* Counter (mobile: full width centered; desktop: inline) */}
+        <span
+          className="
+            order-3 w-full text-center text-xs text-gray-600 dark:text-gray-400
+            sm:order-2 sm:w-auto sm:text-sm
+          "
+        >
+          {t("quiz.navigation.counter", {
+            current: currentQuestionIndex + 1,
+            total: totalQuestions,
+            defaultValue: `Question ${currentQuestionIndex + 1} of ${totalQuestions}`,
+          })}
+        </span>
 
-      {showResults ? (
-        <button
-          onClick={() => onNavigateQuestion(1)}
-          disabled={currentQuestionIndex === totalQuestions - 1 || loading}
-          className={`flex items-center p-2 rounded text-sm font-medium ${
-            currentQuestionIndex === totalQuestions - 1 || loading
-              ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          }`}
-        >
-          {t("quiz.navigation.next")}
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </button>
-      ) : isLastQuestion ? (
-        <button
-          onClick={onSubmitQuiz}
-          disabled={loading || !hasAnsweredCurrent}
-          className={`flex items-center px-4 py-2 rounded text-sm font-medium ${
-            loading || !hasAnsweredCurrent
-              ? "bg-blue-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          } text-white transition-colors`}
-        >
-          {t("quiz.navigation.submit")}
-          <ArrowRight className="h-4 w-4 ml-1" />
-        </button>
-      ) : (
-        <button
-          onClick={() => onNavigateQuestion(1)}
-          disabled={currentQuestionIndex === totalQuestions - 1 || loading}
-          className={`flex items-center p-2 rounded text-sm font-medium ${
-            currentQuestionIndex === totalQuestions - 1 || loading
-              ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          }`}
-        >
-          {t("quiz.navigation.next")}
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </button>
-      )}
+        {/* Next / Submit / Results Next */}
+        {showResults ? (
+          <button
+            onClick={() => onNavigateQuestion(1)}
+            disabled={currentQuestionIndex === totalQuestions - 1 || loading}
+            className={`${baseBtn} ${ghost} order-2 sm:order-3`}
+          >
+            {t("quiz.navigation.next")}
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </button>
+        ) : isLastQuestion ? (
+          <button
+            onClick={onSubmitQuiz}
+            disabled={loading || !hasAnsweredCurrent}
+            className={`${baseBtn} ${primary}
+                        order-2 sm:order-3
+                        w-full sm:w-auto`}
+          >
+            {t("quiz.navigation.submit")}
+            <ArrowRight className="h-4 w-4 ml-1" />
+          </button>
+        ) : (
+          <button
+            onClick={() => onNavigateQuestion(1)}
+            disabled={currentQuestionIndex === totalQuestions - 1 || loading}
+            className={`${baseBtn} ${ghost} order-2 sm:order-3`}
+          >
+            {t("quiz.navigation.next")}
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
