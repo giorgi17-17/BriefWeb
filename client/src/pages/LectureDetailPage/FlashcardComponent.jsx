@@ -397,8 +397,8 @@ const FlashcardComponent = ({
       {/* Header: Dropdown + (mobile-only) Card Count to the right */}
       {flashcardSets.length > 0 && (
         <div className="mb-4 sm:mb-6 w-full">
-          <div className="flex items-center gap-2 justify-between md:justify-start">
-            <div className="flex-1">
+          <div className="flex flex-col items-center gap justify-between md:justify-start">
+            <div className="flex-1 w-full">
               <h3 className="text-base sm:text-lg font-semibold mb-2 theme-text-primary">
                 {t("lectures.lectureDetails.flashcards.setsCount", { count: flashcardSets.length })}
               </h3>
@@ -507,7 +507,7 @@ const FlashcardComponent = ({
             </div>
 
             {/* MOBILE-ONLY card count beside dropdown */}
-            <div className="md:hidden shrink-0 ml-2 self-start mt-8">
+            <div className="md:hidden shrink-0 self-start mt-8">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium theme-text-secondary bg-gray-100 dark:bg-gray-800">
                 {t("lectures.lectureDetails.flashcards.cardCount", {
                   current: activeCardIndex + 1,
