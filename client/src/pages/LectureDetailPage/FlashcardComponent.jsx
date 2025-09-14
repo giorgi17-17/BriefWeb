@@ -641,6 +641,7 @@ const FlashcardComponent = ({
           {uploadError}
         </div>
       )}
+
     </div>
   );
 };
