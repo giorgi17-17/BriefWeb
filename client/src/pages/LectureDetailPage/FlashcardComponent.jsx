@@ -643,7 +643,6 @@ const FlashcardComponent = ({
       )}
     </div>
   );
-
 };
 
 FlashcardComponent.propTypes = {
