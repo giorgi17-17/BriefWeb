@@ -456,33 +456,146 @@ Important: Use exactly ${minWordsPerPage}-${maxWordsPerPage} words. Do not excee
  * @returns {Promise<Object>} Brief with page summaries in correct language
  */
 export async function generateMultiPageBrief(allPages) {
-  const GEMINI_KEY = process.env.GEMINI_API_KEY
+  const debugStep = (step, message, data = null) => {
+    debugLog(`[STEP ${step}] ${message}`, data ? { ...data } : undefined);
+  };
 
-  if(!GEMINI_KEY) throw new Error("Gemini key is not provided");
+  try {
+    debugStep(1, "=== STARTING MULTI-PAGE BRIEF GENERATION ===");
+    debugStep(1.1, "Input validation", { 
+      totalPages: allPages?.length || 0,
+      pagesType: Array.isArray(allPages) ? 'array' : typeof allPages,
+      firstPagePreview: allPages?.[0]?.substring(0, 100) + '...' || 'N/A'
+    });
 
-  debugAI('Gemini', 'generateMultiPageBrief', { pageCount: allPages.length });
+    // Environment validation
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    debugStep(1.2, "Environment check", { 
+      hasGeminiKey: !!GEMINI_KEY,
+      keyLength: GEMINI_KEY?.length || 0,
+      nodeEnv: process.env.NODE_ENV || 'not set'
+    });
 
-  const expectedPageCount = allPages.length;
+    if (!GEMINI_KEY) {
+      debugStep(1.3, "❌ FATAL ERROR: Missing Gemini API key");
+      throw new Error("Gemini key is not provided");
+    }
 
-  // Enhanced language detection from multiple pages
-  const sampleText = allPages.slice(0, 3).join('\n').substring(0, 1000);
-  const detectedLanguage = detectLanguage(sampleText);
-  const languageAnalysis = analyzeLanguageContent(sampleText);
-  
-  debugLog(`=== LANGUAGE DETECTION ===`);
-  debugLog(`Detected language: ${detectedLanguage}`);
-  debugLog(`Language confidence: ${(languageAnalysis.confidence * 100).toFixed(1)}%`);
-  debugLog(`Language details:`, languageAnalysis.details);
-  debugLog(`========================`);
+    debugStep(2, "=== INITIALIZING AI PROCESSING ===");
+    debugAI('Gemini', 'generateMultiPageBrief', { pageCount: allPages.length });
 
-  // Fast path for small documents (avoid batching overhead entirely)
-  if (allPages.length <= 15) {
-    debugLog(`Using optimized single-call processing for ${allPages.length} pages`);
-    return generateSingleBatchBriefWithLanguageControl(allPages, 0, expectedPageCount, detectedLanguage);
-  } else {
-    // For larger documents, use parallel batch processing
-    debugLog(`Using batch processing for ${allPages.length} pages`);
-    return generateParallelBatchBriefWithLanguageControl(allPages, detectedLanguage);
+    const expectedPageCount = allPages.length;
+    debugStep(2.1, "Page count configuration", { expectedPageCount });
+
+    // Enhanced language detection from multiple pages
+    debugStep(3, "=== LANGUAGE DETECTION PHASE ===");
+    
+    debugStep(3.1, "Preparing sample text for analysis");
+    const samplePages = allPages.slice(0, 3);
+    debugStep(3.2, "Sample selection", { 
+      totalPages: allPages.length,
+      sampledPages: samplePages.length,
+      sampleSizes: samplePages.map(page => page?.length || 0)
+    });
+
+    const sampleText = samplePages.join('\n').substring(0, 1000);
+    debugStep(3.3, "Sample text prepared", { 
+      combinedLength: samplePages.join('\n').length,
+      trimmedLength: sampleText.length,
+      textPreview: sampleText.substring(0, 150) + '...'
+    });
+
+    debugStep(3.4, "Running language detection algorithms");
+    const detectedLanguage = detectLanguage(sampleText);
+    debugStep(3.5, "Basic language detection complete", { detectedLanguage });
+
+    const languageAnalysis = analyzeLanguageContent(sampleText);
+    debugStep(3.6, "Advanced language analysis complete", { 
+      confidence: languageAnalysis.confidence,
+      primaryLanguage: languageAnalysis.primaryLanguage,
+      hasDetails: !!languageAnalysis.details
+    });
+    
+    debugStep(3.7, "=== LANGUAGE DETECTION RESULTS ===");
+    debugLog(`Detected language: ${detectedLanguage}`);
+    debugLog(`Language confidence: ${(languageAnalysis.confidence * 100).toFixed(1)}%`);
+    debugLog(`Language details:`, languageAnalysis.details);
+    debugStep(3.8, "================================");
+
+    // Processing strategy selection
+    debugStep(4, "=== PROCESSING STRATEGY SELECTION ===");
+    
+    if (allPages.length <= 15) {
+      debugStep(4.1, "Strategy: OPTIMIZED SINGLE-CALL", { 
+        reason: "Small document (≤15 pages)",
+        pageCount: allPages.length,
+        estimatedProcessingTime: "Fast (~30-60 seconds)"
+      });
+      
+      debugStep(4.2, "Delegating to single-batch processor");
+      const result = await generateSingleBatchBriefWithLanguageControl(
+        allPages, 
+        0, 
+        expectedPageCount, 
+        detectedLanguage
+      );
+      
+      debugStep(4.3, "Single-batch processing completed", {
+        resultType: typeof result,
+        hasPages: !!result?.summaries,
+        pageCount: result?.summaries?.length || 0
+      });
+      
+      debugStep(5, "✅ BRIEF GENERATION SUCCESSFUL (Single-batch)");
+      return result;
+
+    } else {
+      debugStep(4.1, "Strategy: PARALLEL BATCH PROCESSING", { 
+        reason: "Large document (>15 pages)",
+        pageCount: allPages.length,
+        estimatedBatches: Math.ceil(allPages.length / 15),
+        estimatedProcessingTime: "Moderate (~2-5 minutes)"
+      });
+
+      debugStep(4.2, "Calculating batch distribution", {
+        totalPages: allPages.length,
+        batchSize: 15,
+        expectedBatches: Math.ceil(allPages.length / 15)
+      });
+      
+      debugStep(4.3, "Delegating to parallel-batch processor");
+      const result = await generateParallelBatchBriefWithLanguageControl(
+        allPages, 
+        detectedLanguage
+      );
+      
+      debugStep(4.4, "Parallel-batch processing completed", {
+        resultType: typeof result,
+        hasPages: !!result?.summaries,
+        pageCount: result?.summaries?.length || 0
+      });
+      
+      debugStep(5, "✅ BRIEF GENERATION SUCCESSFUL (Parallel-batch)");
+      return result;
+    }
+
+  } catch (error) {
+    debugStep("ERROR", "❌ BRIEF GENERATION FAILED", {
+      errorType: error.constructor.name,
+      errorMessage: error.message,
+      errorStack: error.stack?.split('\n').slice(0, 5).join('\n'),
+      timestamp: new Date().toISOString()
+    });
+    
+    debugLog(`=== ERROR DETAILS ===`);
+    debugLog(`Error occurred in: generateMultiPageBrief`);
+    debugLog(`Error type: ${error.constructor.name}`);
+    debugLog(`Error message: ${error.message}`);
+    debugLog(`Timestamp: ${new Date().toISOString()}`);
+    debugLog(`====================`);
+    
+    // Re-throw with enhanced context
+    throw new Error(`Brief generation failed: ${error.message}`);
   }
 }
 
