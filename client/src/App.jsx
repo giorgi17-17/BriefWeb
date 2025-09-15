@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { PostHogProvider } from "posthog-js/react";
 
 // Components
+// ---
 import LoginPage from "./pages/login/Login";
 import RegisterPage from "./pages/register/Register";
 import Header from "./components/Header/Header";
