@@ -50,6 +50,13 @@ const Register = () => {
     try {
       await signUp(email, password);
 
+      // Track signup with Meta Pixel
+      if (window.fbq) {
+        window.fbq("track", "CompleteRegistrationWithEmail", {
+          email: email,
+        });
+      }
+
       // Track successful email registration
       try {
         posthog.capture("registration_with_email", {
@@ -85,6 +92,13 @@ const Register = () => {
       }
 
       await signInWithGoogle();
+      // Track signup with Meta Pixel
+      if (window.fbq) {
+        window.fbq("track", "CompleteRegistrationWithGoogle", {
+          email: email,
+        });
+      }
+      
       // The redirect will be handled by Supabase OAuth flow
     } catch (error) {
       console.error(error);
