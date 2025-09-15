@@ -1,7 +1,7 @@
 // lib/posthog.js
 import { PostHog } from "posthog-node";
 
-const POSTHOG_KEY  = process.env.POSTHOG_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
+const POSTHOG_KEY  = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://eu.i.posthog.com";
 
 let ph = null;
