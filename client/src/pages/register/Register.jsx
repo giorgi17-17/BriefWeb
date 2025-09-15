@@ -52,11 +52,12 @@ const Register = () => {
 
       // Track signup with Meta Pixel
       if (window.fbq) {
-        window.fbq("track", "CompleteRegistrationWithEmail", {
+        window.fbq("track", "CompleteRegistration", {
           email: email,
         });
       }
 
+   
       // Track successful email registration
       try {
         posthog.capture("registration_with_email", {
@@ -94,7 +95,7 @@ const Register = () => {
       await signInWithGoogle();
       // Track signup with Meta Pixel
       if (window.fbq) {
-        window.fbq("track", "CompleteRegistrationWithGoogle", {
+        window.fbq("track", "CompleteRegistration", {
           email: email,
         });
       }
