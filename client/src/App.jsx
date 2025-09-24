@@ -41,17 +41,17 @@ import PropTypes from "prop-types";
 const posthogOptions = {
   api_host: import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com",
   capture_pageview: true, // Changed: Disable automatic pageview capture
-  capture_pageleave: false, // Changed: Disable page leave capture
+  capture_pageleave: true, // Changed: Disable page leave capture
   debug: import.meta.env.DEV,
   autocapture: true, // Changed: Disable autocapture to prevent tab switch triggers
   // LLM analytics specific options
-  capture_performance: false, // Changed: Disable performance capture
+  capture_performance: true, // Changed: Disable performance capture
   session_recording: {
     maskAllInputs: true,
     maskAllText: false,
   },
   // Add these options to prevent refresh on visibility change
-  capture_heatmaps: false,
+  capture_heatmaps: true,
   disable_session_recording: !import.meta.env.VITE_ENABLE_SESSION_RECORDING, // Only enable if explicitly set
   loaded: (posthog) => {
     if (import.meta.env.DEV) {
@@ -59,8 +59,8 @@ const posthogOptions = {
     }
 
     // Disable automatic page tracking that might cause refreshes
-    posthog.config.capture_pageview = false;
-    posthog.config.capture_pageleave = false;
+    posthog.config.capture_pageview = true;
+    posthog.config.capture_pageleave = true;
   },
 };
 
