@@ -59,8 +59,7 @@ const posthogOptions = {
     }
 
     // Disable automatic page tracking that might cause refreshes
-    posthog.config.capture_pageview = true;
-    posthog.config.capture_pageleave = true;
+    
   },
 };
 
