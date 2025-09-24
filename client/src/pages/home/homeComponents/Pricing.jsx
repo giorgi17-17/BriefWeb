@@ -22,7 +22,7 @@ export default function Pricing() {
       {
         id: "free",
         name: t("landing.pricing.free.title"),
-        price: "0",
+        price: "0 ₾",
         period: t("landing.pricing.free.period"),
         description: t("landing.pricing.free.subtitle"),
         features: [
@@ -40,7 +40,7 @@ export default function Pricing() {
       {
         id: "pro",
         name: t("landing.pricing.pro.title"),
-        price: "6.99",
+        price: "6.99 ₾",
         period: t("landing.pricing.pro.period"),
         description: t("landing.pricing.pro.subtitle"),
         features: [
@@ -111,6 +111,8 @@ export default function Pricing() {
 }
 
 function PlanCard({ plan, isDisabled, isLoggedIn, onCta }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`theme-card rounded-xl p-8 theme-border flex flex-col h-full ${plan.popular ? "relative z-10 shadow-xl border-blue-500" : ""
@@ -136,11 +138,11 @@ function PlanCard({ plan, isDisabled, isLoggedIn, onCta }) {
 
         <div className="flex items-baseline mb-2">
           <span className="text-3xl font-bold theme-text-primary" itemProp="price">
-            {plan.price === "0" ? "Free" : plan.price}
+            {plan.price === "0" ? plan.price : plan.price}
           </span>
           <meta itemProp="priceCurrency" content={plan.priceCurrency} />
           <meta itemProp="availability" content={plan.availability} />
-          {plan.price !== "0" && (
+          {plan.price   && (
             <span className="text-sm theme-text-tertiary ml-1">{plan.period}</span>
           )}
         </div>
