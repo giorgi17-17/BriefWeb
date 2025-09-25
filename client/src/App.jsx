@@ -52,7 +52,8 @@ const posthogOptions = {
   },
   // Add these options to prevent refresh on visibility change
   capture_heatmaps: true,
-  disable_session_recording: !import.meta.env.VITE_ENABLE_SESSION_RECORDING, // Only enable if explicitly set
+  // Only enable if explicitly set
+  // disable_session_recording: !import.meta.env.VITE_ENABLE_SESSION_RECORDING,
   loaded: (posthog) => {
     if (import.meta.env.DEV) {
       console.log("PostHog initialized for LLM analytics", posthog);
