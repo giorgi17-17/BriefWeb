@@ -55,7 +55,9 @@ const QuizNavigation = ({
           {t("quiz.navigation.counter", {
             current: currentQuestionIndex + 1,
             total: totalQuestions,
-            defaultValue: `Question ${currentQuestionIndex + 1} of ${totalQuestions}`,
+            defaultValue: `Question ${
+              currentQuestionIndex + 1
+            } of ${totalQuestions}`,
           })}
         </span>
 

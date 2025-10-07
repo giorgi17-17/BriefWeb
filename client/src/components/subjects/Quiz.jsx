@@ -42,7 +42,7 @@ const Quiz = ({
   calculateScore,
   loadHistoryQuiz,
   toggleHistory,
-  exitHistoryQuiz
+  exitHistoryQuiz,
 }) => {
   const { t } = useTranslation();
   const { isPremium } = useUserPlan();
@@ -63,7 +63,14 @@ const Quiz = ({
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   // Check if user has answered the current question
-  const hasAnsweredCurrent = currentQuestion && userAnswers[currentQuestion.id];
+  // Allow submission without answering open-ended or case study questions
+  const hasAnsweredCurrent =
+    currentQuestion &&
+    (userAnswers[currentQuestion.id] ||
+      currentQuestion.question_type === "open_ended" ||
+      currentQuestion.question_type === "case_study" ||
+      currentQuestion.question_type === "case_study_moderate" ||
+      currentQuestion.question_type === "case_study_advanced");
 
   // Check if this is the last question
   const isLastQuestion = currentQuestionIndex === quizQuestions.length - 1;
@@ -154,7 +161,9 @@ const Quiz = ({
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#15151b] p-4 sm:p-6">
                   <QuizResults
                     score={score}
-                    onResetQuiz={selectedHistoryQuiz ? exitHistoryQuiz : resetQuiz}
+                    onResetQuiz={
+                      selectedHistoryQuiz ? exitHistoryQuiz : resetQuiz
+                    }
                     showResults={showResults}
                     isHistorical={!!selectedHistoryQuiz}
                   />
@@ -193,7 +202,9 @@ const Quiz = ({
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#15151b] p-4 sm:p-6">
                   <QuizQuestion
                     question={currentQuestion}
-                    userAnswer={currentQuestion && userAnswers[currentQuestion.id]}
+                    userAnswer={
+                      currentQuestion && userAnswers[currentQuestion.id]
+                    }
                     onSelectAnswer={handleSelectAnswer}
                     onOpenEndedAnswer={handleOpenEndedAnswer}
                     showResults={showResults}
@@ -230,8 +241,6 @@ const Quiz = ({
       </div>
     </div>
   );
-
-
 };
 
 Quiz.propTypes = {

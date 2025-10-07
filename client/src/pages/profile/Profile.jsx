@@ -6,14 +6,7 @@ import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "../../utils/languageConfig";
 import { supabase } from "../../utils/supabaseClient";
 import SEO from "../../components/SEO/SEO";
-import {
-  FiUser,
-  FiMail,
-  FiLock,
-  FiTrash2,
-  FiMoon,
-  FiSun,
-} from "react-icons/fi";
+import { FiUser, FiMail, FiMoon, FiSun } from "react-icons/fi";
 import { useUserPlan } from "../../contexts/UserPlanContext";
 
 const Profile = () => {
@@ -25,19 +18,8 @@ const Profile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false);
-  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
 
   const { daysLeftToRenew, nextBillingAt, isPremium } = useUserPlan();
-
-  // Form states
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  const [passwordFormErrors, setPasswordFormErrors] = useState({});
 
   const handleLogout = async () => {
     try {
@@ -55,162 +37,9 @@ const Profile = () => {
     setSuccess(null);
   };
 
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordForm({
-      ...passwordForm,
-      [name]: value,
-    });
-  };
-
-  const validatePasswordForm = () => {
-    const errors = {};
-
-    if (!passwordForm.currentPassword) {
-      errors.currentPassword = t("profile.errors.currentPasswordRequired");
-    }
-
-    if (!passwordForm.newPassword) {
-      errors.newPassword = t("profile.errors.newPasswordRequired");
-    } else if (passwordForm.newPassword.length < 6) {
-      errors.newPassword = t("profile.errors.passwordTooShort");
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      errors.confirmPassword = t("profile.errors.passwordsDoNotMatch");
-    }
-
-    setPasswordFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-
-    if (!validatePasswordForm()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      // First verify the current password by trying to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: passwordForm.currentPassword,
-      });
-
-      if (signInError) {
-        setError(t("profile.errors.incorrectCurrentPassword"));
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Change password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: passwordForm.newPassword,
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Reset form
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
-      setSuccess(t("profile.success.passwordChanged"));
-    } catch (error) {
-      console.error("Error changing password:", error);
-      setError(error.message || t("profile.errors.passwordChangeFailed"));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleLanguageChange = (languageCode) => {
     i18n.changeLanguage(languageCode);
     localStorage.setItem("language", languageCode);
-  };
-
-  const handleDeleteAccount = async () => {
-    // Check if email confirmation matches
-    if (deleteConfirmEmail !== user.email) {
-      setError(t("profile.errors.emailMismatch"));
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      // Delete user's data from Supabase tables first
-      // This is a simplified version - in a real app you would need to delete from all related tables
-
-      // Delete from user_plans (if exists)
-      const { error: planDeleteError } = await supabase
-        .from("user_plans")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (planDeleteError) {
-        console.error("Error deleting user plan:", planDeleteError);
-      }
-
-      // Delete from subjects (if exists)
-      const { error: subjectsDeleteError } = await supabase
-        .from("subjects")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (subjectsDeleteError) {
-        console.error("Error deleting user subjects:", subjectsDeleteError);
-      }
-
-      // Delete from users table
-      const { error: userDeleteError } = await supabase
-        .from("users")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (userDeleteError) {
-        console.error("Error deleting user record:", userDeleteError);
-      }
-
-      // Finally delete the user's auth record
-      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
-        user.id
-      );
-
-      if (authDeleteError) {
-        // If we can't delete through admin API (which requires special permissions),
-        // use the regular sign out method and inform the user to contact support
-        await logout();
-        navigate("/login", {
-          state: {
-            message: t("profile.accountDeletedPartially"),
-          },
-        });
-        return;
-      }
-
-      // If all successful, sign out and redirect
-      await logout();
-      navigate("/login", {
-        state: {
-          message: t("profile.accountDeleted"),
-        },
-      });
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      setError(error.message || t("profile.errors.deleteFailed"));
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -262,30 +91,22 @@ const Profile = () => {
             <nav className="flex overflow-x-auto">
               <button
                 onClick={() => handleTabChange("profile")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "profile"
-                  ? "theme-text-primary border-b-2 border-blue-500"
-                  : "theme-text-secondary hover:theme-text-primary"
-                  }`}
+                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === "profile"
+                    ? "theme-text-primary border-b-2 border-blue-500"
+                    : "theme-text-secondary hover:theme-text-primary"
+                }`}
               >
                 <FiUser className="h-4 w-4" />
                 {t("profile.tabs.profile")}
               </button>
               <button
-                onClick={() => handleTabChange("security")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "security"
-                  ? "theme-text-primary border-b-2 border-blue-500"
-                  : "theme-text-secondary hover:theme-text-primary"
-                  }`}
-              >
-                <FiLock className="h-4 w-4" />
-                {t("profile.tabs.security")}
-              </button>
-              <button
                 onClick={() => handleTabChange("preferences")}
-                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${activeTab === "preferences"
-                  ? "theme-text-primary border-b-2 border-blue-500"
-                  : "theme-text-secondary hover:theme-text-primary"
-                  }`}
+                className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === "preferences"
+                    ? "theme-text-primary border-b-2 border-blue-500"
+                    : "theme-text-secondary hover:theme-text-primary"
+                }`}
               >
                 <FiMoon className="h-4 w-4" />
                 {t("profile.tabs.preferences")}
@@ -328,7 +149,6 @@ const Profile = () => {
                       </div>
                     </div>
 
-
                     <div>
                       <label className="block text-sm font-medium theme-text-secondary mb-1">
                         {t("profile.fields.email")}
@@ -351,7 +171,9 @@ const Profile = () => {
                         <div className="flex items-center">
                           {/* <FiCreditCard className="mr-2 theme-text-secondary" /> */}
                           <span className="text-sm theme-text-primary">
-                            {isPremium ? (t("profile.plan.premium") || "Premium") : (t("profile.plan.free") || "Free")}
+                            {isPremium
+                              ? t("profile.plan.premium") || "Premium"
+                              : t("profile.plan.free") || "Free"}
                           </span>
                         </div>
 
@@ -361,13 +183,22 @@ const Profile = () => {
                             {/* <FiCalendar className="mr-2" /> */}
                             <span>
                               {daysLeftToRenew == null
-                                ? (t("profile.plan.billingUnknown") || "Billing info unavailable")
+                                ? t("profile.plan.billingUnknown") ||
+                                  "Billing info unavailable"
                                 : daysLeftToRenew === 0
-                                  ? (t("profile.plan.renewsToday") || "Renews today")
-                                  : (t("profile.plan.renewsInDays", { count: daysLeftToRenew }) || `Renews in ${daysLeftToRenew} day${daysLeftToRenew === 1 ? "" : "s"}`)}
+                                ? t("profile.plan.renewsToday") ||
+                                  "Renews today"
+                                : t("profile.plan.renewsInDays", {
+                                    count: daysLeftToRenew,
+                                  }) ||
+                                  `Renews in ${daysLeftToRenew} day${
+                                    daysLeftToRenew === 1 ? "" : "s"
+                                  }`}
                               {nextBillingAt && (
                                 <span className="ml-2 opacity-80">
-                                  ({new Date(nextBillingAt).toLocaleDateString()})
+                                  (
+                                  {new Date(nextBillingAt).toLocaleDateString()}
+                                  )
                                 </span>
                               )}
                             </span>
@@ -392,175 +223,6 @@ const Profile = () => {
               </div>
             )}
 
-            {/* Security Tab */}
-            {activeTab === "security" && (
-              <div className="space-y-8">
-                {/* Change Password */}
-                <div>
-                  <h2 className="text-xl font-semibold theme-text-primary mb-4">
-                    {t("profile.changePassword")}
-                  </h2>
-
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label
-                        htmlFor="currentPassword"
-                        className="block text-sm font-medium theme-text-secondary mb-1"
-                      >
-                        {t("profile.fields.currentPassword")}
-                      </label>
-                      <input
-                        type="password"
-                        id="currentPassword"
-                        name="currentPassword"
-                        value={passwordForm.currentPassword}
-                        onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.currentPassword
-                          ? "border-red-400"
-                          : ""
-                          }`}
-                      />
-                      {passwordFormErrors.currentPassword && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {passwordFormErrors.currentPassword}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="newPassword"
-                        className="block text-sm font-medium theme-text-secondary mb-1"
-                      >
-                        {t("profile.fields.newPassword")}
-                      </label>
-                      <input
-                        type="password"
-                        id="newPassword"
-                        name="newPassword"
-                        value={passwordForm.newPassword}
-                        onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.newPassword ? "border-red-400" : ""
-                          }`}
-                      />
-                      {passwordFormErrors.newPassword && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {passwordFormErrors.newPassword}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="confirmPassword"
-                        className="block text-sm font-medium theme-text-secondary mb-1"
-                      >
-                        {t("profile.fields.confirmPassword")}
-                      </label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        value={passwordForm.confirmPassword}
-                        onChange={handlePasswordChange}
-                        className={`theme-input w-full p-2 rounded ${passwordFormErrors.confirmPassword
-                          ? "border-red-400"
-                          : ""
-                          }`}
-                      />
-                      {passwordFormErrors.confirmPassword && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {passwordFormErrors.confirmPassword}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium disabled:opacity-50"
-                      >
-                        {isSubmitting
-                          ? t("common.loading")
-                          : t("profile.savePassword")}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Delete Account */}
-                <div>
-                  <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">
-                    {t("profile.deleteAccount")}
-                  </h2>
-
-                  <p className="theme-text-secondary mb-4">
-                    {t("profile.deleteWarning")}
-                  </p>
-
-                  {!confirmDeleteDialog ? (
-                    <button
-                      onClick={() => setConfirmDeleteDialog(true)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium flex items-center gap-2"
-                    >
-                      <FiTrash2 className="h-4 w-4" />
-                      {t("profile.deleteAccountButton")}
-                    </button>
-                  ) : (
-                    <div className="border theme-border p-4 rounded space-y-4">
-                      <p className="text-sm theme-text-primary font-medium">
-                        {t("profile.confirmDeletePrompt")}
-                      </p>
-
-                      <div>
-                        <label
-                          htmlFor="deleteConfirmEmail"
-                          className="block text-sm font-medium theme-text-secondary mb-1"
-                        >
-                          {t("profile.typeEmailToConfirm")}
-                        </label>
-                        <input
-                          type="email"
-                          id="deleteConfirmEmail"
-                          value={deleteConfirmEmail}
-                          onChange={(e) =>
-                            setDeleteConfirmEmail(e.target.value)
-                          }
-                          placeholder={user.email}
-                          className="theme-input w-full p-2 rounded"
-                        />
-                      </div>
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => {
-                            setConfirmDeleteDialog(false);
-                            setDeleteConfirmEmail("");
-                          }}
-                          className="px-4 py-2 border theme-border rounded font-medium theme-text-primary"
-                        >
-                          {t("common.cancel")}
-                        </button>
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={
-                            isSubmitting || deleteConfirmEmail !== user.email
-                          }
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium disabled:opacity-50 flex items-center gap-2"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                          {isSubmitting
-                            ? t("common.loading")
-                            : t("common.delete")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Preferences Tab */}
             {activeTab === "preferences" && (
               <div className="space-y-8">
@@ -573,8 +235,9 @@ const Profile = () => {
                   <button
                     onClick={toggleTheme}
                     className="inline-flex items-center justify-between p-4 theme-card rounded border theme-border hover:border-blue-500 transition-colors cursor-pointer"
-                    aria-label={`Switch to ${theme === "light" ? "dark" : "light"
-                      } mode`}
+                    aria-label={`Switch to ${
+                      theme === "light" ? "dark" : "light"
+                    } mode`}
                   >
                     <div className="flex items-center gap-3 mr-4">
                       <div>
@@ -604,10 +267,11 @@ const Profile = () => {
                       <button
                         key={language.code}
                         onClick={() => handleLanguageChange(language.code)}
-                        className={`flex items-center gap-3 p-4 rounded border ${i18n.language === language.code
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : "theme-border hover:border-blue-500"
-                          }`}
+                        className={`flex items-center gap-3 p-4 rounded border ${
+                          i18n.language === language.code
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                            : "theme-border hover:border-blue-500"
+                        }`}
                       >
                         <span className="text-2xl">{language.flag}</span>
                         <div className="text-left">

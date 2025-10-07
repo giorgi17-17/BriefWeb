@@ -17,7 +17,7 @@ export function useQuiz(lectureId, user) {
   const [quizOptions, setQuizOptions] = useState({
     includeMultipleChoice: true,
     includeOpenEnded: true,
-    includeCaseStudies: true,
+    includeCaseStudies: false,
   });
   // Quiz history state
   const [quizHistory, setQuizHistory] = useState([]);

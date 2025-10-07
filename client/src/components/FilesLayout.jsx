@@ -1,7 +1,6 @@
-import { useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { FiUpload, FiEye, FiDownload, FiTrash2 } from "react-icons/fi";
+import { FiUpload, FiEye, FiDownload } from "react-icons/fi";
 import {
   BsFiletypePdf,
   BsFiletypeDocx,
@@ -77,11 +76,8 @@ const FilesLayout = ({
   files = [],
   isUploading = false,
   handleFileUpload = () => {},
-  handleDeleteFile = () => {},
 }) => {
   const { t } = useTranslation();
-  const [deleteConfirmation, setDeleteConfirmation] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Handle download with proper URL
   const handleDownload = async (file) => {
@@ -118,120 +114,12 @@ const FilesLayout = ({
     }
   };
 
-  // Show delete confirmation modal
-  const confirmDelete = (file) => {
-    setDeleteConfirmation(file);
-  };
-
-  // Cancel delete
-  const cancelDelete = () => {
-    setDeleteConfirmation(null);
-  };
-
-  // Process file deletion
-  const processDelete = async () => {
-    if (!deleteConfirmation || !deleteConfirmation.id) return;
-
-    try {
-      setIsDeleting(true);
-      console.log("Deleting file:", deleteConfirmation);
-
-      if (deleteConfirmation.path) {
-        console.log(
-          "Attempting to remove file from storage:",
-          deleteConfirmation.path
-        );
-        // First try to remove from storage
-        const { data, error: storageError } = await supabase.storage
-          .from("lecture-files")
-          .remove([deleteConfirmation.path]);
-
-        if (storageError) {
-          console.error("Storage delete error:", storageError);
-          // We'll continue even if storage delete fails, as the file might not exist
-        } else {
-          console.log("Storage delete result:", data);
-        }
-      }
-
-      // Then delete the database record
-      await handleDeleteFile(deleteConfirmation.id);
-      setDeleteConfirmation(null);
-    } catch (error) {
-      console.error("Error deleting file:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmation && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="theme-bg-secondary theme-border rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4 theme-text-primary">
-              {t("lectures.lectureDetails.files.deleteConfirmation.title")}
-            </h3>
-            <p className="theme-text-secondary mb-6">
-              {t("lectures.lectureDetails.files.deleteConfirmation.message", {
-                fileName: deleteConfirmation.name,
-              })}
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 theme-text-secondary hover:text-blue-500 transition-colors"
-                disabled={isDeleting}
-              >
-                {t("lectures.lectureDetails.files.deleteConfirmation.cancel")}
-              </button>
-              <button
-                onClick={processDelete}
-                className={`px-4 py-2 ${
-                  isDeleting ? "bg-red-400" : "bg-red-500/80 hover:bg-red-500"
-                } text-white rounded transition-colors flex items-center`}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {t(
-                      "lectures.lectureDetails.files.deleteConfirmation.deleting"
-                    )}
-                  </>
-                ) : (
-                  t("lectures.lectureDetails.files.deleteConfirmation.confirm")
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="theme-bg-primary p-6 rounded-xl shadow-sm theme-border">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-            <label 
+            <label
               className="relative cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-sm"
               onClick={(e) => {
                 // Ensure mobile tap events work properly
@@ -316,16 +204,6 @@ const FilesLayout = ({
                   >
                     <FiDownload size={20} />
                   </button>
-                  <button
-                    onClick={() => confirmDelete(file)}
-                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                    title={t("lectures.lectureDetails.files.delete")}
-                    aria-label={`${t("lectures.lectureDetails.files.delete")} ${
-                      file.name
-                    }`}
-                  >
-                    <FiTrash2 size={20} />
-                  </button>
                 </div>
               </div>
             ))}
@@ -356,7 +234,6 @@ FilesLayout.propTypes = {
   ).isRequired,
   isUploading: PropTypes.bool.isRequired,
   handleFileUpload: PropTypes.func.isRequired,
-  handleDeleteFile: PropTypes.func.isRequired,
 };
 
 export default FilesLayout;

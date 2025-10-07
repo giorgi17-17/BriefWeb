@@ -60,12 +60,15 @@ const posthogOptions = {
     }
 
     // Disable automatic page tracking that might cause refreshes
-    
   },
 };
 
 // Simple loading component
-function LoadingScreen({ message = "Loading...", showRetry = false, onRetry = null }) {
+function LoadingScreen({
+  message = "Loading...",
+  showRetry = false,
+  onRetry = null,
+}) {
   return (
     <div className="min-h-screen flex items-center justify-center theme-bg-primary">
       <div className="flex flex-col items-center space-y-4">
@@ -161,15 +164,17 @@ function usePreventRefreshOnTabSwitch() {
       if (wasVisible !== isVisible) {
         // Optionally log for debugging
         if (import.meta.env.DEV) {
-          console.log('Tab visibility changed:', isVisible ? 'visible' : 'hidden');
+          console.log(
+            "Tab visibility changed:",
+            isVisible ? "visible" : "hidden"
+          );
         }
       }
     };
 
-    const handleBeforeUnload = (event) => {
+    const handleBeforeUnload = () => {
       // Only show confirmation for actual navigation, not tab switches
       if (document.hidden) {
-        event.preventDefault();
         return;
       }
     };
@@ -177,29 +182,31 @@ function usePreventRefreshOnTabSwitch() {
     const handleFocus = () => {
       // Prevent any refresh logic on window focus
       if (import.meta.env.DEV) {
-        console.log('Window focused - preventing refresh');
+        console.log("Window focused - preventing refresh");
       }
     };
 
     const handleBlur = () => {
       // Prevent any refresh logic on window blur
       if (import.meta.env.DEV) {
-        console.log('Window blurred - preventing refresh');
+        console.log("Window blurred - preventing refresh");
       }
     };
 
     // Add event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: false });
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange, {
+      passive: false,
+    });
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
 
     // Cleanup
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
     };
   }, []);
 }
@@ -210,11 +217,11 @@ function AppRoutes() {
   useCleanUrl();
   usePreventRefreshOnTabSwitch(); // Add this hook
 
-  const isAuthRoute = ['/login', '/register', '/auth/callback'].some(route =>
+  const isAuthRoute = ["/login", "/register", "/auth/callback"].some((route) =>
     location.pathname.startsWith(route)
   );
 
-  const isPaymentRoute = ['/payment/success', '/payment/error'].some(route =>
+  const isPaymentRoute = ["/payment/success", "/payment/error"].some((route) =>
     location.pathname.startsWith(route)
   );
 
@@ -235,41 +242,59 @@ function AppRoutes() {
           <Route path="/payment/error" element={<PaymentError />} />
 
           {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/lectures" element={
-            <ProtectedRoute>
-              <LecturesPage />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/lectures"
+            element={
+              <ProtectedRoute>
+                <LecturesPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/subjects/:name" element={
-            <ProtectedRoute>
-              <LecturesPage />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/subjects/:name"
+            element={
+              <ProtectedRoute>
+                <LecturesPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/subjects/:name/lectures/:lectureId" element={
-            <ProtectedRoute>
-              <LectureDetailPage />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/subjects/:name/lectures/:lectureId"
+            element={
+              <ProtectedRoute>
+                <LectureDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/payments" element={
-            <ProtectedRoute>
-              <PaymentsPage />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/payments"
+            element={
+              <ProtectedRoute>
+                <PaymentsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* 404 Route */}
           <Route path="*" element={<Error />} />
@@ -300,8 +325,12 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Configuration Error</h1>
-          <p className="text-red-500">Analytics configuration is missing. Please contact support.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Configuration Error
+          </h1>
+          <p className="text-red-500">
+            Analytics configuration is missing. Please contact support.
+          </p>
         </div>
       </div>
     );
@@ -311,10 +340,7 @@ function App() {
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
-          <PostHogProvider
-            apiKey={posthogKey}
-            options={posthogOptions}
-          >
+          <PostHogProvider apiKey={posthogKey} options={posthogOptions}>
             <UserPlanProvider>
               <BrowserRouter>
                 <div className="min-h-screen w-full theme-bg-primary">

@@ -1,8 +1,6 @@
 import PropTypes from "prop-types";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { evaluateAnswer } from "../../utils/api";
-import { Check, AlertCircle, Loader2, Star, LightbulbIcon } from "lucide-react";
+import { Check, AlertCircle, Star, LightbulbIcon } from "lucide-react";
 
 const CaseStudyQuestion = ({
   question,
@@ -12,12 +10,9 @@ const CaseStudyQuestion = ({
   aiEvaluation,
 }) => {
   const { t } = useTranslation();
-  const [manualAiEvaluation, setManualAiEvaluation] = useState(null);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evaluationError, setEvaluationError] = useState(null);
 
-  // Use either the provided evaluation from the quiz submission or the manual one
-  const evaluation = aiEvaluation || manualAiEvaluation;
+  // Use the provided evaluation from the quiz submission
+  const evaluation = aiEvaluation;
 
   // Get model answer from the first option (which should be the sample answer)
   const getModelAnswer = () => {
@@ -36,38 +31,6 @@ const CaseStudyQuestion = ({
     }
 
     return ""; // Fallback to empty string if no model answer is found
-  };
-
-  const handleEvaluateAnswer = async () => {
-    if (!userAnswer || userAnswer.trim() === "") {
-      setEvaluationError(
-        "Please provide an answer before requesting feedback."
-      );
-      return;
-    }
-
-    setIsEvaluating(true);
-    setEvaluationError(null);
-
-    try {
-      const modelAnswer = getModelAnswer();
-
-      if (!question.question_text) {
-        throw new Error("Question text is missing");
-      }
-
-      const evaluation = await evaluateAnswer(
-        question.question_text,
-        modelAnswer,
-        userAnswer
-      );
-      setManualAiEvaluation(evaluation);
-    } catch (error) {
-      setEvaluationError("Failed to evaluate your answer. Please try again.");
-      console.error("Error evaluating answer:", error);
-    } finally {
-      setIsEvaluating(false);
-    }
   };
 
   // Get model answer for the UI display
@@ -156,32 +119,6 @@ const CaseStudyQuestion = ({
           disabled={showResults}
         />
       </div>
-
-      {!showResults && !evaluation && (
-        <div className="flex items-center justify-end space-x-2">
-          {evaluationError && (
-            <p className="text-red-500 text-sm mr-auto">{evaluationError}</p>
-          )}
-          <button
-            className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
-              isEvaluating
-                ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-            onClick={handleEvaluateAnswer}
-            disabled={isEvaluating || !userAnswer}
-          >
-            {isEvaluating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>{t("quiz.loading.evaluation")}</span>
-              </>
-            ) : (
-              <span>{t("quiz.questions.feedback")}</span>
-            )}
-          </button>
-        </div>
-      )}
 
       {evaluation && (
         <div
