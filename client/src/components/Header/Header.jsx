@@ -8,6 +8,7 @@ import PlanStatusBadge from "../PlanStatusBadge";
 import { usePostHog } from "posthog-js/react";
 import { useTranslation } from "react-i18next";
 import { useUserPlan } from "../../contexts/UserPlanContext";
+import { DISCOUNT_CONFIG } from "../../config/pricingConfig";
 
 function Header() {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ function Header() {
       // Optional: console.debug("Tracking event: try_pro_clicked from header");
     } catch (error) {
       // Optional: console.error("PostHog event error:", error);
+      console.log(error);
     }
 
     // Navigate to payments page
@@ -62,6 +64,7 @@ function Header() {
       // Optional: console.debug("Tracking event: profile_clicked from header");
     } catch (error) {
       // Optional: console.error("PostHog event error:", error);
+      console.log(error);
     }
 
     // Navigate to profile page
@@ -130,14 +133,23 @@ function Header() {
               <div className="flex items-center space-x-4">
                 {/* Upgrade to premium button for free users */}
                 {isFree && (
-                  <button
-                    type="button"
-                    onClick={tryPro}
-                    className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:from-blue-700 hover:to-blue-600"
-                  >
-                    <Crown size={14} />
-                    <span>Try Premium</span>
-                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={tryPro}
+                      className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:from-blue-700 hover:to-blue-600 "
+                    >
+                      <span>Try Premium</span>
+                      <Crown size={14} />
+                    </button>
+                    {/* Discount badge */}
+                    {DISCOUNT_CONFIG.enabled && (
+                      <div className="absolute -bottom-4 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-300 text-black text-xs font-bold px-1.5 py-0.5 rounded-full shadow-lg border-2 border-yellow-200 transform ">
+                        <span className="relative z-10">{DISCOUNT_CONFIG.percentage}% OFF</span>
+                        {/* <div className="absolute inset-0 bg-yellow-300 rounded-full animate-ping opacity-20"></div> */}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <button
@@ -182,14 +194,22 @@ function Header() {
             <div className="flex items-center space-x-3">
               {/* Upgrade button in mobile header for logged-in free users */}
               {user && isFree && (
-                <button
-                  type="button"
-                  onClick={tryPro}
-                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-2 py-1 text-xs font-medium text-white"
-                >
-                  <Crown size={12} />
-                  <span>Try Premium</span>
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={tryPro}
+                    className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-2 py-1 text-xs font-medium text-white"
+                  >
+                    <Crown size={12} />
+                    <span>Try Premium</span>
+                  </button>
+                  {/* Discount badge */}
+                  {DISCOUNT_CONFIG.enabled && (
+                    <div className="absolute -bottom-4 -right-1 bg-gradient-to-r from-yellow-400 to-yellow-300 text-black text-xs font-bold px-1 py-0.5 rounded-full text-[10px] shadow-md border border-yellow-200 ">
+                      {DISCOUNT_CONFIG.percentage}%
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Try Pro button in mobile header for non-logged-in users */}

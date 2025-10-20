@@ -169,6 +169,12 @@
       "period": "/month",
       "popularBadge": "Popular",
       "guarantee": "30-day money-back guarantee for all paid plans",
+      "discount": {
+        "badge": "{{percentage}}% OFF",
+        "studentCard": "Pay with a Bank of Georgia student card and get a 50% discount",
+        "originalPrice": "Regular price",
+        "discountedPrice": "Student price"
+      },
       "free": {
         "title": "Free",
         "subtitle": "Great place to get started",
@@ -179,7 +185,7 @@
           "feature2": "5 lectures per subject",
           "feature3": "Generate up to 20 flashcards",
           "feature4": "Basic note summarization",
-          "feature5": "PDF file support up to 5MB"
+          "feature5": "File support up to 5MB"
         },
         "cta": "Get Started For Free"
       },
@@ -194,7 +200,7 @@
           "feature2": "Unlimited lectures",
           "feature3": "Generate unlimited flashcards",
           "feature4": "Advanced AI-powered summaries",
-          "feature5": "PDF file support up to 50MB"
+          "feature5": "File support up to 50MB"
         },
         "cta": "Try Premium"
       }

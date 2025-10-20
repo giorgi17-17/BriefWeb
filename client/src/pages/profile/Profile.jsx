@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "../../utils/languageConfig";
-import { supabase } from "../../utils/supabaseClient";
 import SEO from "../../components/SEO/SEO";
 import { FiUser, FiMail, FiMoon, FiSun } from "react-icons/fi";
 import { useUserPlan } from "../../contexts/UserPlanContext";
@@ -15,7 +14,6 @@ const Profile = () => {
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState("profile");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
