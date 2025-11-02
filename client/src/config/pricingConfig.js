@@ -7,7 +7,7 @@
 
 export const DISCOUNT_CONFIG = {
   // Main discount toggle - set to true to enable discounts
-  enabled: true,
+  enabled: false,
   
   // Discount percentage (e.g., 50 = 50% off)
   percentage: 50,
