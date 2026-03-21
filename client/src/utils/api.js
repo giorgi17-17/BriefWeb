@@ -5,7 +5,7 @@ import { BACKEND_URL } from "../helpers/helpers";
 const API_URL =
   BACKEND_URL ||
   (import.meta.env.MODE === "production"
-    ? "https://briefweb.onrender.com"
+    ? "https://briefly-uhc9.onrender.com"
     : "http://localhost:5000");
 
 // Create a function to handle path construction consistently
